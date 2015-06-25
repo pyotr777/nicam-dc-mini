@@ -10,7 +10,7 @@ include $(TOPDIR)/sysdep/Makedef.$(NICAM_SYS)
 include $(TOPDIR)/src/Mkinclude
 
 include $(TESTDIR)/test.conf
-RUNDIR := $(shell sh $(TESTDIR)/util/dirname.sh $(glevel) $(rlevel) $(nmpi) $(zlayer))
+RUNDIR := $(shell $(TESTDIR)/util/dirname.sh $(glevel) $(rlevel) $(nmpi) $(zlayer))
 testcase = nhm_driver
 
 all: build
@@ -37,8 +37,8 @@ checkconfig:
 	@echo
 
 jobshell: makedir checkconfig
-	sh $(TOPDIR)/sysdep/Mkjobshell.$(NICAM_SYS).sh $(glevel) $(rlevel) $(nmpi) $(zlayer) $(vgrid) ../${TOPDIR} ${testcase} ${testcase}.cnf
-	sh Mkconf.$(testcase).sh                       $(glevel) $(rlevel) $(nmpi) $(zlayer) $(vgrid) ../${TOPDIR} ${testcase} $(LSMAX) $(DTL) $(DIFCF) $(NHIST)
+	$(TOPDIR)/sysdep/Mkjobshell.$(NICAM_SYS).sh $(glevel) $(rlevel) $(nmpi) $(zlayer) $(vgrid) ../${TOPDIR} ${testcase} ${testcase}.cnf
+	./Mkconf.$(testcase).sh                       $(glevel) $(rlevel) $(nmpi) $(zlayer) $(vgrid) ../${TOPDIR} ${testcase} $(LSMAX) $(DTL) $(DIFCF) $(NHIST)
 
 run: jobshell
 	cd $(RUNDIR); $(JOBSUB) run.sh
