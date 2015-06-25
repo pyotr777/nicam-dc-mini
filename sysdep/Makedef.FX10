@@ -2,10 +2,15 @@
 # ------ FOR FX10 -----
 #
 
+$(warning THREADS=$(THREADS))
+ifndef THREADS
+    THREADS = 16
+endif
+
 ##### for computation
 
 FFLAGS_FAST  = -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 \
-               -Kparallel_iteration=16,instance=16,dynamic_iteration          \
+               -Kparallel_iteration=$(THREADS),instance=$(THREADS),dynamic_iteration          \
                -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp                        \
                -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd
 
