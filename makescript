@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# Script for testing compiler options.
+# Inside VM frtpx fails with only one file: nhm/dynamics/mod_numfilter.f90
+ 
+
+. ~/.bashrc
+export PATH="/opt/FJSVfxlang/1.2.1/bin:$PATH"
+export NICAM_SYS=FX10vm
+cd /nicam/src
+make -f Makefile-test

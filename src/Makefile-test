@@ -1,0 +1,3 @@
+all:
+	$(warning OPTS=$(MAKE_OPTS))
+	mpifrtpx $(MAKE_OPTS) -I../src/include -o mod_numfilter.o -c nhm/dynamics/mod_numfilter.f90
