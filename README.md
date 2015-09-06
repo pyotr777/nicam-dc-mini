@@ -2,6 +2,7 @@ nicam-dc-mini
 =============
 
 * version: 1.0.0 (based on NICAM-DC_20130823.tgz version)
+* branch tau-container for instrumenting nicam-dc with TAU in peter/tau image container
 * date: 2014/07/07
 * contact: miniapp@riken.jp
 
