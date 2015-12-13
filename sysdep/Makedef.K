@@ -22,14 +22,22 @@ PERF_MONIT = -Ntl_notrt -U_FIPP_ -U_FAPP_
 # fapp
 #PERF_MONIT = -Ntl_trt -U_FIPP_ -D_FAPP_
 
+ifdef TAU_INSTR
+$(info TAU=$(TAU))
+$(info TAU_MAKEFILE=$(TAU_MAKEFILE))
+CC = tau_cc.sh
+CFALGS = 
+FC = tau_f90.sh
+FFLAGS = "-tau_options=-optPreProcess" $(FFLAGS_FAST)
+else
 FC     = mpifrtpx
 FFLAGS = $(FFLAGS_FAST) $(PERF_MONIT) $(RDMA)
 #FFLAGS = $(FFLAGS_DEBUG) $(PERF_MONIT) $(RDMA)
-
-MODDIROPT ?= -M
-
 CC     = mpifccpx
 CFLAGS = -Kfast,parallel,ocl,preex,array_private,region_extension,restp=all -Qt -Ksimd $(PERF_MONIT)
+endif
+
++MODDIROPT ?= -M
 
 LD     = $(FC)
 LFLAGS = $(FFLAGS)
