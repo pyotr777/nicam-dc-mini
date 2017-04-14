@@ -25,11 +25,11 @@ PERF_MONIT = -Ntl_notrt -U_FIPP_ -U_FAPP_
 FC     = mpifrtpx
 FFLAGS = $(FFLAGS_FAST) $(PERF_MONIT) $(RDMA)
 #FFLAGS = $(FFLAGS_DEBUG) $(PERF_MONIT) $(RDMA)
-CC     = mpifccpx
-CFLAGS = -Kfast,parallel,ocl,preex,array_private,region_extension,restp=all -Qt -Ksimd $(PERF_MONIT)
-
 
 MODDIROPT ?= -M
+
+CC     = mpifccpx
+CFLAGS = -Kfast,parallel,ocl,preex,array_private,region_extension,restp=all -Qt -Ksimd $(PERF_MONIT)
 
 LD     = $(FC)
 LFLAGS = $(FFLAGS)
