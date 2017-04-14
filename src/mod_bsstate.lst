@@ -1,0 +1,1597 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:16:02 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/share/mod_bsstate.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_bsstate.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_bsstate"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  Basic state module
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     module mod_bsstate
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This module is for the set of basic state for non-hydrostatic
+              11                       !       model.
+              12                       !
+              13                       !
+              14                       !++ Current Corresponding Author : H.Tomita
+              15                       !
+              16                       !++ History:
+              17                       !      Version   Date       Comment
+              18                       !      -----------------------------------------------------------------------
+              19                       !      0.00      04-02-17   Imported from igdc-4.34
+              20                       !                11-08-13   A.Noda : add twp-ice exp
+              21                       !      -----------------------------------------------------------------------
+              22                       !
+              23                       !-----------------------------------------------------------------------------
+              24                       !
+              25                       !++ Used modules
+              26                       !
+              27                       use mod_adm, only :  &
+              28                            ADM_MAXFNAME,   &
+              29                            ADM_NSYS
+              30                       !-----------------------------------------------------------------------------
+              31                       implicit none
+              32                       private
+              33                       !-----------------------------------------------------------------------------
+              34                       !
+              35                       !++ Public parameters
+              36                       !
+              37                       ! < NONE >
+              38                       !-----------------------------------------------------------------------------
+              39                       !
+              40                       !++ Public variables
+              41                       !
+              42                       !
+              43                       !--- density
+              44                       real(8),allocatable, public, save :: rho_bs(:,:,:)
+              45                       real(8),allocatable, public, save :: rho_bs_pl(:,:,:)
+              46                       !
+              47                       !--- pressure
+              48                       real(8),allocatable, public, save :: pre_bs(:,:,:)
+              49                       real(8),allocatable, public, save :: pre_bs_pl(:,:,:)
+              50                       !
+              51                       !--- temperature
+              52                       real(8),allocatable, public, save :: tem_bs(:,:,:)
+              53                       real(8),allocatable, public, save :: tem_bs_pl(:,:,:)
+              54                       !
+              55                       !--- pot temperature
+              56                       real(8),allocatable, public, save :: th_bs(:,:,:)
+              57                       real(8),allocatable, public, save :: th_bs_pl(:,:,:)
+              58                       !
+              59                       !--- water vap.
+              60                       real(8),allocatable, public, save :: qv_bs(:,:,:)
+              61                       real(8),allocatable, public, save :: qv_bs_pl(:,:,:)
+              62                       !
+              63                       !--- geo-potential ( g X z )
+              64                       real(8),allocatable, public, save :: phi(:,:,:)
+              65                       real(8),allocatable, public, save :: phi_pl(:,:,:)
+              66                       !
+              67                       !--- Basic state type
+              68                       character(ADM_NSYS), public, save :: ref_type = 'TEM'
+              69                       !                                  ='TEM': temerature is given.
+              70                       !                                  ='TH' : potential temperature is given.
+              71                       !                                  ='NOBASE' : no basic state
+              72                       !                                  ='INPUT'  : input
+              73                       !
+              74                       !-----------------------------------------------------------------------------
+              75                       !
+              76                       !++ Public procedure
+              77                       !
+              78                       public :: bsstate_setup
+              79                       public :: bsstate_input_ref
+              80                       public :: bsstate_output_ref
+              81                       !-----------------------------------------------------------------------------
+              82                       !
+              83                       !++ Private parameters
+              84                       !
+              85                       !--- reference pressure at the ground
+              86                       real(8), private, save :: pre_g = 101325.0D0
+              87                       !
+              88                       !--- reference temperature at the ground
+              89                       real(8), private, save :: tem_g = 300.0D0
+              90                       !
+              91                       !--- reference pot. temperature at the ground
+              92                       real(8), private, save :: th_g = 300.0D0
+              93                       !
+              94                       !--- reference density at the ground ( calculated by using pre_g & tem_g )
+              95                       real(8), private, save :: rho_g
+              96                       !
+              97                       !--- reference Brunt-Vaisala frequency ( used if ref_type = 'TH'. )
+              98                       real(8), private, save :: BV_freq = 0.0D0
+              99                       !
+             100                       !--- lapse rate ( used if ref_type = 'TEM'. )
+             101                       real(8), private, save :: TGAMMA = 0.0D0
+             102                       !
+             103                       !--- lower boundary of constant (potential) temperature
+             104                       real(8), private, save :: ZT = 0.0D0
+             105                       !
+             106                       !--- geopotential at the ground
+             107                       real(8), parameter, public :: PHI0=0.0D0
+             108                       !-----------------------------------------------------------------------------
+             109                       !
+             110                       !++ Private variables
+             111                       !
+             112                       !--- reference phi
+             113                       real(8), allocatable, private, save :: phi_ref(:)
+             114                       !
+             115                       !--- reference density
+             116                       real(8), allocatable, private, save :: rho_ref(:)
+             117                       !
+             118                       !--- reference pressure
+             119                       real(8), allocatable, private, save :: pre_ref(:)
+             120                       !
+             121                       !--- reference temperature
+             122                       real(8), allocatable, private, save :: tem_ref(:)
+             123                       !
+             124                       !--- water vapor
+             125                       real(8), allocatable, private, save :: qv_ref(:)
+             126                       !
+             127                       !--- reference potential temperature
+             128                       real(8), allocatable, private, save :: th_ref(:)
+             129                       !
+             130                       character(ADM_MAXFNAME), private, save :: ref_fname = 'ref.dat'
+             131                       !
+             132                       !-----------------------------------------------------------------------------
+             133                       !
+             134                       !++ Private procedures
+             135                       !
+             136                       private :: set_referencestate
+             137                       private :: set_basicstate
+             138                       private :: output_info
+             139                       !-----------------------------------------------------------------------------
+             140                     contains
+             141                       !-----------------------------------------------------------------------------
+             142                       subroutine bsstate_setup
+             143                         !------
+             144                         !------ Setup routine of this module
+             145                         !------    1. read the parameters.
+             146                         !------    2. allocate the memory for basic state variables.
+             147                         !------    3. set the reference state.
+             148                         !------    4. set the basic state.
+             149                         !------
+             150                         !
+             151                         use mod_adm, only :  &
+             152                              ADM_LOG_FID,    &
+             153                              ADM_CTL_FID,    &
+             154                              ADM_LALL_PL,    &
+             155                              ADM_GALL_PL,    &
+             156                              ADM_lall,       &
+             157                              ADM_kall,       &
+             158                              ADM_gall
+             159                         !
+             160                         implicit none
+             161                         !
+             162                         integer :: ierr
+             163                         !
+             164                         namelist / BSSTATEPARAM / &
+             165                              ref_type,            & !--- type of basic state
+             166                              ZT,                  & !--- if z>ZT, equi-temperature
+             167                              pre_g,               & !--- reference pressure
+             168                              tem_g,               & !--- reference temperature
+             169                              TGAMMA,              & !--- lapse rate when ref_type='TEM'.
+             170                              th_g,                & !--- reference potential temp. for when ref_type='TH'
+             171                              BV_freq,             & !--- Vaisala freq when ref_type='TH'
+             172                              ref_fname              !--- in/output base name if necessary.
+             173                         !
+             174                         !--- reading the parameters
+             175                         rewind(ADM_CTL_FID)
+             176                         read(ADM_CTL_FID,nml=BSSTATEPARAM,iostat=ierr)
+             177     1                   if(ierr<0) then
+             178     1                      write(ADM_LOG_FID,*) &
+             179     1                           'Msg : Sub[bsstate_setup_setup]/Mod[bsstate]'
+             180     1                      write(ADM_LOG_FID,*) &
+             181     1                           ' *** Not found namelist.'
+             182     1                      write(ADM_LOG_FID,*) &
+             183     1                           ' *** Use default values.'
+             184     1                   else if(ierr>0) then
+             185     1                      write(*,*) &
+             186     1                           'Msg : Sub[bsstate_setup_setup]/Mod[bsstate]'
+             187     1                      write(*,*) &
+             188     1                           ' *** WARNING : Not appropriate names in namelist!! CHECK!!'
+             189     1                   end if
+             190                         !
+             191                         !--- allocation of reference variables
+             192                         allocate(phi_ref(ADM_kall))
+             193                         allocate(rho_ref(ADM_kall))
+             194                         allocate(pre_ref(ADM_kall))
+             195                         allocate(tem_ref(ADM_kall))
+             196                         allocate(th_ref(ADM_kall))
+             197                         allocate(qv_ref(ADM_kall))
+             198                         !
+             199                         ! add by kgoto
+             200                         ! initialize
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             201        pp    v          phi_ref=0.0d0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             202        pp    v          rho_ref=0.0d0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             203        pp    v          pre_ref=0.0d0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             204        pp    v          tem_ref=0.0d0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             205        pp    v          th_ref=0.0d0
+             206                         !--- allocation of the basic variables
+             207                         allocate(rho_bs(ADM_gall,ADM_kall,ADM_lall))
+             208                         allocate(rho_bs_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL))
+             209                         allocate(pre_bs(ADM_gall,ADM_kall,ADM_lall))
+             210                         allocate(pre_bs_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL))
+             211                         allocate(tem_bs(ADM_gall,ADM_kall,ADM_lall))
+             212                         allocate(tem_bs_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL))
+             213                         allocate(th_bs(ADM_gall,ADM_kall,ADM_lall))
+             214                         allocate(th_bs_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL))
+             215                         allocate(qv_bs(ADM_gall,ADM_kall,ADM_lall))
+             216                         allocate(qv_bs_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL))
+             217                         allocate(phi(ADM_gall,ADM_kall,ADM_lall))
+             218                         allocate(phi_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL))
+             219                         !
+             220                         ! add by kgoto
+             221                         ! initialize
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             222        pp    v          rho_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             223        pp    v          rho_bs_pl = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             224        pp    v          pre_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             225        pp    v          pre_bs_pl = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             226        pp    v          tem_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             227        pp    v          tem_bs_pl = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             228        pp    v          th_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             229        pp    v          th_bs_pl = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             230        pp    v          qv_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             231        pp    v          qv_bs_pl = 0.0D0
+             232                         !
+             233     1                   if(ref_type=='INPUT') then
+             234     1                      !
+             235     1                      !---- input reference state
+             236     1                      call bsstate_input_ref(ref_fname)
+             237     1                      !
+             238     1                      !--- calculation of basic state
+             239     1                      call set_basicstate
+             240     1                   else !--- other type
+             241     1                      !
+             242     1                      !--- calculation of reference state
+             243     1                      call set_referencestate
+             244     1                      !
+             245     1                      !--- calculation of basic state
+             246     1                      call set_basicstate
+             247     1                   end if
+             248                         !
+             249                         !--- output the information
+             250                         call output_info
+             251                         !
+             252                       end subroutine bsstate_setup
+             253                       !-----------------------------------------------------------------------------
+             254                       subroutine output_info
+             255                         !
+             256                         use mod_adm, only :  &
+             257                              ADM_LOG_FID,    &
+             258                              ADM_kall,       &
+             259                              ADM_kmin,       &
+             260                              ADM_kmax
+             261                         !
+             262                         implicit none
+             263                         integer :: k
+             264                         write(ADM_LOG_FID,*) &
+             265                              'Msg : Sub[nhm_bs_output_info]/Mod[basicstate]'
+             266                         write(ADM_LOG_FID,*) &
+             267                              ' --- Basic state type                : ',&
+             268                                 trim(ref_type)
+             269                         write(ADM_LOG_FID,*) &
+             270                              ' --- Reference pressure              : ',&
+             271                              pre_g
+             272                         write(ADM_LOG_FID,*) &
+             273                              ' --- Reference temperature           : ',&
+             274                              tem_g
+             275                         write(ADM_LOG_FID,*) &
+             276                              ' --- Reference density               : ',&
+             277                              rho_g
+             278                         write(ADM_LOG_FID,*) &
+             279                              ' --- Vaisala frequency               : ',&
+             280                              BV_freq
+             281                         write(ADM_LOG_FID,*) &
+             282                              ' --- Lapse rate of temperature       : ',&
+             283                              TGAMMA
+             284                         write(ADM_LOG_FID,*) &
+             285                              ' --- Effective height                : ',&
+             286                              ZT
+             287                         write(ADM_LOG_FID,*) &
+             288                              '-------------------------------------------------------'
+             289                         write(ADM_LOG_FID,*) &
+             290                              'Level   Density  Pressure     Temp. Pot. Tem.        qv'
+             291     1   s    s          do k=1,ADM_kall
+             292     1   m    m             write(ADM_LOG_FID,'(I4,F12.4,F10.2,F10.2,F10.2,F10.7)') k,&
+             293     1                           rho_ref(k), pre_ref(k), tem_ref(k),th_ref(k), qv_ref(k)
+             294     2   p    s             if(k==ADM_kmin-1) then
+             295     2   s    s                write(ADM_LOG_FID,*) &
+             296     2                              '-------------------------------------------------------'
+             297     2   p    v             end if
+             298     2   p    s             if(k==ADM_kmax) then
+             299     2   s    s                write(ADM_LOG_FID,*) &
+             300     2                              '-------------------------------------------------------'
+             301     2   p    v             end if
+             302     1   p    v          end do
+             303                       end subroutine output_info
+             304                       !-----------------------------------------------------------------------------
+             305                       subroutine set_referencestate
+             306                         !------
+             307                         !------ Calculate the reference state.
+             308                         !------
+             309                         !
+             310                         use mod_cnst, only : &
+             311                              CNST_EGRAV,     &
+             312                              CNST_RAIR,      &
+             313                              CNST_RVAP,      &
+             314                              CNST_PRE00,     &
+             315                              CNST_KAPPA
+             316                         use mod_adm, only :  &
+             317                              ADM_kall,       &
+             318                              ADM_kmin,       &
+             319                              ADM_kmax,       &
+             320                              ADM_prc_pl,     &
+             321                              ADM_prc_me
+             322                         use mod_grd, only :  &
+             323                              GRD_gz,         &
+             324                              GRD_dgz,        &
+             325                              GRD_gzh,        &
+             326                              GRD_afac,       &
+             327                              GRD_bfac
+             328                         !
+             329                         implicit none
+             330                         integer :: k
+             331                         real(8) :: dpre_ref_k, pre_ref_k, tem_ref_k
+             332                         real(8) :: pre_s, rho_s, total_mass0, total_mass,mass_diff_ratio
+             333                         !
+             334                         !
+             335                         !--- calculation of reference geopotential
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             336     1  pp   8v          do k=1,ADM_kall
+             337     1   p   8v             phi_ref(k) = CNST_EGRAV * GRD_gz(k)
+             338     1   p   8v          end do
+             339                         !
+             340     1                   if(ref_type=='NOBASE') then
+             341     1                      !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             342     1  pp    v             phi_ref = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             343     1  pp    v             rho_ref = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             344     1  pp    v             pre_ref = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             345     1  pp    v             tem_ref = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             346     1  pp    v             th_ref  = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             347     1  pp    v             qv_ref  = 0.0D0
+             348     1                      !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             349     1  pp    v             pre_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             350     1  pp    v             pre_bs_pl = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             351     1  pp    v             tem_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             352     1  pp    v             tem_bs_pl = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             353     1  pp    v             th_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             354     1  pp    v             th_bs_pl = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             355     1  pp    v             qv_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             356     1  pp    v             qv_bs_pl = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             357     1  pp    v             rho_bs    = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             358     1  pp    v             rho_bs_pl = 0.0D0
+             359     1                      !
+             360     1                      ! 04/12/25 M.Satoh add
+             361     2                      if ( tem_g /= 0.0d0 ) then
+             362     2                         rho_g = pre_g / CNST_RAIR / tem_g
+             363     2                      else
+             364     2                         rho_g = 0.0d0
+             365     2                      end if
+             366     1                      !
+             367     1                   else if ( ref_type == 'TEM' ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             368     1  pp    v             qv_ref = 0.0D0
+             369     1                      !
+             370     1                      !---  calculation of reference temperature
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 696
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             371     2  pp   8s             do k=1,ADM_kall
+             372     3   p   8s                if(GRD_gz(k) <=ZT ) then
+             373     3   p   8s                   tem_ref(k) = tem_g - TGAMMA * GRD_gz(k)
+             374     3   p   8s                else
+             375     3   p   8s                   tem_ref(k) = tem_g - TGAMMA * ZT
+             376     3   p   8s                end if
+             377     2   p   8s             end do
+             378     1                      !
+             379     1                      !--- calculation of density at the surface
+             380     1                      rho_g = pre_g / CNST_RAIR / tem_g
+             381     1                      !
+             382     1                      !--- calculation of reference pressure and density
+             383     1                      !--- just below the ground level
+             384     1                      pre_ref(ADM_kmin-1)                                &
+             385     1                           = pre_g                                        &
+             386     1                           + 0.5D0                                       &
+             387     1                           * ( phi_ref(ADM_kmin) - phi_ref(ADM_kmin-1) ) &
+             388     1                           * rho_g
+             389     1                      rho_ref(ADM_kmin-1)        &
+             390     1                           = pre_ref(ADM_kmin-1) &
+             391     1                           / CNST_RAIR           &
+             392     1                           / tem_ref(ADM_kmin-1)
+             393     1                      !
+             394     1                      !--- Reference pressure and density at the first level
+             395     1                      pre_ref(ADM_kmin)                                        &
+             396     1                           = pre_ref(ADM_kmin-1)                               &
+             397     1                           - ( phi_ref(ADM_kmin) - phi_ref(ADM_kmin-1) ) * rho_g
+             398     1                      rho_ref(ADM_kmin)        &
+             399     1                           = pre_ref(ADM_kmin) &
+             400     1                           / CNST_RAIR         &
+             401     1                           / tem_ref(ADM_kmin)
+             402     1                      !
+             403     1                      !--- Reference pressure and density at k level
+             404     1                      !---    In this caluculation, the hydrostatic balance equation
+             405     1                      !---    ( dP/dz=-RHO dPHI/dz ) is applied at the half integer
+             406     1                      !---    level ( k-1/2 ). RHO is obtained by extrapolation from
+             407     1                      !---    the values at lower level.
+             408     1                      !---
+             409     1                      !--- Consistent way(?) in the scheme.
+             410     1                      !---
+             411     1                      !--- pre_ref(k) - pre_ref(k-1)
+             412     1                      !--- = - 0.5D0 * ( GRD_afac(k) * rho_ref(k)
+             413     1                      !---              +GRD_bfac(k) * rho_ref(k-1)  )
+             414     1                      !---   * ( phi_ref(k) - phi_ref(k-1) )
+             415     1                      !---
+             416     1                      !--- rho_ref(k)*CNST_RAIR*tem_ref(k)  - pre_ref(k-1)
+             417     1                      !--- = - 0.5D0 * ( GRD_afac(k) * rho_ref(k)
+             418     1                      !---              +GRD_bfac(k) * rho_ref(k-1)  )
+             419     1                      !---   * ( phi_ref(k) - phi_ref(k-1) )
+             420     1                      !
+             421     1                      !--- rho_ref(k)*( CNST_RAIR*tem_ref(k)
+             422     1                      !---            + 0.5D0 * GRD_afac(k)
+             423     1                      !---            * ( phi_ref(k) - phi_ref(k-1) )
+             424     1                      !---            )
+             425     1                      !--- = pre_ref(k-1)
+             426     1                      !---            - 0.5D0 * GRD_bfac(k) * rho_ref(k-1)
+             427     1                      !---            * ( phi_ref(k) - phi_ref(k-1) )
+             428     1                      !---
+             429     2   s   4s             do k = ADM_kmin+1, ADM_kmax+1
+             430     2   m   4m                rho_ref(k) = &
+             431     2                              ( pre_ref(k-1) &
+             432     2                              - 0.5D0 * GRD_bfac(k) * rho_ref(k-1) &
+             433     2                              * ( phi_ref(k) - phi_ref(k-1) )&
+             434     2                              ) / &
+             435     2                              ( CNST_RAIR*tem_ref(k) &
+             436     2                              + 0.5D0 * GRD_afac(k)  &
+             437     2                              * ( phi_ref(k) - phi_ref(k-1) )  &
+             438     2                              )
+             439     2   s   4s                pre_ref(k) = rho_ref(k) * CNST_RAIR * tem_ref(k)
+             440     2   p   4v             end do
+             441     1                      !
+             442     1                      !--- calculation of reference potential temperature
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 42
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             443     2  pp    v             do k = 1, ADM_kall
+             444     2   p    v                th_ref(k)                                        &
+             445     2                              = tem_ref(k)                                &
+             446     2                              * ( CNST_PRE00 / pre_ref(k) ) ** CNST_KAPPA
+             447     2   p    v             end do
+             448     1                      !
+             449     1                   else if ( ref_type == 'RHO' ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             450     1  pp    v             qv_ref = 0.0D0
+             451     1                      !
+             452     1                      !---  calculation of reference density
+             453     1                      total_mass0 = CNST_PRE00/CNST_EGRAV
+             454     1                      pre_s = CNST_PRE00
+             455     2                      do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 43
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+             456     3  pp   6v                do k = ADM_kmin-1, ADM_kmax+1
+             457     3   p   6v                   rho_ref(k) = pre_s/CNST_RAIR/tem_g / exp(CNST_EGRAV*GRD_gz(k)/CNST_RAIR/tem_g)
+             458     3   p                     end do
+             459     2                         total_mass = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             460     3  pp   8v                do k = ADM_kmin, ADM_kmax
+             461     3   p   8v                   total_mass = total_mass + GRD_dgz(k)*rho_ref(k)
+             462     3   p   8v                end do
+             463     2                         mass_diff_ratio = total_mass0/total_mass
+             464     3                         if(abs(mass_diff_ratio-1.0D0)<1.0D-8) then
+             465     3                            exit
+             466     3                         else
+             467     3                            pre_s = pre_s * mass_diff_ratio
+             468     3                         end if
+             469     2                      end do
+             470     1                      !
+             471     1                      !--- calculation of density at the surface
+             472     1                      rho_s = pre_s /CNST_RAIR / tem_g
+             473     1                      !
+             474     1                      !--- calculation of reference pressure and density
+             475     1                      !--- just below the ground level
+             476     1                      pre_ref(ADM_kmin-1)                                &
+             477     1                           = pre_s                                       &
+             478     1                           + 0.5D0                                       &
+             479     1                           * ( phi_ref(ADM_kmin) - phi_ref(ADM_kmin-1) ) &
+             480     1                           * rho_s
+             481     1                      !
+             482     1                      !--- Reference pressure and density at the first level
+             483     1                      pre_ref(ADM_kmin)                                        &
+             484     1                           = pre_ref(ADM_kmin-1)                               &
+             485     1                           - ( phi_ref(ADM_kmin) - phi_ref(ADM_kmin-1) ) * rho_s
+             486     1                      !
+             487     1                      !--- Reference pressure and density at k level
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             488     2   s   4s             do k = ADM_kmin+1, ADM_kmax+1
+             489     2   m   4m                pre_ref(k) = pre_ref(k-1) &
+             490     2                              - 0.5D0 * ( GRD_afac(k) * rho_ref(k)     &
+             491     2                                         +GRD_bfac(k) * rho_ref(k-1)  )&
+             492     2                              * ( phi_ref(k) - phi_ref(k-1) )
+             493     2   p   4v             end do
+             494     1                      !
+             495     1                      !--- calculation of reference temperature & pot temperature
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 40
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             496     2  pp    v             do k = 1, ADM_kall
+             497     2   p    v                tem_ref(k) = pre_ref(k) / rho_ref(k) / CNST_RAIR
+             498     2   p    v                th_ref(k)                                        &
+             499     2                              = tem_ref(k)                                &
+             500     2                              * ( CNST_PRE00 / pre_ref(k) ) ** CNST_KAPPA
+             501     2   p    v             end do
+             502     1                      !
+             503     1                   else if ( ref_type == 'TH' ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             504     1  pp    v             qv_ref = 0.0D0
+             505     1                      !
+             506     1                      !--- calculation of reference pot. temp.
+             507     1                      !--- just below the surface level.
+             508     1                      th_ref(ADM_kmin-1)                                 &
+             509     1                           = th_g                                         &
+             510     1                           / exp ( BV_freq**2 / CNST_EGRAV                     &
+             511     1                                  * ( GRD_gzh(ADM_kmin) - GRD_gz(ADM_kmin-1) ) )
+             512     1                      !
+             513     1                      !--- calculation of reference pot. temp. at the first level.
+             514     1                      th_ref(ADM_kmin)                                   &
+             515     1                           = th_g                                         &
+             516     1                           * exp ( BV_freq**2 / CNST_EGRAV                     &
+             517     1                                  * ( GRD_gz(ADM_kmin) - GRD_gzh(ADM_kmin) ) )
+             518     1                      !
+             519     1                      !--- calculation of reference pot. temp. at k level
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 2
+                                   <<<      GRD_gz: 2
+                                   <<< Loop-information  End >>>
+             520     2   s   2s             do k = ADM_kmin+1, ADM_kmax+1
+             521     3   p   2s                if ( GRD_gz(k) <= ZT ) then
+             522     3   m   2s                   th_ref(k) = th_ref(k-1)                     &
+             523     3                                 * exp ( BV_freq**2 / CNST_EGRAV              &
+             524     3                                        * ( GRD_gz(k) - GRD_gz(k-1) ) )
+             525     3   p   2s                else
+             526     3   m   2s                   th_ref(k) = th_ref(k-1)
+             527     3   p   2s                end if
+             528     2   p   2s             end do
+             529     1                      !
+             530     1                      !--- calculation of density at the surface
+             531     1                      tem_g = th_g / ( CNST_PRE00 / pre_g ) ** CNST_KAPPA
+             532     1                      rho_g = pre_g / CNST_RAIR / tem_g
+             533     1                      !
+             534     1                      !--- calculation of reference pressure, temperature, density
+             535     1                      !--- just below the ground level.
+             536     1                      pre_ref(ADM_kmin-1)                                &
+             537     1                           = pre_g                                        &
+             538     1                           + 0.5D0                                       &
+             539     1                           * ( phi_ref(ADM_kmin) - phi_ref(ADM_kmin-1) ) &
+             540     1                           * rho_g
+             541     1                      tem_ref(ADM_kmin-1)                                        &
+             542     1                           = th_ref(ADM_kmin-1)                                  &
+             543     1                           / ( CNST_PRE00 / pre_ref(ADM_kmin-1) ) ** CNST_KAPPA
+             544     1                      rho_ref(ADM_kmin-1)        &
+             545     1                           = pre_ref(ADM_kmin-1) &
+             546     1                           / CNST_RAIR           &
+             547     1                           / tem_ref(ADM_kmin-1)
+             548     1                      !
+             549     1                      !--- calculation of reference pressure and density
+             550     1                      !--- at the first level
+             551     1                      pre_ref(ADM_kmin)                                         &
+             552     1                           = pre_ref(ADM_kmin-1)                                &
+             553     1                           - ( phi_ref(ADM_kmin) - phi_ref(ADM_kmin-1) ) * rho_g
+             554     1                      tem_ref(ADM_kmin)                                       &
+             555     1                           = th_ref(ADM_kmin)                                 &
+             556     1                           / ( CNST_PRE00 / pre_ref(ADM_kmin) ) ** CNST_KAPPA
+             557     1                      rho_ref(ADM_kmin)                                       &
+             558     1                           = pre_ref(ADM_kmin) / CNST_RAIR / tem_ref(ADM_kmin)
+             559     1                      !
+             560     1                      !--- Reference pressure and density at k level
+             561     1                      !---    In this caluculation, the hydrostatic balance equation
+             562     1                      !---    ( dP/dz=-RHO dPHI/dz ) is applied at the half integer
+             563     1                      !---    level ( k-1/2 ). RHO is obtained by extrapolation from
+             564     1                      !---    the values at lower level.
+             565     1                      !
+             566     1                      !--- fist guess
+             567     2   s   2s             do k = ADM_kmin+1, ADM_kmax+1
+             568     2   m   2m                pre_ref(k) = pre_ref(k-1)              &
+             569     2                              - ( phi_ref(k) - phi_ref(k-1) )   &
+             570     2                              * ( rho_ref(k-1)                  &
+             571     2                              + ( rho_ref(k-1) - rho_ref(k-2) ) &
+             572     2                              / ( GRD_gz(k-1)  - GRD_gz(k-2) )   &
+             573     2                              * ( GRD_gz(k)    - GRD_gz(k-1) ) * 0.5D0 )
+             574     2   s   2s                tem_ref(k)                                      &
+             575     2                              = th_ref(k)                                &
+             576     2                              / ( CNST_PRE00 / pre_ref(k) ) ** CNST_KAPPA
+             577     2   s   2s                rho_ref(k)        &
+             578     2                              = pre_ref(k) &
+             579     2                              / CNST_RAIR  &
+             580     2                              / tem_ref(k)
+             581     2   p   2v             end do
+             582     1                      !--- hydro static balance adjustment
+             583     2                      do k = ADM_kmin+1, ADM_kmax+1
+             584     3                         do
+             585     3                            tem_ref(k) = th_ref(k)                                &
+             586     3                                 / ( CNST_PRE00 / pre_ref(k) ) ** CNST_KAPPA
+             587     3                            rho_ref(k) = &
+             588     3                                 ( pre_ref(k-1) &
+             589     3                                 - 0.5D0 * GRD_bfac(k) * rho_ref(k-1) &
+             590     3                                 * ( phi_ref(k) - phi_ref(k-1) )&
+             591     3                                 ) / &
+             592     3                                 ( CNST_RAIR*tem_ref(k) &
+             593     3                                 + 0.5D0 * GRD_afac(k)  &
+             594     3                                 * ( phi_ref(k) - phi_ref(k-1) )  &
+             595     3                                 )
+             596     3                            dpre_ref_k = rho_ref(k) * CNST_RAIR * tem_ref(k) - pre_ref(k)
+             597     3                            pre_ref(k) = pre_ref(k)+ dpre_ref_k
+             598     3                            if(abs(dpre_ref_k) < 1.0D-10 ) exit
+             599     4                            if(ADM_prc_me==ADM_prc_pl) then
+             600     4                               write(*,*) k,abs(dpre_ref_k)
+             601     4                            end if
+             602     3                         end do
+             603     2                      end do
+             604     1                   else if ( ref_type == 'TH-SP' ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             605     1  pp    v             qv_ref = 0.0D0
+             606     1                      !
+             607     1                      !--- calculation of reference pot. temp.
+             608     1                      !--- just below the surface level.
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 667
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             609     2  pp   8s             do k=ADM_kmin-1,ADM_kmax+1
+             610     3   p   8s                if(GRD_gz(k)<10000.0D0) then
+             611     3   p   8s                   th_ref(k) = th_g
+             612     3   p   8s                else
+             613     3   p   8s                   th_ref(k) = th_g+10.0D0/1000.0D0*(GRD_gz(k)-10000.0D0)
+             614     3   p   8s                end if
+             615     2   p   8s             end do
+             616     1                      !
+             617     1                      !--- calculation of density at the surface
+             618     1                      tem_g = th_g / ( CNST_PRE00 / pre_g ) ** CNST_KAPPA
+             619     1                      rho_g = pre_g / CNST_RAIR / tem_g
+             620     1                      !
+             621     1                      !--- calculation of reference pressure, temperature, density
+             622     1                      !--- just below the ground level.
+             623     1                      pre_ref(ADM_kmin-1)                                &
+             624     1                           = pre_g                                        &
+             625     1                           + 0.5D0                                       &
+             626     1                           * ( phi_ref(ADM_kmin) - phi_ref(ADM_kmin-1) ) &
+             627     1                           * rho_g
+             628     1                      tem_ref(ADM_kmin-1)                                        &
+             629     1                           = th_ref(ADM_kmin-1)                                  &
+             630     1                           / ( CNST_PRE00 / pre_ref(ADM_kmin-1) ) ** CNST_KAPPA
+             631     1                      rho_ref(ADM_kmin-1)        &
+             632     1                           = pre_ref(ADM_kmin-1) &
+             633     1                           / CNST_RAIR           &
+             634     1                           / tem_ref(ADM_kmin-1)
+             635     1                      !
+             636     1                      !--- calculation of reference pressure and density
+             637     1                      !--- at the first level
+             638     1                      pre_ref(ADM_kmin)                                         &
+             639     1                           = pre_ref(ADM_kmin-1)                                &
+             640     1                           - ( phi_ref(ADM_kmin) - phi_ref(ADM_kmin-1) ) * rho_g
+             641     1                      tem_ref(ADM_kmin)                                       &
+             642     1                           = th_ref(ADM_kmin)                                 &
+             643     1                           / ( CNST_PRE00 / pre_ref(ADM_kmin) ) ** CNST_KAPPA
+             644     1                      rho_ref(ADM_kmin)                                       &
+             645     1                           = pre_ref(ADM_kmin) / CNST_RAIR / tem_ref(ADM_kmin)
+             646     1                      !
+             647     1                      !--- Reference pressure and density at k level
+             648     1                      !---    In this caluculation, the hydrostatic balance equation
+             649     1                      !---    ( dP/dz=-RHO dPHI/dz ) is applied at the half integer
+             650     1                      !---    level ( k-1/2 ). RHO is obtained by extrapolation from
+             651     1                      !---    the values at lower level.
+             652     1                      !
+             653     1                      !--- fist guess
+             654     2   s   2s             do k = ADM_kmin+1, ADM_kmax+1
+             655     2   m   2m                pre_ref(k) = pre_ref(k-1)              &
+             656     2                              - ( phi_ref(k) - phi_ref(k-1) )   &
+             657     2                              * ( rho_ref(k-1)                  &
+             658     2                              + ( rho_ref(k-1) - rho_ref(k-2) ) &
+             659     2                              / ( GRD_gz(k-1)  - GRD_gz(k-2) )   &
+             660     2                              * ( GRD_gz(k)    - GRD_gz(k-1) ) * 0.5D0 )
+             661     2   s   2s                tem_ref(k)                                      &
+             662     2                              = th_ref(k)                                &
+             663     2                              / ( CNST_PRE00 / pre_ref(k) ) ** CNST_KAPPA
+             664     2   s   2s                rho_ref(k)        &
+             665     2                              = pre_ref(k) &
+             666     2                              / CNST_RAIR  &
+             667     2                              / tem_ref(k)
+             668     2   p   2v             end do
+             669     1                      !--- hydro static balance adjustment
+             670     2                      do k = ADM_kmin+1, ADM_kmax+1
+             671     3                         do
+             672     3                            tem_ref(k) = th_ref(k)                                &
+             673     3                                 / ( CNST_PRE00 / pre_ref(k) ) ** CNST_KAPPA
+             674     3                            rho_ref(k) = &
+             675     3                                 ( pre_ref(k-1) &
+             676     3                                 - 0.5D0 * GRD_bfac(k) * rho_ref(k-1) &
+             677     3                                 * ( phi_ref(k) - phi_ref(k-1) )&
+             678     3                                 ) / &
+             679     3                                 ( CNST_RAIR*tem_ref(k) &
+             680     3                                 + 0.5D0 * GRD_afac(k)  &
+             681     3                                 * ( phi_ref(k) - phi_ref(k-1) )  &
+             682     3                                 )
+             683     3                            dpre_ref_k = rho_ref(k) * CNST_RAIR * tem_ref(k) - pre_ref(k)
+             684     3                            pre_ref(k) = pre_ref(k)+ dpre_ref_k
+             685     3                            if(abs(dpre_ref_k) < 1.0D-10 ) exit
+             686     4                            if(ADM_prc_me==ADM_prc_pl) then
+             687     4                               write(*,*) k,abs(dpre_ref_k)
+             688     4                            end if
+             689     3                         end do
+             690     2                      end do
+             691     1                   else if ( ref_type == 'OOYAMA' ) then
+             692     1                      call ooyama_reference
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 41
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             693     2  pp    v             do k = 1, ADM_kall
+             694     2   p    v                pre_ref(k) = rho_ref(k) * tem_ref(k) &
+             695     2                              * ( (1.0D0-qv_ref(k))*CNST_RAIR+qv_ref(k)*CNST_RVAP )
+             696     2   p    v                th_ref(k)                                        &
+             697     2                              = tem_ref(k)                                &
+             698     2                              * ( CNST_PRE00 / pre_ref(k) ) ** CNST_KAPPA
+             699     2   p    v             end do
+             700     1                   end if
+             701                     
+             702                     !   if ( ref_type == 'GCSS_CASE1' ) then
+             703     1                   if ( ref_type == 'GCSS_CASE1' .or. ref_type=='TWP-ICE') then ! 11/08/13 A.Noda [add]
+             704     1                      call gcss_reference
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 39
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             705     2  pp    v             do k = 1, ADM_kall
+             706     2   p    v                tem_ref(k) = th_ref(k)                                &
+             707     2                              / ( CNST_PRE00 / pre_ref(k) ) ** CNST_KAPPA
+             708     2   p    v                rho_ref(k) = pre_ref(k)/tem_ref(k) &
+             709     2                              / ( (1.0D0-qv_ref(k))*CNST_RAIR+qv_ref(k)*CNST_RVAP )
+             710     2   p    v             end do
+             711     1                   end if
+             712                     
+             713                     
+             714                       end subroutine set_referencestate
+             715                       !-----------------------------------------------------------------------------
+             716                       subroutine gcss_reference
+             717                         !
+             718                         use mod_misc, only : &
+             719                              MISC_get_available_fid
+             720                         use mod_cnst, only : &
+             721                              CNST_RVAP
+             722                         !
+             723                         implicit none
+             724                         !
+             725                         integer :: fid
+             726                         !
+             727                     !   character(128) :: fname = 'gcss_profile.dat' ! 11/08/13 A.Noda
+             728                         !
+             729                         fid = MISC_get_available_fid()
+             730                     !   Open(fid,file=Trim(fname),status='old',form='unformatted') ! 11/08/03 A.Noda
+             731                         Open(fid,file=Trim(ref_fname),status='old',form='unformatted')
+             732                         read(fid) th_ref(:)
+             733                         read(fid) pre_ref(:)
+             734                         read(fid) qv_ref(:)
+             735                         close(fid)
+             736                       end subroutine gcss_reference
+             737                       !-----------------------------------------------------------------------------
+             738                       subroutine ooyama_reference
+             739                         !
+             740                         use mod_misc, only : &
+             741                              MISC_get_available_fid
+             742                         use mod_cnst, only : &
+             743                              CNST_RVAP
+             744                         use mod_adm, only :  &
+             745                              ADM_kall,       &
+             746                              ADM_kmin,       &
+             747                              ADM_kmax
+             748                         use mod_grd, only :  &
+             749                              GRD_gz
+             750                         use mod_runconf, only : &
+             751                              TRC_VMAX
+             752                         !
+             753                         !
+             754                         implicit none
+             755                         !
+             756                         integer :: fid
+             757                         !
+             758                         character(128) :: fname = 'ooyama_profile.dat'
+             759                         !
+             760                         integer :: kmax
+             761                         real(8), allocatable :: z_s(:), rho_s(:), tem_s(:), qv_s(:)
+             762                         real(8) :: rho_s_intpl(ADM_kall), tem_s_intpl(ADM_kall), qv_s_intpl(ADM_kall)
+             763                         !
+             764                         real(8) :: lag_intpl
+             765                         real(8) :: z,z1,p1,z2,p2,z3,p3
+             766                         !
+             767                         integer :: l,n,k,kk,kp
+             768                         !
+             769                         lag_intpl(z,z1,p1,z2,p2,z3,p3)             &
+             770                              = ((z-z2)*(z-z3))/((z1-z2)*(z1-z3))*p1&
+             771                              + ((z-z1)*(z-z3))/((z2-z1)*(z2-z3))*p2&
+             772                              + ((z-z1)*(z-z2))/((z3-z1)*(z3-z2))*p3
+             773                     
+             774                         !
+             775                         !--- read sounding data ( ooyama(2001) )
+             776                         fid = MISC_get_available_fid()
+             777                         Open(fid,file=Trim(fname),status='old',form='unformatted')
+             778                         !
+             779                         read(fid) kmax
+             780                         !
+             781                         allocate(z_s(kmax))
+             782                         allocate(rho_s(kmax))
+             783                         allocate(tem_s(kmax))
+             784                         allocate(qv_s(kmax))
+             785                         !
+             786                         read(fid) z_s(:)
+             787                         read(fid) rho_s(:)
+             788                         read(fid) tem_s(:)
+             789                         read(fid) qv_s(:)
+             790                         !
+             791                         close(fid)
+             792                         !
+             793                         !--- initialization
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_gz: 2, rho_ref: 2, tem_ref: 2
+                                   <<<      qv_ref: 2
+                                   <<< Loop-information  End >>>
+             794     1  pp               do k = ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 30
+                                   <<<      z_s: 30
+                                   <<< Loop-information  End >>>
+             795     2   p   8              do kk = 1, kmax-1
+             796     3   p   8                 if ( ( z_s(kk)   <= GRD_gz(k) ) .and. &
+             797     3                              ( z_s(kk+1) >=  GRD_gz(k) ) ) then
+             798     4   p   8                    if(kk==1) then
+             799     4   p   8                       kp=2
+             800     4   p   8                    else
+             801     4   p   8                       kp=kk
+             802     4   p   8                    end if
+             803     3   p   8                    rho_ref(k)                            &
+             804     3                                 = lag_intpl(GRD_gz(k), &
+             805     3                                 z_s(kp+1),rho_s(kp+1),           &
+             806     3                                 z_s(kp  ),rho_s(kp  ),           &
+             807     3                                 z_s(kp-1),rho_s(kp-1))
+             808     3   p   8                    tem_ref(k)                            &
+             809     3                                 = lag_intpl(GRD_gz(k), &
+             810     3                                 z_s(kp+1),tem_s(kp+1),           &
+             811     3                                 z_s(kp  ),tem_s(kp  ),           &
+             812     3                                 z_s(kp-1),tem_s(kp-1))
+             813     3   p   8                    qv_ref(k)                             &
+             814     3                                 = lag_intpl(GRD_gz(k), &
+             815     3                                 z_s(kp+1),qv_s(kp+1),            &
+             816     3                                 z_s(kp  ),qv_s(kp  ),            &
+             817     3                                 z_s(kp-1),qv_s(kp-1))
+             818     3   p   8                    exit
+             819     3   p   8                 end if
+             820     2   p   8              end do
+             821     1   p               end do
+             822                         !
+             823                         k = ADM_kmin-1
+             824                         kp = 2
+             825                         rho_ref(k)                            &
+             826                              = lag_intpl(GRD_gz(k), &
+             827                              z_s(kp+1),rho_s(kp+1),           &
+             828                              z_s(kp  ),rho_s(kp  ),           &
+             829                              z_s(kp-1),rho_s(kp-1))
+             830                         tem_ref(k)                            &
+             831                              = lag_intpl(GRD_gz(k), &
+             832                              z_s(kp+1),tem_s(kp+1),           &
+             833                              z_s(kp  ),tem_s(kp  ),           &
+             834                              z_s(kp-1),tem_s(kp-1))
+             835                         qv_ref(k)                             &
+             836                              = lag_intpl(GRD_gz(k), &
+             837                              z_s(kp+1),qv_s(kp+1),            &
+             838                              z_s(kp  ),qv_s(kp  ),            &
+             839                              z_s(kp-1),qv_s(kp-1))
+             840                         !
+             841                         k = ADM_kmax+1
+             842                         kp = kmax-1
+             843                         rho_ref(k)                            &
+             844                              = lag_intpl(GRD_gz(k), &
+             845                              z_s(kp+1),rho_s(kp+1),           &
+             846                              z_s(kp  ),rho_s(kp  ),           &
+             847                              z_s(kp-1),rho_s(kp-1))
+             848                         tem_ref(k)                            &
+             849                              = lag_intpl(GRD_gz(k), &
+             850                              z_s(kp+1),tem_s(kp+1),           &
+             851                              z_s(kp  ),tem_s(kp  ),           &
+             852                              z_s(kp-1),tem_s(kp-1))
+             853                         qv_ref(k)                             &
+             854                              = lag_intpl(GRD_gz(k), &
+             855                              z_s(kp+1),qv_s(kp+1),            &
+             856                              z_s(kp  ),qv_s(kp  ),            &
+             857                              z_s(kp-1),qv_s(kp-1))
+             858                         !
+             859                         deallocate(rho_s)
+             860                         deallocate(tem_s)
+             861                         deallocate(qv_s)
+             862                         !
+             863                       end subroutine ooyama_reference
+             864                       !-----------------------------------------------------------------------------
+             865                       subroutine set_basicstate
+             866                         !------
+             867                         !------ generation of basic state from reference state
+             868                         !------
+             869                         !
+             870                         use mod_cnst, only : &
+             871                              CNST_EGRAV,     &
+             872                              CNST_RVAP
+             873                         use mod_adm, only :  &
+             874                              ADM_LALL_PL,    &
+             875                              ADM_GALL_PL,    &
+             876                              ADM_lall,       &
+             877                              ADM_kall,       &
+             878                              ADM_gall,       &
+             879                              ADM_prc_pl,     &
+             880                              ADM_prc_me
+             881                         use mod_grd, only :  &
+             882                              GRD_Z,          &
+             883                              GRD_vz,         &
+             884                              GRD_vz_pl
+             885                         use mod_vintrpl, only : &
+             886                              VINTRPL_zstar_level
+             887                         use mod_bndcnd, only :  &
+             888                              bndcnd_thermo
+             889                         use mod_thrmdyn, only : &
+             890                              thrmdyn_th,        &
+             891                              thrmdyn_rho,       &
+             892                              thrmdyn_qd
+             893                         use mod_runconf, only : &
+             894                              TRC_VMAX,          &
+             895                              I_QV
+             896                         !
+             897                         implicit none
+             898                         !
+             899                         integer :: k,l
+             900                         !
+             901                         !---  pot. temp. ( dummy )
+             902                         real(8) :: qd(ADM_gall,ADM_kall,ADM_lall)
+             903                         real(8) :: qd_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             904                         real(8) :: q(ADM_gall,ADM_kall,ADM_lall,TRC_VMAX)
+             905                         real(8) :: q_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL,TRC_VMAX)
+             906                         !
+             907                         !--- calculation of geo-potential
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             908        pp   8v          phi(:,:,:)    = CNST_EGRAV * GRD_vz(:,:,:,GRD_Z)
+             909     1                   if(ADM_prc_me==ADM_prc_pl) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             910     1  pp   8v             phi_pl(:,:,:) = CNST_EGRAV * GRD_vz_pl(:,:,:,GRD_Z)
+             911     1                   end if
+             912                         !
+             913     1                   if(ref_type=='NOBASE') then
+             914     1                      return
+             915     1                   end if
+             916                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             917     1  pp               do k=1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             918     1  pp    v             pre_bs(:,k,:) = pre_ref(k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             919     1  pp    v             pre_bs_pl(:,k,:) = pre_ref(k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             920     1  pp    v             tem_bs(:,k,:) = tem_ref(k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             921     1  pp    v             tem_bs_pl(:,k,:) = tem_ref(k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             922     1  pp    v             qv_bs(:,k,:) = qv_ref(k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             923     1  pp    v             qv_bs_pl(:,k,:) = qv_ref(k)
+             924     1   p               end do
+             925                         !
+             926                         !-- from z-level to zstar-level
+             927                         call VINTRPL_zstar_level( pre_bs, pre_bs_pl, .false. )
+             928                         call VINTRPL_zstar_level( tem_bs, tem_bs_pl, .false. )
+             929                         call VINTRPL_zstar_level( qv_bs, qv_bs_pl, .false. )
+             930                         !
+             931                         !--- Setting of mass concentration
+             932                         !--- Note :: The basic state is "dry" and TKE=0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             933        pp    v          q = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             934        pp    v          q_pl = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             935        pp   8v          q(:,:,:,I_QV) = qv_bs(:,:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             936        pp   8v          q_pl(:,:,:,I_QV) = qv_bs_pl(:,:,:)
+             937     1                   do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             938     1  pp   8v             call thrmdyn_qd( &
+             939     1                           ADM_gall,   & !--- IN
+             940     1                           qd(:,:,l),  & !--- OUT  : dry mass concentration
+             941     1                           q(:,:,l,:)  & !--- IN  : mass concentration
+             942     1                           )
+             943     1                   end do
+             944     1                   if(ADM_prc_me==ADM_prc_pl) then
+             945     2                      do l=1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             946     2  pp   8v                call thrmdyn_qd(   &
+             947     2                              ADM_gall_pl,  & !--- in
+             948     2                              qd_pl(:,:,l), & !--- OUT  : dry mass concentration
+             949     2                              q_pl(:,:,l,:) & !--- IN  : mass concentration
+             950     2                              )
+             951     2                      end do
+             952     1                   end if
+             953                         !
+             954                         !--- calculation of density
+             955     1                   do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             956     1  pp   8v             call thrmdyn_rho(   &
+             957     1                           ADM_gall,      & !--- in
+             958     1                           rho_bs(:,:,l), & !--- out
+             959     1                           pre_bs(:,:,l), & !--- in
+             960     1                           tem_bs(:,:,l), & !--- in
+             961     1                           qd(:,:,l),     & !--- in
+             962     1                           q(:,:,l,:)     & !--- in
+             963     1                           )
+             964     1                   end do
+             965     1                   if(ADM_prc_me==ADM_prc_pl) then
+             966     2                      do l=1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             967     2  pp   8v                call thrmdyn_rho(      &
+             968     2                              ADM_gall_pl,      & !--- in
+             969     2                              rho_bs_pl(:,:,l), & !--- out
+             970     2                              pre_bs_pl(:,:,l), & !--- in
+             971     2                              tem_bs_pl(:,:,l), & !--- in
+             972     2                              qd_pl(:,:,l),     & !--- in
+             973     2                              q_pl(:,:,l,:)     & !--- in
+             974     2                              )
+             975     2                      end do
+             976     1                   end if
+             977                         !
+             978                         !--- set boundary conditions of basic state
+             979     1                   do l=1, ADM_lall
+             980     1                      call bndcnd_thermo( &
+             981     1                           ADM_gall,      & !--- in
+             982     1                           tem_bs(:,:,l), & !--- inout
+             983     1                           rho_bs(:,:,l), & !--- inout
+             984     1                           pre_bs(:,:,l), & !--- inout
+             985     1                           phi(:,:,l)     & !--- in
+             986     1                           )
+             987     1                      call thrmdyn_th(    &
+             988     1                           ADM_gall,      &
+             989     1                           th_bs(:,:,l),  &  !--- OUT : potential temperature
+             990     1                           tem_bs(:,:,l), &  !--- IN  : temperature
+             991     1                           pre_bs(:,:,l)  &  !--- IN  : pressure
+             992     1                           )
+             993     1                   end do
+             994                     
+             995     1                   if(ADM_prc_me==ADM_prc_pl) then
+             996     2                      do l=1, ADM_lall_pl
+             997     2                         call bndcnd_thermo(    &
+             998     2                              ADM_gall_pl,      & !--- in
+             999     2                              tem_bs_pl(:,:,l), & !--- inout
+            1000     2                              rho_bs_pl(:,:,l), & !--- inout
+            1001     2                              pre_bs_pl(:,:,l), & !--- inout
+            1002     2                              phi_pl(:,:,l)     & !--- in
+            1003     2                              )
+            1004     2                         call thrmdyn_th(       &
+            1005     2                              ADM_gall_pl,      &
+            1006     2                              th_bs_pl(:,:,l),  &  !--- OUT : potential temperature
+            1007     2                              tem_bs_pl(:,:,l), &  !--- IN  : temperature
+            1008     2                              pre_bs_pl(:,:,l)  &  !--- IN  : pressure
+            1009     2                              )
+            1010     2                      end do
+            1011     1                   end if
+            1012                         !
+            1013                         return
+            1014                         !
+            1015                       end subroutine set_basicstate
+            1016                       !-----------------------------------------------------------------------------
+            1017                       subroutine bsstate_output_ref( basename )
+            1018                         !
+            1019                         use mod_misc, only : &
+            1020                              MISC_get_available_fid
+            1021                         use mod_cnst, only : &
+            1022                              CNST_RVAP
+            1023                         use mod_adm, only :  &
+            1024                              ADM_prc_me,     &
+            1025                              ADM_prc_run_master
+            1026                         !
+            1027                         implicit none
+            1028                         Character(*), Intent(in) :: basename
+            1029                         integer :: fid
+            1030                         !
+            1031                         !--- output
+            1032     1                   if(ADM_prc_me==ADM_prc_run_master) then
+            1033     1                      fid = MISC_get_available_fid()
+            1034     1                      Open(fid,file=Trim(basename),form='unformatted')
+            1035     1                      Write(fid) pre_ref(:)
+            1036     1                      Write(fid) tem_ref(:)
+            1037     1                      Write(fid) qv_ref(:)
+            1038     1                      Close(fid)
+            1039     1                      !
+            1040     1                   End if
+            1041                         !
+            1042                       end subroutine bsstate_output_ref
+            1043                       !-----------------------------------------------------------------------------
+            1044                       subroutine bsstate_input_ref( basename )
+            1045                         !
+            1046                         use mod_misc, only : &
+            1047                              MISC_get_available_fid
+            1048                         use mod_cnst, only : &
+            1049                              CNST_EGRAV,     &
+            1050                              CNST_RAIR,      &
+            1051                              CNST_RVAP,      &
+            1052                              CNST_KAPPA,     &
+            1053                              CNST_PRE00
+            1054                         use mod_adm, only :  &
+            1055                              ADM_kall
+            1056                         use mod_grd, only :  &
+            1057                              GRD_gz
+            1058                         !
+            1059                         implicit none
+            1060                         Character(*), Intent(in) :: basename
+            1061                         integer :: fid
+            1062                         !
+            1063                         integer :: k
+            1064                         !
+            1065                         !--- input
+            1066                         fid = MISC_get_available_fid()
+            1067                         Open(fid,file=Trim(basename),status='old',form='unformatted')
+            1068                         read(fid) pre_ref(:)
+            1069                         read(fid) tem_ref(:)
+            1070                         read(fid) qv_ref(:)
+            1071                         Close(fid)
+            1072                         !
+            1073                         !--- additional reference state.
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 39
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1074     1  pp    v          do k = 1, ADM_kall
+            1075     1   p    v             th_ref(k)                                        &
+            1076     1                           = tem_ref(k)                                &
+            1077     1                           * ( CNST_PRE00 / pre_ref(k) ) ** CNST_KAPPA
+            1078     1   p    v             phi_ref(k) = CNST_EGRAV * GRD_gz(k)
+            1079     1   p    v             rho_ref(k) = pre_ref(k)/ ( (1.0D0-qv_ref(k))*CNST_RAIR+qv_ref(k)*CNST_RVAP )/ tem_ref(k)
+            1080     1   p    v          end do
+            1081                         !
+            1082                       end subroutine bsstate_input_ref
+            1083                       !-----------------------------------------------------------------------------
+            1084                     end module mod_bsstate
+            1085                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_bsstate)
+   jwd8220o-i  "nhm/share/mod_bsstate.f90", line 6: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(set_referencestate)
+   jwd2006i-i  "nhm/share/mod_bsstate.f90", line 331: 'tem_ref_k' is declared but never referenced.
+   jwd2006i-i  "nhm/share/mod_bsstate.f90", line 331: 'pre_ref_k' is declared but never referenced.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 362: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 380: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 389: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 398: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 430: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 439: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_bsstate.f90", line 456: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 457: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_bsstate.f90", line 457: Division is changed to multiplication by reciprocal.
+   jwd8208o-i  "nhm/share/mod_bsstate.f90", line 461: Method of calculating sum or product is changed.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 472: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 489: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 497: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "nhm/share/mod_bsstate.f90", line 522: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 532: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 544: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 557: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 568: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 577: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 587: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 597: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 619: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 631: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 644: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 655: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 664: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 674: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 684: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 708: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(ooyama_reference)
+   jwd2006i-i  "nhm/share/mod_bsstate.f90", line 762: 'qv_s_intpl' is declared but never referenced.
+   jwd2006i-i  "nhm/share/mod_bsstate.f90", line 762: 'tem_s_intpl' is declared but never referenced.
+   jwd2006i-i  "nhm/share/mod_bsstate.f90", line 762: 'rho_s_intpl' is declared but never referenced.
+   jwd2006i-i  "nhm/share/mod_bsstate.f90", line 767: 'n' is declared but never referenced.
+   jwd2006i-i  "nhm/share/mod_bsstate.f90", line 767: 'l' is declared but never referenced.
+  Module subprogram name(bsstate_input_ref)
+   jwd8209o-i  "nhm/share/mod_bsstate.f90", line 1079: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 1085
+   Statements : 459
+   Stack(byte): 20944
+   Prefetch num: 40
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1085
+   Total statements : 459
+   Total stack(byte): 20944
+   Total prefetch num: 40
+

@@ -1,0 +1,228 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:19:27 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/forcing/mod_af_heldsuarez.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_af_heldsuarez.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_af_heldsuarez"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! Module Held-Suarez forcing
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module contains subroutines for forcing term of GCSS CASE1.
+               7                     !!
+               8                     !! @author H.Tomita
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2004-02-17 (H.Tomita)  [NEW]
+              12                     !!
+              13                     !<
+              14                     module mod_af_heldsuarez
+              15                       !-----------------------------------------------------------------------------
+              16                       !
+              17                       !++ Used modules
+              18                       !
+              19                       use mod_adm, only: &
+              20                          ADM_LOG_FID
+              21                       !-----------------------------------------------------------------------------
+              22                       implicit none
+              23                       private
+              24                       !-----------------------------------------------------------------------------
+              25                       !
+              26                       !++ Public procedure
+              27                       !
+              28                       public :: af_heldsuarez_init
+              29                       public :: af_heldsuarez
+              30                     
+              31                       !-----------------------------------------------------------------------------
+              32                       !
+              33                       !++ Public parameters & variables
+              34                       !
+              35                       !-----------------------------------------------------------------------------
+              36                       !
+              37                       !++ Private procedures
+              38                       !
+              39                       !-----------------------------------------------------------------------------
+              40                       !
+              41                       !++ Private parameters & variables
+              42                       !
+              43                       !-----------------------------------------------------------------------------
+              44                     contains
+              45                       !-----------------------------------------------------------------------------
+              46                       subroutine af_heldsuarez_init
+              47                         implicit none
+              48                         !---------------------------------------------------------------------------
+              49                     
+              50                         return
+              51                       end subroutine af_heldsuarez_init
+              52                     
+              53                       !-----------------------------------------------------------------------------
+              54                       subroutine af_heldsuarez( &
+              55                            ijdim, &
+              56                            lat,   &
+              57                            pre,   &
+              58                            tem,   &
+              59                            vx,    &
+              60                            vy,    &
+              61                            vz,    &
+              62                            fvx,   &
+              63                            fvy,   &
+              64                            fvz,   &
+              65                            fw,    &
+              66                            fe     )
+              67                         use mod_adm, only: &
+              68                            kdim => ADM_kall, &
+              69                            kmin => ADM_kmin, &
+              70                            kmax => ADM_kmax
+              71                         use mod_cnst, only: &
+              72                            CV    => CNST_CV,    &
+              73                            KAPPA => CNST_KAPPA, &
+              74                            PRE00 => CNST_PRE00
+              75                         implicit none
+              76                     
+              77                         integer, intent(in)  :: ijdim
+              78                         real(8), intent(in)  :: lat(ijdim)
+              79                         real(8), intent(in)  :: pre(ijdim,kdim)
+              80                         real(8), intent(in)  :: tem(ijdim,kdim)
+              81                         real(8), intent(in)  :: vx (ijdim,kdim)
+              82                         real(8), intent(in)  :: vy (ijdim,kdim)
+              83                         real(8), intent(in)  :: vz (ijdim,kdim)
+              84                         real(8), intent(out) :: fvx(ijdim,kdim)
+              85                         real(8), intent(out) :: fvy(ijdim,kdim)
+              86                         real(8), intent(out) :: fvz(ijdim,kdim)
+              87                         real(8), intent(out) :: fw (ijdim,kdim)
+              88                         real(8), intent(out) :: fe (ijdim,kdim)
+              89                     
+              90                         real(8) :: T_eq, acl, asl, ap0
+              91                         real(8), parameter :: T_eq2 = 200.D0
+              92                         real(8), parameter :: DT_y  =  60.D0 ! [K]
+              93                         real(8), parameter :: Dth_z =  10.D0 ! [K]
+              94                     
+              95                         real(8) :: k_t, k_v
+              96                         real(8) :: sigma, fact_sig
+              97                         real(8), parameter :: sigma_b = 0.7D0
+              98                         real(8), parameter :: k_f     = 1.D0 / ( 1.D0 * 86400.D0 )
+              99                         real(8), parameter :: k_a     = 1.D0 / (40.D0 * 86400.D0 )
+             100                         real(8), parameter :: k_s     = 1.D0 / ( 4.D0 * 86400.D0 )
+             101                     
+             102                         integer :: n, k
+             103                         !---------------------------------------------------------------------------
+             104                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 762
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             105        pp   8v          fvx(:,:) = 0.D0
+             106         p   8v          fvy(:,:) = 0.D0
+             107         p   8v          fvz(:,:) = 0.D0
+             108         p   8v          fw (:,:) = 0.D0
+             109         p   8v          fe (:,:) = 0.D0
+             110                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             111     1  pp               do k = kmin, kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 14
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             112     2  pp    v          do n = 1,    ijdim
+             113     2   p    v             asl = abs( sin(lat(n)) )
+             114     2   p    v             acl = abs( cos(lat(n)) )
+             115     2   p    v             ap0 = abs( pre(n,k) / PRE00 )
+             116     2               
+             117     2   p    v             T_eq = (315.D0 - DT_y*asl*asl - Dth_z*log(ap0)*acl*acl ) * ap0**KAPPA
+             118     2   p    v             T_eq = max(T_eq,T_eq2)
+             119     2               
+             120     2   p    v             sigma    = pre(n,k) / ( 0.5D0 * ( pre(n,kmin) + pre(n,kmin-1) ) )
+             121     2   p    v             fact_sig = max( 0.D0, (sigma-sigma_b) / (1.D0-sigma_b) )
+             122     2               
+             123     2   p    v             k_v = k_f * fact_sig
+             124     2               
+             125     2   p    v             fvx(n,k) = -k_v * vx(n,k)
+             126     2   p    v             fvy(n,k) = -k_v * vy(n,k)
+             127     2   p    v             fvz(n,k) = -k_v * vz(n,k)
+             128     2               
+             129     2   p    v             k_t = k_a + ( k_s-k_a ) * fact_sig * acl**4
+             130     2               
+             131     2   p    v             fe(n,k) = -k_t * CV * ( tem(n,k)-T_eq )
+             132     2   p    v          enddo
+             133     1   p               enddo
+             134                     
+             135                       end subroutine af_heldsuarez
+             136                     
+             137                     end module mod_af_heldsuarez
+             138                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_af_heldsuarez)
+   jwd8220o-i  "nhm/forcing/mod_af_heldsuarez.f90", line 14: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(af_heldsuarez)
+   jwd8201o-i  "nhm/forcing/mod_af_heldsuarez.f90", line 112: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "nhm/forcing/mod_af_heldsuarez.f90", line 113: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "nhm/forcing/mod_af_heldsuarez.f90", line 115: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/forcing/mod_af_heldsuarez.f90", line 117: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/forcing/mod_af_heldsuarez.f90", line 118: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/forcing/mod_af_heldsuarez.f90", line 121: Division is changed to multiplication by reciprocal.
+   jwd8201o-i  "nhm/forcing/mod_af_heldsuarez.f90", line 121: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/forcing/mod_af_heldsuarez.f90", line 131: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 138
+   Statements : 62
+   Stack(byte): 272
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 138
+   Total statements : 62
+   Total stack(byte): 272
+   Total prefetch num: 0
+

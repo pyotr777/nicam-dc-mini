@@ -1,0 +1,1147 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:01:38 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_vintrpl.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_vintrpl.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_vintrpl"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  vertical interpolation
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     module mod_vintrpl
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This module contains vertical interpolation subroutines.
+              11                       !
+              12                       !++ Current Corresponding Author : H.Tomita
+              13                       !
+              14                       !++ History:
+              15                       !      Version    Date      Comment
+              16                       !      -----------------------------------------------------------------------
+              17                       !      0.00       04-02-17  Imported from igdc-4.33
+              18                       !                 07-01-24  added VINTRPL_z_level2 (linear interpolation) and
+              19                       !                           consider undefined value (K.Suzuki)
+              20                       !      -----------------------------------------------------------------------
+              21                       !
+              22                       !-----------------------------------------------------------------------------
+              23                       !
+              24                       !++ Used modules
+              25                       !
+              26                       use mod_adm, only :   &
+              27                            ADM_gall,        &
+              28                            ADM_kall,        &
+              29                            ADM_lall,        &
+              30                            ADM_GALL_PL,     &
+              31                            ADM_LALL_PL,     &
+              32                            ADM_KNONE,       &
+              33                            ADM_kmin,        &
+              34                            ADM_kmax,        &
+              35                            ADM_prc_me,      &
+              36                            ADM_prc_pl
+              37                       use mod_grd, only :   &
+              38                            GRD_vz,GRD_vz_pl,&
+              39                            GRD_gz,          &
+              40                            GRD_ZH,GRD_Z,    &
+              41                            GRD_gzh
+              42                       use mod_cnst, only :  &
+              43                            CNST_UNDEF
+              44                       !-----------------------------------------------------------------------------
+              45                       implicit none
+              46                       private
+              47                       !-----------------------------------------------------------------------------
+              48                       !
+              49                       !++ Public parameters, variables, and subroutines
+              50                       !
+              51                       public :: VINTRPL_srfc_val
+              52                       public :: VINTRPL_z_level
+              53                       public :: VINTRPL_z_level2
+              54                       public :: VINTRPL_zstar_level
+              55                       public :: VINTRPL_sigma_level
+              56                       public :: VINTRPL_mk_sigma
+              57                       public :: VINTRPL_half2full
+              58                       !-----------------------------------------------------------------------------
+              59                       !
+              60                       !++ Private parameters, variables, and subroutines
+              61                       !
+              62                       ! < NONE >
+              63                       !-----------------------------------------------------------------------------
+              64                     contains
+              65                       !-----------------------------------------------------------------------------
+              66                       subroutine VINTRPL_srfc_val( &
+              67                            var, var_pl,            & !--- IN    : 3d data
+              68                            svar, svar_pl,          & !--- OUT : surface data
+              69                            z_offset_in             & !--- IN  : z offset
+              70                            )
+              71                         !------
+              72                         !------ Caluculate surface value.( e.g. surface pressure )
+              73                         implicit none
+              74                         real(8), intent(in)  :: var(ADM_gall,ADM_kall,ADM_lall)
+              75                         real(8), intent(in)  :: var_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+              76                         real(8), intent(out) :: svar(ADM_gall,ADM_KNONE,ADM_lall)
+              77                         real(8), intent(out) :: svar_pl(ADM_GALL_PL,ADM_KNONE,ADM_LALL_PL)
+              78                         real(8), intent(in), optional  :: z_offset_in
+              79                         !
+              80                         real(8) :: lag_intpl
+              81                         real(8) :: z,z1,p1,z2,p2,z3,p3
+              82                         lag_intpl(z,z1,p1,z2,p2,z3,p3)             &
+              83                              = ((z-z2)*(z-z3))/((z1-z2)*(z1-z3))*p1&
+              84                              + ((z-z1)*(z-z3))/((z2-z1)*(z2-z3))*p2&
+              85                              + ((z-z1)*(z-z2))/((z3-z1)*(z3-z2))*p3
+              86                         !
+              87                         integer :: l,n
+              88                         real(8) :: z_offset
+              89                         !
+              90     1                   if(present(z_offset_in)) then
+              91     1                      z_offset = z_offset
+              92     1                   else
+              93     1                      z_offset = 0.0D0
+              94     1                   end if
+              95                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+              96     1  pp               do l=1,ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 104
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+              97     2  pp   2v             do n = 1, ADM_gall
+              98     2   p   2v                svar(n,ADM_KNONE,l) &
+              99     2                              = lag_intpl(GRD_vz(n,ADM_kmin,l,GRD_ZH)+z_offset,&
+             100     2                              GRD_vz(n,ADM_kmin+2,l,GRD_Z),var(n,ADM_kmin+2,l),&
+             101     2                              GRD_vz(n,ADM_kmin+1,l,GRD_Z),var(n,ADM_kmin+1,l),&
+             102     2                              GRD_vz(n,ADM_kmin  ,l,GRD_Z),var(n,ADM_kmin  ,l))
+             103     2   p   2v             end do
+             104     1   p               end do
+             105     1                   if(ADM_prc_me==ADM_prc_pl) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             106     2  pp                  do l=1,ADM_LALL_PL
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 104
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             107     3  pp   2v                do n = 1, ADM_gall_pl
+             108     3   p   2v                   svar_pl(n,ADM_KNONE,l) &
+             109     3                                 = lag_intpl(GRD_vz_pl(n,ADM_kmin,l,GRD_ZH)+z_offset,&
+             110     3                                 GRD_vz_pl(n,ADM_kmin+2,l,GRD_Z),var_pl(n,ADM_kmin+2,l),&
+             111     3                                 GRD_vz_pl(n,ADM_kmin+1,l,GRD_Z),var_pl(n,ADM_kmin+1,l),&
+             112     3                                 GRD_vz_pl(n,ADM_kmin  ,l,GRD_Z),var_pl(n,ADM_kmin  ,l))
+             113     3   p   2v                end do
+             114     2   p                  end do
+             115     1                   end if
+             116                       end subroutine VINTRPL_srfc_val
+             117                       !-----------------------------------------------------------------------------
+             118                       subroutine VINTRPL_z_level( v, v_pl, wgrid )
+             119                         implicit none
+             120                         real(8), intent(inout) :: v(ADM_gall,ADM_kall,ADM_lall)
+             121                         real(8), intent(inout) :: v_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             122                         logical, intent(in) :: wgrid
+             123                     
+             124                         real(8) :: tmp(ADM_gall,ADM_kall,ADM_lall)
+             125                         real(8) :: tmp_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             126                         integer :: l,k,n,kk
+             127                     
+             128                         integer :: kp
+             129                         real(8) :: lag_intpl_quadra, lag_intpl_linear
+             130                         real(8) :: z,z1,p1,z2,p2,z3,p3
+             131                         lag_intpl_quadra(z,z1,p1,z2,p2,z3,p3)       &
+             132                              = ((z-z2)*(z-z3))/((z1-z2)*(z1-z3))*p1 &
+             133                              + ((z-z1)*(z-z3))/((z2-z1)*(z2-z3))*p2 &
+             134                              + ((z-z1)*(z-z2))/((z3-z1)*(z3-z2))*p3
+             135                         lag_intpl_linear(z,z1,p1,z2,p2) &
+             136                              = (z-z2)/(z1-z2)*p1 &
+             137                              + (z1-z)/(z1-z2)*p2
+             138                     
+             139     1                   if(wgrid) then
+             140     1                      ! 07/01/24 K.Suzuki: consider undefined value
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             141     2  pp                  do l=1,ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             142     3  pp                  do k=ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 302
+                                   <<< Loop-information  End >>>
+             143     4  pp   6s             do n=1,ADM_gall
+             144     5   p   6s                if ( v(n,k+1,l) == CNST_UNDEF ) then
+             145     5   p   6s                  tmp(n,k,l) = v(n,k,l)
+             146     5   p   6s                else if ( v(n,k,l) == CNST_UNDEF ) then
+             147     5   p   6s                  tmp(n,k,l) = v(n,k+1,l)
+             148     5   p   6s                else
+             149     5   p   6s                  tmp(n,k,l) = 0.5D0*(v(n,k+1,l)+v(n,k,l))
+             150     5   p   6s                end if
+             151     4   p   6s             end do
+             152     3   p                  end do
+             153     2   p                  end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             154     1  pp   8v             tmp(:,ADM_kmin-1,:) = v(:,ADM_kmin,:)
+             155     1   p   8v             tmp(:,ADM_kmax+1,:) = v(:,ADM_kmax+1,:)
+             156     1               
+             157     2                      If(ADM_prc_me==ADM_prc_pl) Then
+             158     2                         ! 07/01/24 K.Suzuki: consider undefined value
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             159     3  pp                     do l=1,ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             160     4  pp                     do k=ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 302
+                                   <<< Loop-information  End >>>
+             161     5  pp   6s                do n=1,ADM_gall
+             162     6   p   6s                  if ( v_pl(n,k+1,l) == CNST_UNDEF ) then
+             163     6   p   6s                    tmp_pl(n,k,l) = v_pl(n,k,l)
+             164     6   p   6s                  else if ( v_pl(n,k,l) == CNST_UNDEF ) then
+             165     6   p   6s                    tmp_pl(n,k,l) = v_pl(n,k+1,l)
+             166     6   p   6s                  else
+             167     6   p   6s                    tmp_pl(n,k,l) = 0.5D0*(v_pl(n,k+1,l)+v_pl(n,k,l))
+             168     6   p   6s                  end if
+             169     5   p   6s                end do
+             170     4   p                     end do
+             171     3   p                     end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             172     2  pp   8v                tmp_pl(:,ADM_kmin-1,:) = v_pl(:,ADM_kmin,:)
+             173     2   p   8v                tmp_pl(:,ADM_kmax+1,:) = v_pl(:,ADM_kmax+1,:)
+             174     2                      end If
+             175     1                   else
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             176     1  pp   8v             tmp = v
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             177     1  pp   8v             tmp_pl = v_pl
+             178     1                   end if
+             179                     
+             180     1                   Do l=1,ADM_lall
+             181     2                      do k=1,ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_vz: 2, v: 14
+                                   <<< Loop-information  End >>>
+             182     3                         do n=1, ADM_gall
+             183     4                            if(      (GRD_gz(k)<GRD_vz(n,ADM_kmin,l,GRD_ZH))&
+             184     4                                 .or.(GRD_gz(k)>GRD_vz(n,ADM_kmax+1,l,GRD_ZH)) ) then
+             185     4                               v(n,k,l) = CNST_UNDEF
+             186     4                            else
+             187     5       8                       do kk = ADM_kmin-1,ADM_kmax+1
+             188     5       8                          kp=kk
+             189     5       8                          if(GRD_gz(k)<GRD_vz(n,kk,l,GRD_Z)) exit
+             190     5       8                       end do
+             191     4               !                if (kp==ADM_kmin-1) then
+             192     4               !                   kp=ADM_kmin
+             193     4               !                elseif(kp==ADM_kmax+1) then
+             194     4               !                   kp=ADM_kmax
+             195     4               !                end if
+             196     5                               if (kp<=ADM_kmin) then
+             197     5                                  kp=ADM_kmin+1
+             198     5                               elseif(kp>=ADM_kmax) then
+             199     5                                  kp=ADM_kmax-1
+             200     5                               end if
+             201     4                               ! 07/01/24 K.Suzuki: consider undefined value
+             202     5                               if ( tmp(n,kp+1,l) == CNST_UNDEF ) then
+             203     6                                 if ( tmp(n,kp,l) == CNST_UNDEF ) then
+             204     6                                   v(n,k,l) = tmp(n,kp-1,l)
+             205     6                                 else if ( tmp(n,kp-1,l) == CNST_UNDEF ) then
+             206     6                                   v(n,k,l) = tmp(n,kp,l)
+             207     6                                 else
+             208     6                                   v(n,k,l) &
+             209     6                                        = lag_intpl_linear(GRD_gz(k),         &
+             210     6                                        GRD_vz(n,kp  ,l,GRD_Z),tmp(n,kp  ,l), &
+             211     6                                        GRD_vz(n,kp-1,l,GRD_Z),tmp(n,kp-1,l)  )
+             212     6                                 end if
+             213     5                               else if ( tmp(n,kp,l) == CNST_UNDEF ) then
+             214     5                                  v(n,k,l) = tmp(n,kp-1,l)
+             215     5                               else if ( tmp(n,kp-1,l) == CNST_UNDEF ) then
+             216     5                                  v(n,k,l) = tmp(n,kp,l)
+             217     5                               else
+             218     5                                  v(n,k,l)                                    &
+             219     5                                       = lag_intpl_quadra(GRD_gz(k),          &
+             220     5                                       GRD_vz(n,kp+1,l,GRD_Z),tmp(n,kp+1,l),  &
+             221     5                                       GRD_vz(n,kp  ,l,GRD_Z),tmp(n,kp  ,l),  &
+             222     5                                       GRD_vz(n,kp-1,l,GRD_Z),tmp(n,kp-1,l) )
+             223     5                               end if
+             224     4                            end if
+             225     3                         end do
+             226     2                      end Do
+             227     1                   end Do
+             228     1                   If(ADM_prc_me==ADM_prc_pl) Then
+             229     2                      Do l=1,ADM_lall_pl
+             230     3                         do k=1,ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_vz_pl: 2, v_pl: 14
+                                   <<< Loop-information  End >>>
+             231     4                            do n=1, ADM_gall_pl
+             232     5                               if(  (GRD_gz(k)<GRD_vz_pl(n,ADM_kmin,l,GRD_ZH)).or.&
+             233     5                                    (GRD_gz(k)>GRD_vz_pl(n,ADM_kmax+1,l,GRD_ZH)) ) then
+             234     5                                  v_pl(n,k,l) = CNST_UNDEF
+             235     5                               else
+             236     6       8                          do kk = ADM_kmin-1,ADM_kmax+1
+             237     6       8                            kp=kk
+             238     6       8                            if(GRD_gz(k)<GRD_vz_pl(n,kk,l,GRD_Z)) exit
+             239     6       8                          end do
+             240     5               !                   if(kp==ADM_kmin-1) then
+             241     5               !                      kp=ADM_kmin
+             242     5               !                   elseif(kp==ADM_kmax+1) then
+             243     5               !                      kp=ADM_kmax
+             244     5               !                   end if
+             245     6                                  if (kp<=ADM_kmin) then
+             246     6                                     kp=ADM_kmin+1
+             247     6                                  elseif(kp>=ADM_kmax) then
+             248     6                                     kp=ADM_kmax-1
+             249     6                                  end if
+             250     5                                  ! 07/01/24 K.Suzuki: consider undefined value
+             251     6                                  if ( tmp_pl(n,kp+1,l) == CNST_UNDEF ) then
+             252     7                                    if ( tmp_pl(n,kp,l) == CNST_UNDEF ) then
+             253     7                                      v_pl(n,k,l) = tmp_pl(n,kp-1,l)
+             254     7                                    else if ( tmp_pl(n,kp-1,l) == CNST_UNDEF ) then
+             255     7                                      v_pl(n,k,l) = tmp_pl(n,kp,l)
+             256     7                                    else
+             257     7                                      v_pl(n,k,l)                                  &
+             258     7                                             = lag_intpl_linear(GRD_gz(k),         &
+             259     7                                             GRD_vz_pl(n,kp  ,l,GRD_Z),tmp_pl(n,kp  ,l), &
+             260     7                                             GRD_vz_pl(n,kp-1,l,GRD_Z),tmp_pl(n,kp-1,l) )
+             261     7                                    end if
+             262     6                                  else if ( tmp_pl(n,kp,l) == CNST_UNDEF ) then
+             263     6                                     v_pl(n,k,l) = tmp_pl(n,kp-1,l)
+             264     6                                  else if ( tmp_pl(n,kp-1,l) == CNST_UNDEF ) then
+             265     6                                     v_pl(n,k,l) = tmp_pl(n,kp,l)
+             266     6                                  else
+             267     6                                     v_pl(n,k,l)                                       &
+             268     6                                          = lag_intpl_quadra(GRD_gz(k),                &
+             269     6                                          GRD_vz_pl(n,kp+1,l,GRD_Z),tmp_pl(n,kp+1,l),  &
+             270     6                                          GRD_vz_pl(n,kp  ,l,GRD_Z),tmp_pl(n,kp  ,l),  &
+             271     6                                          GRD_vz_pl(n,kp-1,l,GRD_Z),tmp_pl(n,kp-1,l) )
+             272     6                                  end if
+             273     5                               end if
+             274     4                            end do
+             275     3                         end Do
+             276     2                      end Do
+             277     1                   end If
+             278                       end subroutine VINTRPL_z_level
+             279                       !-----------------------------------------------------------------------------
+             280                       subroutine VINTRPL_z_level2( v, v_pl, wgrid ) ! 07/01/24 K.Suzuki [add]
+             281                         implicit none
+             282                         real(8), intent(inout) :: v(ADM_gall,ADM_kall,ADM_lall)
+             283                         real(8), intent(inout) :: v_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             284                         logical, intent(in) :: wgrid
+             285                     
+             286                         real(8) :: tmp(ADM_gall,ADM_kall,ADM_lall)
+             287                         real(8) :: tmp_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             288                         integer :: l,k,n,kk
+             289                     
+             290                         integer :: kp
+             291                         real(8) :: lag_intpl
+             292                     
+             293                         real(8) :: z,z1,p1,z2,p2
+             294                         lag_intpl(z,z1,p1,z2,p2)  &
+             295                              = (z-z2)/(z1-z2)*p1  &
+             296                              + (z1-z)/(z1-z2)*p2
+             297                     
+             298     1                   if(wgrid) then
+             299     1                      ! 07/01/24 K.Suzuki: consider undefined value
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             300     2  pp                  do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             301     3  pp                  do k=ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 302
+                                   <<< Loop-information  End >>>
+             302     4  pp   6s             do n=1, ADM_gall
+             303     5   p   6s               if ( v(n,k+1,l) == CNST_UNDEF ) then
+             304     5   p   6s                 tmp(n,k,l) = v(n,k,l)
+             305     5   p   6s               else if ( v(n,k,l) == CNST_UNDEF ) then
+             306     5   p   6s                 tmp(n,k,l) = v(n,k+1,l)
+             307     5   p   6s               else
+             308     5   p   6s                 tmp(n,k,l) = 0.5D0*(v(n,k+1,l)+v(n,k,l))
+             309     5   p   6s               end if
+             310     4   p   6s             end do
+             311     3   p                  end do
+             312     2   p                  end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             313     1  pp   8v             tmp(:,ADM_kmin-1,:) = v(:,ADM_kmin,:)
+             314     1   p   8v             tmp(:,ADM_kmax+1,:) = v(:,ADM_kmax+1,:)
+             315     1               
+             316     2                      If(ADM_prc_me==ADM_prc_pl) Then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             317     3  pp                     do l=1,ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             318     4  pp                     do k=ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 302
+                                   <<< Loop-information  End >>>
+             319     5  pp   6s                do n=1,ADM_gall
+             320     6   p   6s                  if ( v_pl(n,k+1,l) == CNST_UNDEF ) then
+             321     6   p   6s                    tmp_pl(n,k,l) = v_pl(n,k,l)
+             322     6   p   6s                  else if ( v_pl(n,k,l) == CNST_UNDEF ) then
+             323     6   p   6s                    tmp_pl(n,k,l) = v_pl(n,k+1,l)
+             324     6   p   6s                  else
+             325     6   p   6s                    tmp_pl(n,k,l) = 0.5D0*(v_pl(n,k+1,l)+v_pl(n,k,l))
+             326     6   p   6s                  end if
+             327     5   p   6s                end do
+             328     4   p                     end do
+             329     3   p                     end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             330     2  pp   8v                tmp_pl(:,ADM_kmin-1,:) = v_pl(:,ADM_kmin,:)
+             331     2   p   8v                tmp_pl(:,ADM_kmax+1,:) = v_pl(:,ADM_kmax+1,:)
+             332     2                      end If
+             333     1                   else
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             334     1  pp   8v             tmp = v
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             335     1  pp   8v             tmp_pl = v_pl
+             336     1                   end if
+             337                     
+             338     1                   Do l=1,ADM_lall
+             339     2                      do k=1,ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 18
+                                   <<<      GRD_vz: 2, v: 12, tmp: 4
+                                   <<< Loop-information  End >>>
+             340     3                         do n=1, ADM_gall
+             341     4                            if(      (GRD_gz(k)<GRD_vz(n,ADM_kmin,l,GRD_ZH))&
+             342     4                                 .or.(GRD_gz(k)>GRD_vz(n,ADM_kmax+1,l,GRD_ZH)) ) then
+             343     4                               v(n,k,l) = CNST_UNDEF
+             344     4                            else
+             345     5       8                       do kk = ADM_kmin-1,ADM_kmax+1
+             346     5       8                          kp=kk
+             347     5       8                          if(GRD_gz(k)<GRD_vz(n,kk,l,GRD_Z)) exit
+             348     5       8                       end do
+             349     5                               if (kp<=ADM_kmin) then
+             350     5                                  v(n,k,l)=tmp(n,ADM_kmin,l)
+             351     5                               elseif(kp>=ADM_kmax+1) then
+             352     5                                  v(n,k,l)=tmp(n,ADM_kmax,l)
+             353     5                               else
+             354     5                                 ! 07/01/24 K.Suzuki: consider undefined value
+             355     6                                 if ( tmp(n,kp,l) == CNST_UNDEF ) then
+             356     6                                    v(n,k,l) = tmp(n,kp-1,l)
+             357     6                                 else if ( tmp(n,kp-1,l) == CNST_UNDEF ) then
+             358     6                                    v(n,k,l) = tmp(n,kp,l)
+             359     6                                 else
+             360     6                                    v(n,k,l)                                    &
+             361     6                                         = lag_intpl(GRD_gz(k),                 &
+             362     6                                         GRD_vz(n,kp  ,l,GRD_Z),tmp(n,kp  ,l),  &
+             363     6                                         GRD_vz(n,kp-1,l,GRD_Z),tmp(n,kp-1,l) )
+             364     6                                 end if
+             365     5                               end if
+             366     4                            end if
+             367     3                         end do
+             368     2                      end Do
+             369     1                   end Do
+             370     1                   If(ADM_prc_me==ADM_prc_pl) Then
+             371     2                      Do l=1,ADM_lall_pl
+             372     3                         do k=1,ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 18
+                                   <<<      GRD_vz_pl: 2, v_pl: 12, tmp_pl: 4
+                                   <<< Loop-information  End >>>
+             373     4                            do n=1, ADM_gall_pl
+             374     5                               if(  (GRD_gz(k)<GRD_vz_pl(n,ADM_kmin,l,GRD_ZH)).or.&
+             375     5                                    (GRD_gz(k)>GRD_vz_pl(n,ADM_kmax+1,l,GRD_ZH)) ) then
+             376     5                                  v_pl(n,k,l) = CNST_UNDEF
+             377     5                               else
+             378     6       8                          do kk = ADM_kmin-1,ADM_kmax+1
+             379     6       8                            kp=kk
+             380     6       8                            if(GRD_gz(k)<GRD_vz_pl(n,kk,l,GRD_Z)) exit
+             381     6       8                          end do
+             382     6                                  if (kp<=ADM_kmin) then
+             383     6                                     v_pl(n,k,l) = tmp_pl(n,ADM_kmin,l)
+             384     6                                  else if(kp>=ADM_kmax+1) then
+             385     6                                     v_pl(n,k,l) = tmp_pl(n,ADM_kmax,l)
+             386     6                                  else
+             387     6                                    ! 07/01/24 K.Suzuki: consider undefined value
+             388     7                                    if ( tmp_pl(n,kp,l) == CNST_UNDEF ) then
+             389     7                                       v_pl(n,k,l) = tmp_pl(n,kp-1,l)
+             390     7                                    else if ( tmp_pl(n,kp-1,l) == CNST_UNDEF ) then
+             391     7                                       v_pl(n,k,l) = tmp_pl(n,kp,l)
+             392     7                                    else
+             393     7                                       v_pl(n,k,l)                                      &
+             394     7                                            = lag_intpl(GRD_gz(k),                      &
+             395     7                                            GRD_vz_pl(n,kp  ,l,GRD_Z),tmp_pl(n,kp  ,l), &
+             396     7                                            GRD_vz_pl(n,kp-1,l,GRD_Z),tmp_pl(n,kp-1,l) )
+             397     7                                    end if
+             398     6                                  end if
+             399     5                               end if
+             400     4                            end do
+             401     3                         end Do
+             402     2                      end Do
+             403     1                   end If
+             404                       end subroutine VINTRPL_z_level2
+             405                       !-----------------------------------------------------------------------------
+             406                       subroutine VINTRPL_zstar_level( v, v_pl, wgrid )
+             407                         implicit none
+             408                         real(8), intent(inout) :: v(ADM_gall,ADM_kall,ADM_lall)
+             409                         real(8), intent(inout) :: v_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             410                         logical, intent(in) :: wgrid
+             411                     
+             412                         real(8) :: tmp(ADM_gall,ADM_kall,ADM_lall)
+             413                         real(8) :: tmp_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             414                         !
+             415                         integer :: l,k,n,kk,kp
+             416                         real(8) :: lag_intpl
+             417                         real(8) :: z,z1,p1,z2,p2,z3,p3
+             418                         lag_intpl(z,z1,p1,z2,p2,z3,p3)             &
+             419                              = ((z-z2)*(z-z3))/((z1-z2)*(z1-z3))*p1&
+             420                              + ((z-z1)*(z-z3))/((z2-z1)*(z2-z3))*p2&
+             421                              + ((z-z1)*(z-z2))/((z3-z1)*(z3-z2))*p3
+             422     1                   if(wgrid) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             423     1  pp   8v             tmp = v
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             424     1  pp    v             v(:,ADM_kmin-1,:) = CNST_UNDEF
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             425     2  pp                  do l=1,ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             426     3  pp                     do n = 1, ADM_gall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             427     4  pp                        do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 90
+                                   <<<      GRD_gzh: 90
+                                   <<< Loop-information  End >>>
+             428     5   p   8                       do kk = 1, ADM_kall-1
+             429     6   p   8                          if ( ( GRD_gzh(kk)   <= GRD_vz(n,k,l,GRD_ZH) ) .and. &
+             430     6                                       ( GRD_gzh(kk+1) >= GRD_vz(n,k,l,GRD_ZH) ) ) then
+             431     7   p   8                             if(kk==1) then
+             432     7   p   8                                kp=2
+             433     7   p   8                             else
+             434     7   p   8                                kp=kk
+             435     7   p   8                             end if
+             436     6   p   8                             v(n,k,l)                         &
+             437     6                                          = lag_intpl(GRD_vz(n,k,l,GRD_ZH),  &
+             438     6                                           GRD_gzh(kp+1),tmp(n,kp+1,l),&
+             439     6                                           GRD_gzh(kp  ),tmp(n,kp  ,l),&
+             440     6                                           GRD_gzh(kp-1),tmp(n,kp-1,l))
+             441     6   p   8                             exit
+             442     6   p   8                          end if
+             443     5   p   8                       end do
+             444     4   p                        end do
+             445     3   p                     end do
+             446     2   p                  end do
+             447     2                      If(ADM_prc_me==ADM_prc_pl) Then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             448     2  pp   8v                tmp_pl = v_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             449     2  pp    v                v_pl(:,ADM_kmin-1,:) = CNST_UNDEF
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             450     3  pp                     do l=1,ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             451     4  pp                        do n = 1, ADM_gall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             452     5  pp                           do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 90
+                                   <<<      GRD_gzh: 90
+                                   <<< Loop-information  End >>>
+             453     6   p   8                          do kk = 1, ADM_kall-1
+             454     7   p   8                             if ( ( GRD_gzh(kk)   <= GRD_vz_pl(n,k,l,GRD_ZH) ) .and. &
+             455     7                                          ( GRD_gzh(kk+1) >=  GRD_vz_pl(n,k,l,GRD_ZH) ) ) then
+             456     8   p   8                                if(kk==1) then
+             457     8   p   8                                   kp=2
+             458     8   p   8                                else
+             459     8   p   8                                   kp=kk
+             460     8   p   8                                end if
+             461     7   p   8                                v_pl(n,k,l)                     &
+             462     7                                          = lag_intpl(GRD_vz_pl(n,k,l,GRD_ZH), &
+             463     7                                          GRD_gzh(kp+1),tmp_pl(n,kp+1,l),&
+             464     7                                          GRD_gzh(kp  ),tmp_pl(n,kp  ,l),&
+             465     7                                          GRD_gzh(kp-1),tmp_pl(n,kp-1,l))
+             466     7   p   8                                exit
+             467     7   p   8                             end if
+             468     6   p   8                          end do
+             469     5   p                           end do
+             470     4   p                        end do
+             471     3   p                     end do
+             472     2                      end If
+             473     1                   else !--- full grid
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             474     1  pp   8v             tmp = v
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             475     1  pp   8v             v(:,ADM_kmin-1,:) = CNST_UNDEF
+             476     1   p   8v             v(:,ADM_kmax+1,:) = CNST_UNDEF
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             477     2  pp                  do l=1,ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             478     3  pp                     do n = 1, ADM_gall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             479     4  pp                        do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 90
+                                   <<<      GRD_gz: 90
+                                   <<< Loop-information  End >>>
+             480     5   p   8                       do kk = 1, ADM_kall-1
+             481     6   p   8                          if ( ( GRD_gz(kk)   <= GRD_vz(n,k,l,GRD_Z) ) .and. &
+             482     6                                       ( GRD_gz(kk+1) >=  GRD_vz(n,k,l,GRD_Z) ) ) then
+             483     7   p   8                             if(kk==1) then
+             484     7   p   8                                kp=2
+             485     7   p   8                             else
+             486     7   p   8                                kp=kk
+             487     7   p   8                             end if
+             488     6   p   8                             v(n,k,l)                              &
+             489     6                                          = lag_intpl(GRD_vz(n,k,l,GRD_Z), &
+             490     6                                           GRD_gz(kp+1),tmp(n,kp+1,l),     &
+             491     6                                           GRD_gz(kp  ),tmp(n,kp  ,l),     &
+             492     6                                           GRD_gz(kp-1),tmp(n,kp-1,l))
+             493     6   p   8                             exit
+             494     6   p   8                          end if
+             495     5   p   8                       end do
+             496     4   p                        end do
+             497     3   p                     end do
+             498     2   p                  end do
+             499     2                      If(ADM_prc_me==ADM_prc_pl) Then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             500     2  pp   8v                tmp_pl = v_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             501     2  pp   8v                v_pl(:,ADM_kmin-1,:) = CNST_UNDEF
+             502     2   p   8v                v_pl(:,ADM_kmax+1,:) = CNST_UNDEF
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             503     3  pp                     do l=1,ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             504     4  pp                        do n = 1, ADM_gall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             505     5  pp                           do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 90
+                                   <<<      GRD_gz: 90
+                                   <<< Loop-information  End >>>
+             506     6   p   8                          do kk = 1, ADM_kall-1
+             507     7   p   8                             if ( ( GRD_gz(kk)   <= GRD_vz_pl(n,k,l,GRD_Z) ) .and. &
+             508     7                                          ( GRD_gz(kk+1) >=  GRD_vz_pl(n,k,l,GRD_Z) ) ) then
+             509     8   p   8                                if(kk==1) then
+             510     8   p   8                                   kp=2
+             511     8   p   8                                else
+             512     8   p   8                                   kp=kk
+             513     8   p   8                                end if
+             514     7   p   8                                v_pl(n,k,l)                           &
+             515     7                                          = lag_intpl(GRD_vz_pl(n,k,l,GRD_Z), &
+             516     7                                          GRD_gz(kp+1),tmp_pl(n,kp+1,l),      &
+             517     7                                          GRD_gz(kp  ),tmp_pl(n,kp  ,l),      &
+             518     7                                          GRD_gz(kp-1),tmp_pl(n,kp-1,l))
+             519     7   p   8                                exit
+             520     7   p   8                             end if
+             521     6   p   8                          end do
+             522     5   p                           end do
+             523     4   p                        end do
+             524     3   p                     end do
+             525     2                      end If
+             526     1                   end if
+             527                         !
+             528                       end subroutine VINTRPL_zstar_level
+             529                       !-----------------------------------------------------------------------------
+             530                       subroutine VINTRPL_half2full( v, v_pl )
+             531                         implicit none
+             532                         real(8), intent(inout) :: v(ADM_gall,ADM_kall,ADM_lall)
+             533                         real(8), intent(inout) :: v_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             534                     
+             535                         real(8) :: tmp(ADM_gall,ADM_kall,ADM_lall)
+             536                         real(8) :: tmp_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             537                         integer :: k
+             538                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             539     1  pp               do k=ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             540     1  pp   8v             tmp(:,k,:) = 0.5D0*(v(:,k+1,:)+v(:,k,:))
+             541     1   p               end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             542        pp   8v          tmp(:,ADM_kmin-1,:) = v(:,ADM_kmin,:)
+             543         p   8v          tmp(:,ADM_kmax+1,:) = v(:,ADM_kmax+1,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             544        pp   8v          v = tmp
+             545                         !
+             546     1                   If(ADM_prc_me==ADM_prc_pl) Then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             547     2  pp                  do k=ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             548     2  pp   8v                tmp_pl(:,k,:) = 0.5D0*(v_pl(:,k+1,:)+v_pl(:,k,:))
+             549     2   p                  end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             550     1  pp   8v             tmp_pl(:,ADM_kmin-1,:) = v_pl(:,ADM_kmin,:)
+             551     1   p   8v             tmp_pl(:,ADM_kmax+1,:) = v_pl(:,ADM_kmax+1,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             552     1  pp   8v             v_pl = tmp_pl
+             553     1                   end If
+             554                         !
+             555                       end subroutine VINTRPL_half2full
+             556                       !-----------------------------------------------------------------------------
+             557                       subroutine VINTRPL_mk_sigma( sigma, sigma_pl, pre, pre_pl, pres, pres_pl )
+             558                         !
+             559                         implicit none
+             560                         !
+             561                         real(8), intent(out) :: sigma(ADM_gall,ADM_kall,ADM_lall)
+             562                         real(8), intent(out) :: sigma_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             563                         real(8), intent(in) :: pre(ADM_gall,ADM_kall,ADM_lall)
+             564                         real(8), intent(in) :: pre_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             565                         !
+             566                         real(8), intent(in) :: pres(ADM_gall,ADM_KNONE,ADM_lall)
+             567                         real(8), intent(in) :: pres_pl(ADM_GALL_PL,ADM_KNONE,ADM_LALL_PL)
+             568                         integer :: l,k,n
+             569                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             570     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             571     2  pp                  do k = 1,ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 356
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             572     3  pp   6v                do n=1, ADM_gall
+             573     3   p   6v                   sigma(n,k,l) = pre(n,k,l)/pres(n,ADM_KNONE,l)
+             574     3   p   6v                end do
+             575     2   p                  end do
+             576     1   p               end do
+             577     1                   If(ADM_prc_me==ADM_prc_pl) Then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             578     2  pp                  do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             579     3  pp                     do k = 1,ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 356
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             580     4  pp   6v                   do n=1, ADM_gall_pl
+             581     4   p   6v                      sigma_pl(n,k,l) = pre_pl(n,k,l)/pres_pl(n,ADM_KNONE,l)
+             582     4   p   6v                   end do
+             583     3   p                     end do
+             584     2   p                  end do
+             585     1                   end If
+             586                         return
+             587                       end subroutine VINTRPL_mk_sigma
+             588                       !-----------------------------------------------------------------------------
+             589                       subroutine VINTRPL_sigma_level( &
+             590                            v, v_pl,                   &
+             591                            sigma, sigma_pl,           &
+             592                            sigma_lev, MAX_SIGMA,      &
+             593                            wgrid )
+             594                         implicit none
+             595                         real(8), intent(inout) :: v(ADM_gall,ADM_kall,ADM_lall)
+             596                         real(8), intent(inout) :: v_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             597                         real(8), intent(in) :: sigma(ADM_gall,ADM_kall,ADM_lall)
+             598                         real(8), intent(in) :: sigma_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             599                         integer, intent(in) :: MAX_SIGMA
+             600                         real(8), intent(in) :: sigma_lev(MAX_SIGMA)
+             601                         logical, intent(in) :: wgrid
+             602                     
+             603                         real(8) :: tmp(ADM_gall,ADM_kall,ADM_lall)
+             604                         real(8) :: tmp_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+             605                         real(8) :: a,b
+             606                         integer :: l,k,n,kk,kp
+             607                     
+             608     1                   if(wgrid) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             609     2  pp                  do k=ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             610     2  pp   8v                tmp(:,k,:) = 0.5D0*(v(:,k+1,:)+v(:,k,:))
+             611     2   p                  end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             612     1  pp   8v             tmp(:,ADM_kmin-1,:) = v(:,ADM_kmin,:)
+             613     1   p   8v             tmp(:,ADM_kmax+1,:) = v(:,ADM_kmax+1,:)
+             614     1               
+             615     2                      If(ADM_prc_me==ADM_prc_pl) Then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             616     3  pp                     do k=ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             617     3  pp   8v                   tmp_pl(:,k,:) = 0.5D0*(v_pl(:,k+1,:)+v_pl(:,k,:))
+             618     3   p                     end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             619     2  pp   8v                tmp_pl(:,ADM_kmin-1,:) = v_pl(:,ADM_kmin,:)
+             620     2   p   8v                tmp_pl(:,ADM_kmax+1,:) = v_pl(:,ADM_kmax+1,:)
+             621     2                      end If
+             622     1                   else
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             623     1  pp   8v             tmp = v
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             624     1  pp   8v             tmp_pl = v_pl
+             625     1                   end if
+             626                     
+             627     1                   Do l=1,ADM_lall
+             628     2                      do k=1,MAX_SIGMA
+             629     3                         do n=1, ADM_gall
+             630     4       8                    do kk = ADM_kmin+1,ADM_kmax
+             631     4       8                      kp=kk
+             632     4       8                      if(sigma_lev(k)>sigma(n,kk,l)) exit
+             633     4       8                    end do
+             634     3                            a = sigma(n,kp,l)-sigma_lev(k)
+             635     3                            b = sigma_lev(k)-sigma(n,kp-1,l)
+             636     3                            v(n,k,l) = (b*tmp(n,kp,l) + a*tmp(n,kp-1,l))/(a+b)
+             637     3                         end do
+             638     2                      end Do
+             639     1                   end Do
+             640     1                   If(ADM_prc_me==ADM_prc_pl) Then
+             641     2                      Do l=1,ADM_lall_pl
+             642     3                         do k=1,MAX_SIGMA
+             643     4                            do n=1, ADM_gall_pl
+             644     5       8                       do kk = ADM_kmin+1,ADM_kmax
+             645     5       8                         kp=kk
+             646     5       8                          if(sigma_lev(k)>sigma_pl(n,kk,l)) exit
+             647     5       8                       end do
+             648     4                               a = sigma_pl(n,kp,l)-sigma_lev(k)
+             649     4                               b = sigma_lev(k)-sigma_pl(n,kp-1,l)
+             650     4                               v_pl(n,k,l) = (b*tmp_pl(n,kp,l) + a*tmp_pl(n,kp-1,l))/(a+b)
+             651     4                            end do
+             652     3                         end Do
+             653     2                      end Do
+             654     1                   end If
+             655                       end subroutine VINTRPL_sigma_level
+             656                       !-----------------------------------------------------------------------------
+             657                     end module mod_vintrpl
+             658                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_vintrpl)
+   jwd8220o-i  "share/mod_vintrpl.f90", line 6: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(VINTRPL_srfc_val)
+   jwd8209o-i  "share/mod_vintrpl.f90", line 98: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 103: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 108: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 113: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(VINTRPL_z_level)
+   jwd8209o-i  "share/mod_vintrpl.f90", line 208: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_vintrpl.f90", line 208: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 218: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 257: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_vintrpl.f90", line 257: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 267: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(VINTRPL_z_level2)
+   jwd8209o-i  "share/mod_vintrpl.f90", line 360: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_vintrpl.f90", line 360: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 393: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_vintrpl.f90", line 393: Division is changed to multiplication by reciprocal.
+  Module subprogram name(VINTRPL_zstar_level)
+   jwd8209o-i  "share/mod_vintrpl.f90", line 436: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 461: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 488: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_vintrpl.f90", line 514: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(VINTRPL_mk_sigma)
+   jwd8201o-i  "share/mod_vintrpl.f90", line 573: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "share/mod_vintrpl.f90", line 573: Division is changed to multiplication by reciprocal.
+   jwd8201o-i  "share/mod_vintrpl.f90", line 581: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "share/mod_vintrpl.f90", line 581: Division is changed to multiplication by reciprocal.
+  Module subprogram name(VINTRPL_sigma_level)
+   jwd8201o-i  "share/mod_vintrpl.f90", line 630: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "share/mod_vintrpl.f90", line 644: Invariant expression within loop is moved outside loop.
+
+ Procedure information
+   Lines      : 658
+   Statements : 477
+   Stack(byte): 5040
+   Prefetch num: 428
+
+ Total information
+   Procedures       : 1
+   Total lines      : 658
+   Total statements : 477
+   Total stack(byte): 5040
+   Total prefetch num: 428
+

@@ -1,0 +1,1358 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 16:47:32 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_adm.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_adm.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_adm"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! Administration module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module is for the management of process and region on
+               7                     !!         the icosahedral grid configuration.
+               8                     !!
+               9                     !! @author  H.Tomita
+              10                     !!
+              11                     !! @par History
+              12                     !! @li      2004-02-17 (H.Tomita)  Imported from igdc-4.33
+              13                     !! @li      2007-10-22 (T.Mitsui)  change value of PRC_RGN_NMAX
+              14                     !! @li      2008-01-30 (S.Iga)     private procedure mk_suffix is changed to public procedure
+              15                     !! @li      2009-08-18 (T.Mitsui)  modify adm_proc_stop to keep out extra process from main routines.
+              16                     !! @li      2010-04-26 (M.Satoh)   add ADM_l_me
+              17                     !! @li      2010-06-07 (S.Iga)     new grid (Iga 2010) is implemented. (see string XTMS)
+              18                     !! @li      2011-06-30 (T.Seiki)   fix undefined value (after, 07-10-22)
+              19                     !! @li      2011-07-21 (T.Ohno)    2 new grid systems (1DMD-ON-SPHERE are added by Hara-san@JAMSTEC)
+              20                     !! @li      2012-01-12 (H.Yashiro) add filename specification for logfile(optional)
+              21                     !! @li      2012-06-11 (H.Yashiro) Milestone-project, code cleanup
+              22                     !!
+              23                     !<
+              24                     module mod_adm
+              25                         !-----------------------------------------------------------------------------
+              26                         !
+              27                         !++ used modules
+              28                         !
+              29                         use mpi
+              30                         !-----------------------------------------------------------------------------
+              31                         implicit none
+              32                         private
+              33                         !-----------------------------------------------------------------------------
+              34                         !
+              35                         !++ Public procedure
+              36                         !
+              37                         public :: ADM_proc_init
+              38                         public :: ADM_proc_stop
+              39                         public :: ADM_setup
+              40                         public :: ADM_mk_suffix
+              41                     
+              42                         !-----------------------------------------------------------------------------
+              43                         !
+              44                         !++ Public parameters & variables
+              45                         !
+              46                         !------ Character length of system control
+              47                         integer, public, parameter :: ADM_NSYS = 32
+              48                         !
+              49                         !------ Maximum length of file name
+              50                         integer, public, parameter :: ADM_MAXFNAME = 128
+              51                     
+              52                         !
+              53                         !====== Basic definition & information ======
+              54                         !
+              55                         !------ Log file ID & Control file ID
+              56                         integer, public, parameter :: ADM_LOG_FID = 30
+              57                         integer, public, parameter :: ADM_CTL_FID = 35
+              58                         !
+              59                         !------ Identifier for single computation or parallel computation
+              60                         integer, public, parameter :: ADM_SINGLE_PRC = 0
+              61                         integer, public, parameter :: ADM_MULTI_PRC  = 1
+              62                         !
+              63                         !------ Identifiers of directions of region edges
+              64                         integer, public, parameter :: ADM_SW = 1
+              65                         integer, public, parameter :: ADM_NW = 2
+              66                         integer, public, parameter :: ADM_NE = 3
+              67                         integer, public, parameter :: ADM_SE = 4
+              68                         !
+              69                         !------ Identifiers of directions of region vertices
+              70                         integer, public, parameter :: ADM_W = 1
+              71                         integer, public, parameter :: ADM_N = 2
+              72                         integer, public, parameter :: ADM_E = 3
+              73                         integer, public, parameter :: ADM_S = 4
+              74                         !
+              75                         !--- Identifier of triangle element (i-axis-side or j-axis side)
+              76                         integer, public, parameter :: ADM_TI = 1
+              77                         integer, public, parameter :: ADM_TJ = 2
+              78                         !
+              79                         !--- Identifier of line element (i-axis-side, ij-axis side, or j-axis side)
+              80                         integer, public, parameter :: ADM_AI  = 1
+              81                         integer, public, parameter :: ADM_AIJ = 2
+              82                         integer, public, parameter :: ADM_AJ  = 3
+              83                         !
+              84                         !------ Identifier of 1 variable
+              85                         integer, public, parameter :: ADM_KNONE = 1
+              86                         integer, public, parameter :: ADM_VNONE = 1
+              87                         !
+              88                         !------ Identifier of poles (north pole or south pole)
+              89                         integer, public, parameter :: ADM_NPL = 1
+              90                         integer, public, parameter :: ADM_SPL = 2
+              91                         !
+              92                         !------ Fist colomn on the table for region and direction
+              93                         integer, public, parameter :: ADM_RID = 1
+              94                         integer, public, parameter :: ADM_DIR = 2
+              95                         !
+              96                         real(8), public, parameter :: ADM_VMISS = 1.D0
+              97                     
+              98                         !
+              99                         !====== Information for processes ======
+             100                         !
+             101                         !------ Communication world for NICAM
+             102                         integer, public, save      :: ADM_COMM_RUN_WORLD
+             103                         !
+             104                         !------ Master process
+             105                         integer, public, parameter :: ADM_prc_run_master = 1
+             106                         !
+             107                         !------ Total number of process
+             108                         integer, public, save      :: ADM_prc_all
+             109                         !
+             110                         !------ My process ID
+             111                         integer, public, save      :: ADM_prc_me
+             112                         !
+             113                         !------ Process ID which manages the pole regions.
+             114                         integer, public, save      :: ADM_prc_pl
+             115                         !
+             116                         !------ Process ID which have the pole regions.
+             117                         integer, public,  save     :: ADM_prc_npl
+             118                         integer, public,  save     :: ADM_prc_spl
+             119                         integer, public,  save     :: ADM_prc_nspl(ADM_NPL:ADM_SPL)
+             120                     
+             121                         !
+             122                         !====== Information for processes-region relationship ======
+             123                         !
+             124                         !------ Maximum number of regions managed by 1 process.
+             125                         integer, public,                parameter :: PRC_RGN_NMAX = 2560
+             126                         !
+             127                         !------ Regin managing file name
+             128                         character(len=ADM_MAXFNAME), public, save :: ADM_rgnmngfname
+             129                         !
+             130                         !------ Number of regions mangeged by each process
+             131                         integer, public, allocatable,        save :: ADM_prc_rnum(:)
+             132                         !
+             133                         !------ Table of regions managed by each process
+             134                         integer, public, allocatable,        save :: ADM_prc_tab(:,:)
+             135                         !
+             136                         !------ Table of edge link information
+             137                         integer, public, allocatable,        save :: ADM_rgn_etab(:,:,:)
+             138                         !<-----
+             139                         !<----- ADM_rgn_etab( ADM_RID:ADM_DIR, &
+             140                         !<-----               ADM_SW:ADM_SE,   &
+             141                         !<-----               ADM_rgn_nmax     )
+             142                         !<-----
+             143                         !
+             144                         !------ Table of process ID from region ID
+             145                         integer, public, allocatable,        save :: ADM_rgn2prc(:)
+             146                         !<-----
+             147                         !<----- ADM_rgn2prc(ADM_rgn_nmax)
+             148                         !<-----
+             149                         !
+             150                         !------ Maximum number of vertex linkage
+             151                         !integer, public, parameter :: ADM_VLINK_NMAX=5 ! S.Iga 100607
+             152                         integer, public,                     save :: ADM_VLINK_NMAX ! S.Iga 100607
+             153                         !
+             154                         !------ Table of n-vertex-link(?) at the region vertex
+             155                         integer, public, allocatable,        save :: ADM_rgn_vnum(:,:)
+             156                         !<-----
+             157                         !<----- ADM_rgn_vnum( ADM_W:ADM_S, &
+             158                         !<-----               ADM_rgn_nmax )
+             159                         !<-----
+             160                         !
+             161                         !------ Table of vertex link information
+             162                         integer, public, allocatable,        save :: ADM_rgn_vtab(:,:,:,:)
+             163                         !<-----
+             164                         !<----- ADM_rgn_vtab( ADM_RID:ADM_DIR, &
+             165                         !<-----               ADM_W:ADM_S,     &
+             166                         !<-----               ADM_rgn_nmax,    &
+             167                         !<-----               ADM_VLINK_NMAX   )
+             168                         !<-----
+             169                         !
+             170                         !------ Table of vertex link information for poles
+             171                         integer, public, allocatable,        save :: ADM_rgn_vtab_pl(:,:,:)
+             172                         !<-----
+             173                         !<----- ADM_rgn_vtab_pl( ADM_RID:ADM_DIR, &
+             174                         !<-----                  ADM_RGN_NMAX_PL, &
+             175                         !<-----                  ADM_VLINK_NMAX   )
+             176                         !<-----
+             177                         !
+             178                         !------ Region ID (reguler) of north pole management
+             179                         integer, public, save :: ADM_rgnid_npl_mng
+             180                         integer, public, save :: ADM_rgnid_spl_mng
+             181                     
+             182                     
+             183                         !
+             184                         !====== Information for regions ======
+             185                         !
+             186                         !------ Region division level
+             187                         integer, public, save      :: ADM_rlevel
+             188                         !
+             189                         !------ Total number of regular regions managed by all process
+             190                         integer, public, save      :: ADM_rgn_nmax
+             191                         !
+             192                         !------ Maximum number of pole regions
+             193                         integer, public, parameter :: ADM_rgn_nmax_pl = 2
+             194                         !
+             195                         !------ Local region number
+             196                         integer, public, save      :: ADM_lall
+             197                         !
+             198                         !------ Local region number for poles
+             199                         integer, public, save      :: ADM_lall_pl = ADM_rgn_nmax_pl
+             200                         !
+             201                         !------ Present Local region number ! 2010.4.26 M.Satoh
+             202                         integer, public, save      :: ADM_l_me
+             203                     
+             204                         !
+             205                         !====== Grid resolution informations  ======
+             206                         !
+             207                         !------ Grid division level
+             208                         integer, public, save      :: ADM_glevel
+             209                         !
+             210                         !------ Horizontal grid numbers
+             211                         integer, public, save      :: ADM_gmin
+             212                         integer, public, save      :: ADM_gmax
+             213                         integer, public, save      :: ADM_gall_1d
+             214                         integer, public, save      :: ADM_gall
+             215                         !
+             216                         !----- grid number of inner region in the diamond
+             217                         integer, public, save      :: ADM_gall_in
+             218                         !
+             219                         !------ Identifiers of grid points around poles.
+             220                         integer, public, parameter :: ADM_gslf_pl = 1
+             221                         integer, public, parameter :: ADM_gmin_pl = 2
+             222                         integer, public, save      :: ADM_gmax_pl     ! [mod] S.Iga 100607
+             223                         integer, public, save      :: ADM_gall_pl     ! [mod] S.Iga 100607
+             224                         !
+             225                         !------ Vertica grid numbers
+             226                         integer, public, save      :: ADM_vlayer
+             227                         integer, public, save      :: ADM_kmin
+             228                         integer, public, save      :: ADM_kmax
+             229                         integer, public, save      :: ADM_kall
+             230                     
+             231                         !
+             232                         !======  List vector for 1-dimensional array in the horiz. dir. ======
+             233                         !
+             234                         !------ Identifiers of grid points around a grid point
+             235                         integer, public, parameter :: ADM_GIJ_nmax = 7
+             236                         integer, public, parameter :: ADM_GIoJo = 1
+             237                         integer, public, parameter :: ADM_GIpJo = 2
+             238                         integer, public, parameter :: ADM_GIpJp = 3
+             239                         integer, public, parameter :: ADM_GIoJp = 4
+             240                         integer, public, parameter :: ADM_GImJo = 5
+             241                         integer, public, parameter :: ADM_GImJm = 6
+             242                         integer, public, parameter :: ADM_GIoJm = 7
+             243                         !
+             244                         !------ List vectors
+             245                         integer, public,              save :: ADM_IooJoo_nmax
+             246                         integer, public, allocatable, save :: ADM_IooJoo(:,:)
+             247                         !<-----
+             248                         !<----- ADM_IooJoo(ADM_IooJoo_nmax,ADM_GIJ_nmax)
+             249                         !<-----
+             250                         integer, public,              save :: ADM_IooJmo_nmax
+             251                         integer, public, allocatable, save :: ADM_IooJmo(:,:)
+             252                         !<-----
+             253                         !<----- ADM_IooJmo(ADM_IooJmo_nmax,ADM_GIJ_nmax)
+             254                         !<-----
+             255                         integer, public,              save :: ADM_IooJop_nmax
+             256                         integer, public, allocatable, save :: ADM_IooJop(:,:)
+             257                         !<-----
+             258                         !<----- ADM_IooJop(ADM_IooJop_nmax,ADM_GIJ_nmax)
+             259                         !<-----
+             260                         integer, public,              save :: ADM_IooJmp_nmax
+             261                         integer, public, allocatable, save :: ADM_IooJmp(:,:)
+             262                         !<-----
+             263                         !<----- ADM_IooJmp(ADM_IooJmp_nmax,ADM_GIJ_nmax)
+             264                         !<-----
+             265                         integer, public,              save :: ADM_ImoJoo_nmax
+             266                         integer, public, allocatable, save :: ADM_ImoJoo(:,:)
+             267                         !<-----
+             268                         !<----- ADM_ImoJoo(ADM_ImoJoo_nmax,ADM_GIJ_nmax)
+             269                         !<-----
+             270                         integer, public,              save :: ADM_ImoJmo_nmax
+             271                         integer, public, allocatable, save :: ADM_ImoJmo(:,:)
+             272                         !<-----
+             273                         !<----- ADM_ImoJmo(ADM_ImoJmo_nmax,ADM_GIJ_nmax)
+             274                         !<-----
+             275                         integer, public,              save :: ADM_ImoJop_nmax
+             276                         integer, public, allocatable, save :: ADM_ImoJop(:,:)
+             277                         !<-----
+             278                         !<----- ADM_ImoJop(ADM_ImoJop_nmax,ADM_GIJ_nmax)
+             279                         !<-----
+             280                         integer, public,              save :: ADM_ImoJmp_nmax
+             281                         integer, public, allocatable, save :: ADM_ImoJmp(:,:)
+             282                         !<-----
+             283                         !<----- ADM_ImoJmp(ADM_ImoJmp_nmax,ADM_GIJ_nmax)
+             284                         !<-----
+             285                         integer, public,              save :: ADM_IopJoo_nmax
+             286                         integer, public, allocatable, save :: ADM_IopJoo(:,:)
+             287                         !<-----
+             288                         !<----- ADM_IopJoo(ADM_IopJoo_nmax,ADM_GIJ_nmax)
+             289                         !<-----
+             290                         integer, public,              save :: ADM_IopJmo_nmax
+             291                         integer, public, allocatable, save :: ADM_IopJmo(:,:)
+             292                         !<-----
+             293                         !<----- ADM_IopJmo(ADM_IopJmo_nmax,ADM_GIJ_nmax)
+             294                         !<-----
+             295                         integer, public,              save :: ADM_IopJop_nmax
+             296                         integer, public, allocatable, save :: ADM_IopJop(:,:)
+             297                         !<-----
+             298                         !<----- ADM_IopJop(ADM_IopJop_nmax,ADM_GIJ_nmax)
+             299                         !<-----
+             300                         integer, public,              save :: ADM_IopJmp_nmax
+             301                         integer, public, allocatable, save :: ADM_IopJmp(:,:)
+             302                         !<-----
+             303                         !<----- ADM_IopJmp(ADM_IopJmp_nmax,ADM_GIJ_nmax)
+             304                         !<-----
+             305                         integer, public,              save :: ADM_ImpJoo_nmax
+             306                         integer, public, allocatable, save :: ADM_ImpJoo(:,:)
+             307                         !<-----
+             308                         !<----- ADM_ImpJoo(ADM_ImpJoo_nmax,ADM_GIJ_nmax)
+             309                         !<-----
+             310                         integer, public,              save :: ADM_ImpJmo_nmax
+             311                         integer, public, allocatable, save :: ADM_ImpJmo(:,:)
+             312                         !<-----
+             313                         !<----- ADM_ImpJmo(ADM_ImpJmo_nmax,ADM_GIJ_nmax)
+             314                         !<-----
+             315                         integer, public,              save :: ADM_ImpJop_nmax
+             316                         integer, public, allocatable, save :: ADM_ImpJop(:,:)
+             317                         !<-----
+             318                         !<----- ADM_ImpJop(ADM_ImpJop_nmax,ADM_GIJ_nmax)
+             319                         !<-----
+             320                         integer, public,              save :: ADM_ImpJmp_nmax
+             321                         integer, public, allocatable, save :: ADM_ImpJmp(:,:)
+             322                         !<-----
+             323                         !<----- ADM_ImpJmp(ADM_ImpJmp_nmax,ADM_GIJ_nmax)
+             324                         !<-----
+             325                     
+             326                         !=========== For New Grid (XTMS) start    <= S.Iga100607
+             327                         !
+             328                         !------ Horizontal Grid type
+             329                         character(len=ADM_MAXFNAME), public, save  :: ADM_HGRID_SYSTEM = 'ICO' ! icosahedral
+             330                         !                                             'ICO-XTMS' icosahedral but XTMS is used in oprt
+             331                         !                                             'LCP'      Lambert-cornial (including PSP)
+             332                         !                                             'MLCP'     Mercator+Lambert-cornial
+             333                         !                                             'MLCP-OLD' OLD vergion (only for s=1)
+             334                         !
+             335                         !------ Number of lines at each pole (maybe this is identical to ADM_VLINK_NMAX)
+             336                         integer,                     public, save  :: ADM_XTMS_K=-1 ! default
+             337                         !                                             ICO:5
+             338                         !                                             PSP:6
+             339                         !                                             LCP, MLCP:k
+             340                         !
+             341                         !------ Number of segment for MLCP
+             342                         integer,                     public, save  :: ADM_XTMS_MLCP_S= 1
+             343                         !
+             344                         !------ XTMS LEVEL (it is conveniently defined especially for mod_oprt)
+             345                         integer,                     public, save  :: ADM_XTMS_LEVEL = 0 ! original icosahedral (NICAM)
+             346                         !                                             = 1 ! XTMS level 1
+             347                         !                                             = 2 ! XTMS level 2 (to be implemented)
+             348                         !=========== For New Grid (XTMS) end    S.Iga100607 =>
+             349                     
+             350                         logical,                     public, save  :: ADM_debug = .false. ! [ADD] H.Yashiro 20120703
+             351                     
+             352                         !-----------------------------------------------------------------------------
+             353                         !
+             354                         !++ Private procedure
+             355                         !
+             356                         private :: input_mnginfo
+             357                         private :: output_info
+             358                         private :: setup_vtab
+             359                     
+             360                         !-----------------------------------------------------------------------------
+             361                         !
+             362                         !++ Private parameters & variables
+             363                         !
+             364                         integer, private, parameter :: GDUMMY = 1 ! Horizontal dummy(halo) cell
+             365                         integer, private, parameter :: KDUMMY = 1 ! Vertical   dummy(halo) cell
+             366                     
+             367                         integer, private, save      :: ADM_run_type    ! Run type (single or multi processes)
+             368                     
+             369                         integer, private, save      :: NMAX_DMD = -999 ! number of diamond
+             370                     
+             371                       !-----------------------------------------------------------------------------
+             372                     contains
+             373                     
+             374                         !-----------------------------------------------------------------------------
+             375                         !>
+             376                         !> Description of the subroutine ADM_proc_init
+             377                         !>
+             378                         subroutine ADM_proc_init( rtype )
+             379                             implicit none
+             380                     
+             381                             integer, intent(in) :: rtype ! multi or single processor?
+             382                     
+             383                             integer :: my_rank
+             384                             integer :: ierr
+             385                             !---------------------------------------------------------------------------
+             386                     
+             387                             ADM_run_type = rtype
+             388                     
+             389     1                       if ( rtype == ADM_MULTI_PRC ) then
+             390     1               
+             391     1                           call MPI_Init(ierr)
+             392     1                           call MPI_Comm_size(MPI_COMM_WORLD, ADM_prc_all, ierr)
+             393     1                           call MPI_Comm_rank(MPI_COMM_WORLD, my_rank,     ierr)
+             394     1               
+             395     1                           call MPI_Comm_split(MPI_COMM_WORLD, 0, my_rank, ADM_COMM_RUN_WORLD,ierr)
+             396     1               
+             397     1                           call MPI_Barrier(MPI_COMM_WORLD,ierr)
+             398     1                       else
+             399     1                           ADM_prc_all = 1
+             400     1                           my_rank     = 0
+             401     1                       endif
+             402                     
+             403                             ADM_prc_me = my_rank + 1
+             404                             ADM_prc_pl = 1
+             405                     
+             406                             return
+             407                         end subroutine ADM_proc_init
+             408                     
+             409                         !-----------------------------------------------------------------------------
+             410                         !>
+             411                         !> Description of the subroutine ADM_proc_stop
+             412                         !>
+             413                         subroutine ADM_proc_stop
+             414                             implicit none
+             415                     
+             416                             character(len=ADM_NSYS) :: request
+             417                             integer                 :: ierr
+             418                             !---------------------------------------------------------------------------
+             419                     
+             420     1                       if ( ADM_run_type == ADM_MULTI_PRC ) then
+             421     1                           write(ADM_LOG_FID,*)
+             422     1                           write(ADM_LOG_FID,*) 'MPI process going to STOP...'
+             423     1               
+             424     1                           request='STOP'
+             425     1                           call MPI_BCAST( request,              & !--- starting address
+             426     1                               ADM_NSYS,             & !--- number of array
+             427     1                               MPI_CHARACTER,        & !--- type
+             428     1                               ADM_prc_run_master-1, & !--- source rank
+             429     1                               MPI_COMM_WORLD,       & !--- world
+             430     1                               ierr                  ) !--- error id
+             431     1               
+             432     1                           call MPI_Barrier(MPI_COMM_WORLD,ierr)
+             433     1               
+             434     1                           write(ADM_LOG_FID,*) 'MPI process has normally finished.'
+             435     1                           write(ADM_LOG_FID,*) '############################################################'
+             436     1                           call MPI_Finalize(ierr)
+             437     1               
+             438     1                           close(ADM_CTL_FID)
+             439     1                           close(ADM_LOG_FID)
+             440     1               
+             441     1                           stop
+             442     1                       else
+             443     1                           write(ADM_LOG_FID,*)
+             444     1                           write(ADM_LOG_FID,*) 'Serial process stopeed.'
+             445     1                           write(ADM_LOG_FID,*) '############################################################'
+             446     1               
+             447     1                           close(ADM_CTL_FID)
+             448     1                           close(ADM_LOG_FID)
+             449     1               
+             450     1                           stop
+             451     1                       endif
+             452                     
+             453                             return
+             454                         end subroutine ADM_proc_stop
+             455                     
+             456                         !-----------------------------------------------------------------------------
+             457                         !>
+             458                         !> Description of the subroutine ADM_setup
+             459                         !>
+             460                         subroutine ADM_setup( &
+             461                             param_fname, &
+             462                             msg_base     )
+             463                             use mod_misc, only: &
+             464                                 MISC_make_idstr
+             465                             implicit none
+             466                     
+             467                             character(LEN=*), intent(in) :: param_fname ! namelist file name
+             468                     
+             469                             character(len=*), intent(in), optional :: msg_base ! output file for msg.pexxxxx file
+             470                     
+             471                             integer                     :: glevel      = -1
+             472                             integer                     :: rlevel      = -1
+             473                             integer                     :: vlayer      =  1
+             474                             character(LEN=ADM_MAXFNAME) :: rgnmngfname = ''
+             475                     
+             476                             namelist / ADMPARAM / &
+             477                                 glevel,           & !--- grid division level
+             478                                 rlevel,           & !--- region division level
+             479                                 vlayer,           & !--- number of inner vertical layer
+             480                                 rgnmngfname,      & !--- region management file name
+             481                                 ADM_HGRID_SYSTEM, & !--- grid system (default: ico)  ! S.Iga100607
+             482                                 ADM_XTMS_K,       & !--- num of lines at PL          ! S.Iga100607
+             483                                 ADM_XTMS_MLCP_S,  & !--- num of segment for MLCP     ! S.Iga100607
+             484                                 ADM_debug
+             485                     
+             486                             integer :: rgn_nmax
+             487                             integer :: nmax
+             488                             integer :: ierr
+             489                     
+             490                             character(LEN=ADM_MAXFNAME) :: fname
+             491                             character(LEN=ADM_MAXFNAME) :: msg
+             492                             !---------------------------------------------------------------------------
+             493                     
+             494                             msg = 'msg'
+             495                             if( present(msg_base) ) msg = msg_base ! [add] H.Yashiro 20110701
+             496                     
+             497                             !--- open message file
+             498                             call MISC_make_idstr(fname,trim(msg),'pe',ADM_prc_me)
+             499                             open( unit = ADM_LOG_FID, &
+             500                                 file = trim(fname), &
+             501                                 form = 'formatted'  )
+             502                     
+             503                             write(ADM_LOG_FID,*) '############################################################'
+             504                             write(ADM_LOG_FID,*) '#                                                          #'
+             505                             write(ADM_LOG_FID,*) '#   NICAM : Nonhydrostatic ICosahedal Atmospheric Model    #'
+             506                             write(ADM_LOG_FID,*) '#                                                          #'
+             507                             write(ADM_LOG_FID,*) '############################################################'
+             508                     
+             509                             !--- open control file
+             510                             open( unit   = ADM_CTL_FID,       &
+             511                                 file   = trim(param_fname), &
+             512                                 form   = 'formatted',       &
+             513                                 status = 'old',             &
+             514                                 iostat = ierr               )
+             515                     
+             516     1                       if ( ierr /= 0 ) then
+             517     1                           write(*,*) 'xxx Cannot open parameter control file!'
+             518     1                           write(*,*) 'xxx filename:', trim(param_fname)
+             519     1                           call ADM_proc_stop
+             520     1                       endif
+             521                     
+             522                             !--- read parameters
+             523                             write(ADM_LOG_FID,*)
+             524                             write(ADM_LOG_FID,*) '+++ Module[adm]/Category[common share]'
+             525                             rewind(ADM_CTL_FID)
+             526                             read(ADM_CTL_FID,nml=ADMPARAM,iostat=ierr)
+             527     1                       if ( ierr < 0 ) then
+             528     1                           write(*,          *) 'xxx Not found namelist! STOP.'
+             529     1                           write(ADM_LOG_FID,*) 'xxx Not found namelist! STOP.'
+             530     1                           call ADM_proc_stop
+             531     1                       elseif ( ierr > 0 ) then
+             532     1                           write(*,          *) 'xxx Not appropriate names in namelist ADMPARAM. STOP.'
+             533     1                           write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist ADMPARAM. STOP.'
+             534     1                           call ADM_proc_stop
+             535     1                       endif
+             536                             write(ADM_LOG_FID,nml=ADMPARAM)
+             537                     
+             538                             ADM_glevel      = glevel
+             539                             ADM_rlevel      = rlevel
+             540                             ADM_vlayer      = vlayer
+             541                             ADM_rgnmngfname = trim(rgnmngfname)
+             542                     
+             543                             ! S.Iga 100607 start =>
+             544     1                       if ( trim(ADM_HGRID_SYSTEM) == 'ICO' ) then
+             545     1                           ADM_XTMS_level = 0
+             546     1                           ADM_XTMS_K     = 5
+             547     1                           NMAX_DMD       = 10
+             548     1                       elseif( trim(ADM_HGRID_SYSTEM) == 'LCP' ) then
+             549     1                           if( ADM_XTMS_K == -1 ) ADM_XTMS_K = 6
+             550     1                           ADM_XTMS_level = 1
+             551     1                           NMAX_DMD       = 4* ADM_XTMS_K
+             552     1                       elseif( trim(ADM_HGRID_SYSTEM) == 'MLCP-OLD' ) then
+             553     1                           if( ADM_XTMS_K == -1 ) ADM_XTMS_K = 6
+             554     1                           ADM_XTMS_level = 1
+             555     1                           NMAX_DMD       = 2* ADM_XTMS_K
+             556     1                       elseif( trim(ADM_HGRID_SYSTEM) == 'MLCP' ) then
+             557     1                           if( ADM_XTMS_K == -1 ) ADM_XTMS_K = 6
+             558     1                           ADM_XTMS_level = 1
+             559     1                           NMAX_DMD       = (1+ADM_XTMS_MLCP_S)  * ADM_XTMS_K
+             560     1                       elseif( trim(ADM_HGRID_SYSTEM) == 'PERIODIC-1DMD' ) then ! T.Ohno 110721
+             561     1                           ADM_XTMS_level = 0
+             562     1                           ADM_XTMS_K     = 5
+             563     1                           NMAX_DMD       = 1
+             564     1                           ADM_prc_pl     = -999
+             565     1                       elseif( trim(ADM_HGRID_SYSTEM) == '1DMD-ON-SPHERE' ) then ! M.Hara 110721
+             566     1                           ADM_XTMS_level = 0
+             567     1                           ADM_XTMS_K     = 5
+             568     1                           NMAX_DMD       = 1
+             569     1                           ADM_prc_pl     = -999
+             570     1                       elseif( trim(ADM_HGRID_SYSTEM) == 'ICO-XTMS' ) then
+             571     1                           ADM_XTMS_level = 1
+             572     1                           ADM_XTMS_K     = 5
+             573     1                           NMAX_DMD       = 10
+             574     1                       else
+             575     1                           write(*          ,*) 'xxx Name of ADM_HGRID_SYSTEM is wrong. STOP.'
+             576     1                           write(ADM_LOG_FID,*) 'xxx Name of ADM_HGRID_SYSTEM is wrong. STOP.'
+             577     1                           call ADM_proc_stop
+             578     1                       endif
+             579                     
+             580                             ADM_VLINK_NMAX = ADM_XTMS_K
+             581                             ADM_GMAX_PL    = ADM_VLINK_NMAX + 1
+             582                             ADM_GALL_PL    = ADM_VLINK_NMAX + 1
+             583                             ! <= S.Iga 100607 end
+             584                     
+             585                             ! ERROR if Glevel & Rlevel are not defined
+             586     1                       if ( ADM_glevel < 1 ) then
+             587     1                           write(*          ,*) 'xxx Glevel is not appropriate, STOP. GL=', ADM_glevel
+             588     1                           write(ADM_LOG_FID,*) 'xxx Glevel is not appropriate, STOP. GL=', ADM_glevel
+             589     1                           call ADM_proc_stop
+             590     1                       endif
+             591     1                       if ( ADM_rlevel < 0 ) then
+             592     1                           write(*          ,*) 'xxx Rlevel is not appropriate, STOP. RL=', ADM_rlevel
+             593     1                           write(ADM_LOG_FID,*) 'xxx Rlevel is not appropriate, STOP. RL=', ADM_rlevel
+             594     1                           call ADM_proc_stop
+             595     1                       endif
+             596                     
+             597                             rgn_nmax     = 2**ADM_rlevel
+             598                             ADM_rgn_nmax = rgn_nmax * rgn_nmax * NMAX_DMD
+             599                     
+             600                             call input_mnginfo( ADM_rgnmngfname )
+             601                     
+             602                             ADM_prc_npl = ADM_prc_pl
+             603                             ADM_prc_spl = ADM_prc_pl
+             604                     
+             605                             ADM_prc_nspl(ADM_NPL) = ADM_prc_npl
+             606                             ADM_prc_nspl(ADM_SPL) = ADM_prc_spl
+             607                     
+             608                             nmax        = 2**( ADM_glevel - ADM_rlevel )
+             609                             ADM_gmin    = GDUMMY + 1
+             610                             ADM_gmax    = GDUMMY + nmax
+             611                             ADM_gall_1d = GDUMMY + nmax + GDUMMY
+             612                             ADM_gall    = ADM_gall_1d * ADM_gall_1d
+             613                     
+             614                             ADM_gall_in = ( nmax+GDUMMY ) * ( nmax+GDUMMY ) !--- inner grid number (e.g., 33x33 for gl05)
+             615                     
+             616     1                       if ( ADM_vlayer == 1 ) then
+             617     1                           ADM_kmin = 1
+             618     1                           ADM_kmax = 1
+             619     1                           ADM_kall = 1
+             620     1                       else
+             621     1                           ADM_kmin = KDUMMY + 1
+             622     1                           ADM_kmax = KDUMMY + ADM_vlayer
+             623     1                           ADM_kall = KDUMMY + ADM_vlayer + KDUMMY
+             624     1                       endif
+             625                     
+             626                             ADM_lall = ADM_prc_rnum(ADM_prc_me)
+             627                     
+             628                             ! 2010.4.26 M.Satoh; 2010.5.11 M.Satoh
+             629                             ! ADM_l_me: this spans from 1 to ADM_lall, if effective.
+             630                             ! Otherwise, ADM_l_me = 0 should be set. see mod_history
+             631                             ADM_l_me = 0
+             632                     
+             633                             !--- make suffix for list-vector loop.
+             634                             call ADM_mk_suffix
+             635                     
+             636                             call output_info
+             637                     
+             638                             return
+             639                         end subroutine ADM_setup
+             640                     
+             641                         !-----------------------------------------------------------------------------
+             642                         !>
+             643                         !> Description of the subroutine input_mnginfo
+             644                         !>
+             645                         subroutine input_mnginfo( fname )
+             646                             use mod_misc,  only :&
+             647                                 MISC_get_available_fid
+             648                             implicit none
+             649                     
+             650                             character(len=ADM_MAXFNAME), intent(in) :: fname
+             651                     
+             652                             integer :: num_of_rgn !--- number of region
+             653                     
+             654                             namelist / rgn_info / &
+             655                                 num_of_rgn
+             656                     
+             657                             integer :: rgnid                    !--- region ID
+             658                             integer :: sw(ADM_RID:ADM_DIR) = -1 !--- south-west region info
+             659                             integer :: nw(ADM_RID:ADM_DIR) = -1 !--- nouth-west region info
+             660                             integer :: ne(ADM_RID:ADM_DIR) = -1 !--- nouth-east region info
+             661                             integer :: se(ADM_RID:ADM_DIR) = -1 !--- south-east region info
+             662                     
+             663                             namelist / rgn_link_info / &
+             664                                 rgnid, &
+             665                                 sw,    &
+             666                                 nw,    &
+             667                                 ne,    &
+             668                                 se
+             669                     
+             670                             integer :: num_of_proc !--- number of run-processes
+             671                     
+             672                             namelist /proc_info/ &
+             673                                 num_of_proc
+             674                     
+             675                             integer :: peid                         !--- process ID
+             676                             integer :: num_of_mng                   !--- number of regions be managed
+             677                             integer :: mng_rgnid(PRC_RGN_NMAX) = -1 !--- managed region ID
+             678                     
+             679                             namelist /rgn_mng_info/ &
+             680                                 peid,       &
+             681                                 num_of_mng, &
+             682                                 mng_rgnid
+             683                     
+             684                             integer :: fid, ierr
+             685                             integer :: l, m, n
+             686                             !---------------------------------------------------------------------------
+             687                     
+             688                             write(ADM_LOG_FID,*)
+             689                             write(ADM_LOG_FID,*) '+++ Module[mnginfo]/Category[common share]'
+             690                     
+             691                             fid = MISC_get_available_fid()
+             692                             open( unit   = fid,         &
+             693                                 file   = trim(fname), &
+             694                                 form   = 'formatted', &
+             695                                 status = 'old',       &
+             696                                 iostat = ierr         )
+             697                     
+             698                             !=> [add] H.Yashiro 20120611
+             699                             ! ERROR if filename are not defined
+             700     1                       if ( ierr /= 0 ) then
+             701     1                           write(ADM_LOG_FID,*) 'xxx mnginfo file is not found! STOP. ', trim(fname)
+             702     1                           call ADM_proc_stop
+             703     1                       endif
+             704                             !<= [add] H.Yashiro 20120611
+             705                     
+             706                             read(fid,nml=rgn_info)
+             707     1                       if ( num_of_rgn /= ADM_rgn_nmax ) then
+             708     1                           write(ADM_LOG_FID,*) 'xxx No match for region number! STOP.'
+             709     1                           write(ADM_LOG_FID,*) 'xxx ADM_rgn_nmax= ',ADM_rgn_nmax,' num_of_rgn=',num_of_rgn
+             710     1                           call ADM_proc_stop
+             711     1                       endif
+             712                     
+             713                             allocate( ADM_rgn_etab( ADM_RID:ADM_DIR, &
+             714                                 ADM_SW:ADM_SE,   &
+             715                                 ADM_rgn_nmax     ) )
+             716                     
+             717     1   s    s              do l = 1, ADM_rgn_nmax
+             718     1   m    s                  read(fid,nml=rgn_link_info)
+             719     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             720     1   m   2s                  ADM_rgn_etab(ADM_RID:ADM_DIR,ADM_SW,rgnid) = sw(ADM_RID:ADM_DIR)
+             721     1   s   2s                  ADM_rgn_etab(ADM_RID:ADM_DIR,ADM_NW,rgnid) = nw(ADM_RID:ADM_DIR)
+             722     1   s   2s                  ADM_rgn_etab(ADM_RID:ADM_DIR,ADM_NE,rgnid) = ne(ADM_RID:ADM_DIR)
+             723     1   m   2s                  ADM_rgn_etab(ADM_RID:ADM_DIR,ADM_SE,rgnid) = se(ADM_RID:ADM_DIR)
+             724     1   p    s              enddo
+             725                     
+             726                             read(fid,nml=proc_info)
+             727     1                       if ( ADM_prc_all /= num_of_proc ) then
+             728     1                           write(ADM_LOG_FID,*) ' xxx No match for  process number! STOP.'
+             729     1                           write(ADM_LOG_FID,*) ' xxx ADM_prc_all= ',ADM_prc_all,' num_of_proc=',num_of_proc
+             730     1                           call ADM_proc_stop
+             731     1                       endif
+             732                     
+             733     1                       if ( ADM_prc_all /= num_of_proc ) then
+             734     1                           write(ADM_LOG_FID,*) 'Msg : Sub[ADM_input_mngtab]/Mod[admin]'
+             735     1                           write(ADM_LOG_FID,*) ' --- No match for process number!'
+             736     1                           call ADM_proc_stop
+             737     1                       endif
+             738                     
+             739                             allocate( ADM_prc_rnum(ADM_prc_all)              )
+             740                             allocate( ADM_prc_tab (PRC_RGN_NMAX,ADM_prc_all) )
+             741                             allocate( ADM_rgn2prc (ADM_rgn_nmax)             )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 9
+                                   <<< Loop-information  End >>>
+             742        pp    s              ADM_prc_tab = -1 ! [Fix] 11/06/30  T.Seiki, fill undefined value
+             743                     
+             744     1                       do m = 1, ADM_prc_all
+             745     1                           read(fid,nml=rgn_mng_info)
+             746     1               
+             747     1                           ADM_prc_rnum(m)      = num_of_mng
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             748     1  pp   8s                  ADM_prc_tab (:,peid) = mng_rgnid(:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             749     2   s   8s                  do n = 1, num_of_mng
+             750     2   m   8s                      ADM_rgn2prc(mng_rgnid(n)) = peid
+             751     2   p   8s                  enddo
+             752     1                       enddo
+             753                     
+             754                             call setup_vtab
+             755                     
+             756                             close(fid)
+             757                     
+             758                             return
+             759                         end subroutine input_mnginfo
+             760                     
+             761                         !-----------------------------------------------------------------------------
+             762                         !>
+             763                         !> Description of the subroutine setup_vtab
+             764                         !>
+             765                         subroutine setup_vtab
+             766                             implicit none
+             767                     
+             768                             integer :: nrid(ADM_VLINK_NMAX)
+             769                             integer :: nvid(ADM_VLINK_NMAX)
+             770                             integer :: vnum
+             771                     
+             772                             integer :: l, k, ll, v
+             773                             !---------------------------------------------------------------------------
+             774                     
+             775                             allocate( ADM_rgn_vnum( ADM_W:ADM_S, &
+             776                                 ADM_rgn_nmax ) )
+             777                     
+             778                             allocate( ADM_rgn_vtab( ADM_RID:ADM_DIR,&
+             779                                 ADM_W:ADM_S,    &
+             780                                 ADM_rgn_nmax,   &
+             781                                 ADM_VLINK_NMAX  ) )
+             782                     
+             783                             allocate( ADM_rgn_vtab_pl( ADM_RID:ADM_DIR, &
+             784                                 ADM_RGN_NMAX_PL, &
+             785                                 ADM_VLINK_NMAX   ) )
+             786                     
+             787     1                       do l = 1, ADM_rgn_nmax
+             788     2                           do k = ADM_W, ADM_S
+             789     2                               call set_vinfo(vnum,nrid,nvid,l,k)
+             790     2               
+             791     2                               ADM_rgn_vnum(k,l)           = vnum
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 762
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             792     2  pp   8s                      ADM_rgn_vtab(ADM_RID,k,l,:) = nrid(:)
+             793     2   p   8s                      ADM_rgn_vtab(ADM_DIR,k,l,:) = nvid(:)
+             794     2                           enddo
+             795     1                       enddo
+             796                     
+             797     1       8               do l = 1, ADM_rgn_nmax
+             798     2       8                   if ( ADM_rgn_vnum(ADM_N,l) == ADM_VLINK_NMAX ) then
+             799     2       8                       ll = l
+             800     2       8                       exit
+             801     2       8                   endif
+             802     1       8               enddo
+             803                             ADM_rgnid_npl_mng = ll
+             804                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 762
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             805     1  pp   8s              do v = 1, ADM_VLINK_NMAX
+             806     1   p   8s                  ADM_rgn_vtab_pl(ADM_RID,ADM_NPL,v) = ADM_rgn_vtab(ADM_RID,ADM_N,ll,v)
+             807     1   p   8s                  ADM_rgn_vtab_pl(ADM_DIR,ADM_NPL,v) = ADM_rgn_vtab(ADM_DIR,ADM_N,ll,v)
+             808     1   p   8s              enddo
+             809                     
+             810     1       8               do l = 1, ADM_rgn_nmax
+             811     2       8                   if ( ADM_rgn_vnum(ADM_S,l) == ADM_VLINK_NMAX ) then
+             812     2       8                       ll = l
+             813     2       8                       exit
+             814     2       8                   endif
+             815     1       8               enddo
+             816                             ADM_rgnid_spl_mng = ll
+             817                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 762
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             818     1  pp   8s              do v = 1, ADM_VLINK_NMAX
+             819     1   p   8s                  ADM_rgn_vtab_pl(ADM_RID,ADM_SPL,v) = ADM_rgn_vtab(ADM_RID,ADM_S,ll,v)
+             820     1   p   8s                  ADM_rgn_vtab_pl(ADM_DIR,ADM_SPL,v) = ADM_rgn_vtab(ADM_DIR,ADM_S,ll,v)
+             821     1   p   8s              enddo
+             822                     
+             823                             return
+             824                         end subroutine setup_vtab
+             825                     
+             826                         !-----------------------------------------------------------------------------
+             827                         !>
+             828                         !> Description of the subroutine set_vinfo
+             829                         !>
+             830                         subroutine set_vinfo( vert_num, nrgnid, nvertid, rgnid, vertid )
+             831                             implicit none
+             832                     
+             833                             integer,intent(out) :: vert_num
+             834                             integer,intent(out) :: nrgnid (:)
+             835                             integer,intent(out) :: nvertid(:)
+             836                             integer,intent(in)  :: rgnid
+             837                             integer,intent(in)  :: vertid
+             838                     
+             839                             integer :: eid, rid
+             840                             integer :: eid_new, rid_new
+             841                             !---------------------------------------------------------------------------
+             842                     
+             843                             vert_num = 0
+             844                     
+             845                             rid = rgnid
+             846                             eid = vertid
+             847     1                       select case(vertid)
+             848     1                           case(ADM_W)
+             849     1                               eid = ADM_SW
+             850     1                           case(ADM_N)
+             851     1                               eid = ADM_NW
+             852     1                           case(ADM_E)
+             853     1                               eid = ADM_NE
+             854     1                           case(ADM_S)
+             855     1                               eid = ADM_SE
+             856     1                       endselect
+             857                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             858        pp    s              nvertid(:) = -1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             859        pp    s              nrgnid (:) = -1
+             860     1                       do
+             861     1                           rid_new = ADM_rgn_etab(ADM_RID,eid,rid)
+             862     1                           eid_new = ADM_rgn_etab(ADM_DIR,eid,rid) - 1
+             863     1               
+             864     1                           if( eid_new == 0 ) eid_new = 4
+             865     1                           rid = rid_new
+             866     1                           eid = eid_new
+             867     1               
+             868     1                           vert_num = vert_num + 1
+             869     1               
+             870     1                           nrgnid (vert_num) = rid
+             871     1                           nvertid(vert_num) = eid
+             872     1               
+             873     1                           if( rid == rgnid ) exit
+             874     1                       enddo
+             875                     
+             876                             return
+             877                         end subroutine set_vinfo
+             878                     
+             879                         !-----------------------------------------------------------------------------
+             880                         !>
+             881                         !> Description of the subroutine ADM_mk_suffix
+             882                         !>
+             883                         subroutine ADM_mk_suffix
+             884                             implicit none
+             885                     
+             886                             integer :: gall_in
+             887                             integer :: i, j, n
+             888                             !---------------------------------------------------------------------------
+             889                     
+             890                             gall_in = ADM_gmax-ADM_gmin+1
+             891                     
+             892                             !--- ADM_IooJoo
+             893                             ADM_IooJoo_nmax = ( gall_in ) * ( gall_in )
+             894                             allocate( ADM_IooJoo(ADM_IooJoo_nmax,ADM_GIJ_nmax) )
+             895                             n = 1
+             896     1                       do j = ADM_gmin, ADM_gmax
+             897     2                           do i = ADM_gmin, ADM_gmax
+             898     2                               ADM_IooJoo(n,ADM_GIoJo) = suf(i  ,j  )
+             899     2                               ADM_IooJoo(n,ADM_GIpJo) = suf(i+1,j  )
+             900     2                               ADM_IooJoo(n,ADM_GIpJp) = suf(i+1,j+1)
+             901     2                               ADM_IooJoo(n,ADM_GIoJp) = suf(i  ,j+1)
+             902     2                               ADM_IooJoo(n,ADM_GImJo) = suf(i-1,j  )
+             903     2                               ADM_IooJoo(n,ADM_GImJm) = suf(i-1,j-1)
+             904     2                               ADM_IooJoo(n,ADM_GIoJm) = suf(i  ,j-1)
+             905     2                               n = n + 1
+             906     2                           enddo
+             907     1                       enddo
+             908                     
+             909                             !--- ADM_IooJmo
+             910                             ADM_IooJmo_nmax = ( gall_in ) * ( gall_in+1 )
+             911                             allocate( ADM_IooJmo(ADM_IooJmo_nmax,ADM_GIJ_nmax) )
+             912                             n = 1
+             913     1                       do j = ADM_gmin-1, ADM_gmax
+             914     2                           do i = ADM_gmin,   ADM_gmax
+             915     2                               ADM_IooJmo(n,ADM_GIoJo) = suf(i  ,j  )
+             916     2                               ADM_IooJmo(n,ADM_GIpJo) = suf(i+1,j  )
+             917     2                               ADM_IooJmo(n,ADM_GIpJp) = suf(i+1,j+1)
+             918     2                               ADM_IooJmo(n,ADM_GIoJp) = suf(i  ,j+1)
+             919     2                               ADM_IooJmo(n,ADM_GImJo) = suf(i-1,j  )
+             920     2                               ADM_IooJmo(n,ADM_GImJm) = suf(i-1,j-1)
+             921     2                               ADM_IooJmo(n,ADM_GIoJm) = suf(i  ,j-1)
+             922     2                               n = n + 1
+             923     2                           enddo
+             924     1                       enddo
+             925                     
+             926                             !--- ADM_IooJop
+             927                             ADM_IooJop_nmax = ( gall_in ) * ( gall_in+1 )
+             928                             allocate( ADM_IooJop(ADM_IooJop_nmax,ADM_GIJ_nmax) )
+             929                             n = 1
+             930     1                       do j = ADM_gmin, ADM_gmax+1
+             931     2                           do i = ADM_gmin, ADM_gmax
+             932     2                               ADM_IooJop(n,ADM_GIoJo) = suf(i  ,j  )
+             933     2                               ADM_IooJop(n,ADM_GIpJo) = suf(i+1,j  )
+             934     2                               ADM_IooJop(n,ADM_GIpJp) = suf(i+1,j+1)
+             935     2                               ADM_IooJop(n,ADM_GIoJp) = suf(i  ,j+1)
+             936     2                               ADM_IooJop(n,ADM_GImJo) = suf(i-1,j  )
+             937     2                               ADM_IooJop(n,ADM_GImJm) = suf(i-1,j-1)
+             938     2                               ADM_IooJop(n,ADM_GIoJm) = suf(i  ,j-1)
+             939     2                               n = n + 1
+             940     2                           enddo
+             941     1                       enddo
+             942                     
+             943                             !--- ADM_IooJmp
+             944                             ADM_IooJmp_nmax = ( gall_in ) * ( gall_in+2 )
+             945                             allocate( ADM_IooJmp(ADM_IooJmp_nmax,ADM_GIJ_nmax) )
+             946                             n = 1
+             947     1                       do j = ADM_gmin-1, ADM_gmax+1
+             948     2                           do i = ADM_gmin,   ADM_gmax
+             949     2                               ADM_IooJmp(n,ADM_GIoJo) = suf(i  ,j  )
+             950     2                               ADM_IooJmp(n,ADM_GIpJo) = suf(i+1,j  )
+             951     2                               ADM_IooJmp(n,ADM_GIpJp) = suf(i+1,j+1)
+             952     2                               ADM_IooJmp(n,ADM_GIoJp) = suf(i  ,j+1)
+             953     2                               ADM_IooJmp(n,ADM_GImJo) = suf(i-1,j  )
+             954     2                               ADM_IooJmp(n,ADM_GImJm) = suf(i-1,j-1)
+             955     2                               ADM_IooJmp(n,ADM_GIoJm) = suf(i  ,j-1)
+             956     2                               n = n + 1
+             957     2                           enddo
+             958     1                       enddo
+             959                     
+             960                             !--- ADM_ImoJoo
+             961                             ADM_ImoJoo_nmax = ( gall_in+1 ) * ( gall_in )
+             962                             allocate( ADM_ImoJoo(ADM_ImoJoo_nmax,ADM_GIJ_nmax) )
+             963                             n = 1
+             964     1                       do j = ADM_gmin,   ADM_gmax
+             965     2                           do i = ADM_gmin-1, ADM_gmax
+             966     2                               ADM_ImoJoo(n,ADM_GIoJo) = suf(i  ,j  )
+             967     2                               ADM_ImoJoo(n,ADM_GIpJo) = suf(i+1,j  )
+             968     2                               ADM_ImoJoo(n,ADM_GIpJp) = suf(i+1,j+1)
+             969     2                               ADM_ImoJoo(n,ADM_GIoJp) = suf(i  ,j+1)
+             970     2                               ADM_ImoJoo(n,ADM_GImJo) = suf(i-1,j  )
+             971     2                               ADM_ImoJoo(n,ADM_GImJm) = suf(i-1,j-1)
+             972     2                               ADM_ImoJoo(n,ADM_GIoJm) = suf(i  ,j-1)
+             973     2                               n = n + 1
+             974     2                           enddo
+             975     1                       enddo
+             976                     
+             977                             !--- ADM_ImoJmo
+             978                             ADM_ImoJmo_nmax = ( gall_in+1 ) * ( gall_in+1 )
+             979                             allocate( ADM_ImoJmo(ADM_ImoJmo_nmax,ADM_GIJ_nmax) )
+             980                             n = 1
+             981     1                       do j = ADM_gmin-1, ADM_gmax
+             982     2                           do i = ADM_gmin-1, ADM_gmax
+             983     2                               ADM_ImoJmo(n,ADM_GIoJo) = suf(i  ,j  )
+             984     2                               ADM_ImoJmo(n,ADM_GIpJo) = suf(i+1,j  )
+             985     2                               ADM_ImoJmo(n,ADM_GIpJp) = suf(i+1,j+1)
+             986     2                               ADM_ImoJmo(n,ADM_GIoJp) = suf(i  ,j+1)
+             987     2                               ADM_ImoJmo(n,ADM_GImJo) = suf(i-1,j  )
+             988     2                               ADM_ImoJmo(n,ADM_GImJm) = suf(i-1,j-1)
+             989     2                               ADM_ImoJmo(n,ADM_GIoJm) = suf(i  ,j-1)
+             990     2                               n = n + 1
+             991     2                           enddo
+             992     1                       enddo
+             993                     
+             994                             !--- ADM_ImoJop
+             995                             ADM_ImoJop_nmax = ( gall_in+1 ) * ( gall_in+1 )
+             996                             allocate( ADM_ImoJop(ADM_ImoJop_nmax,ADM_GIJ_nmax) )
+             997                             n = 1
+             998     1                       do j = ADM_gmin,   ADM_gmax+1
+             999     2                           do i = ADM_gmin-1, ADM_gmax
+            1000     2                               ADM_ImoJop(n,ADM_GIoJo) = suf(i  ,j  )
+            1001     2                               ADM_ImoJop(n,ADM_GIpJo) = suf(i+1,j  )
+            1002     2                               ADM_ImoJop(n,ADM_GIpJp) = suf(i+1,j+1)
+            1003     2                               ADM_ImoJop(n,ADM_GIoJp) = suf(i  ,j+1)
+            1004     2                               ADM_ImoJop(n,ADM_GImJo) = suf(i-1,j  )
+            1005     2                               ADM_ImoJop(n,ADM_GImJm) = suf(i-1,j-1)
+            1006     2                               ADM_ImoJop(n,ADM_GIoJm) = suf(i  ,j-1)
+            1007     2                               n = n + 1
+            1008     2                           enddo
+            1009     1                       enddo
+            1010                     
+            1011                             !--- ADM_ImoJmp
+            1012                             ADM_ImoJmp_nmax = ( gall_in+1 ) * ( gall_in+2 )
+            1013                             allocate( ADM_ImoJmp(ADM_ImoJmp_nmax,ADM_GIJ_nmax) )
+            1014                             n = 1
+            1015     1                       do j = ADM_gmin-1, ADM_gmax+1
+            1016     2                           do i = ADM_gmin-1, ADM_gmax
+            1017     2                               ADM_ImoJmp(n,ADM_GIoJo) = suf(i  ,j  )
+            1018     2                               ADM_ImoJmp(n,ADM_GIpJo) = suf(i+1,j  )
+            1019     2                               ADM_ImoJmp(n,ADM_GIpJp) = suf(i+1,j+1)
+            1020     2                               ADM_ImoJmp(n,ADM_GIoJp) = suf(i  ,j+1)
+            1021     2                               ADM_ImoJmp(n,ADM_GImJo) = suf(i-1,j  )
+            1022     2                               ADM_ImoJmp(n,ADM_GImJm) = suf(i-1,j-1)
+            1023     2                               ADM_ImoJmp(n,ADM_GIoJm) = suf(i  ,j-1)
+            1024     2                               n = n + 1
+            1025     2                           enddo
+            1026     1                       enddo
+            1027                     
+            1028                             !--- ADM_IopJoo
+            1029                             ADM_IopJoo_nmax = ( gall_in+1 ) * ( gall_in )
+            1030                             allocate( ADM_IopJoo(ADM_IopJoo_nmax,ADM_GIJ_nmax) )
+            1031                             n = 1
+            1032     1                       do j = ADM_gmin, ADM_gmax
+            1033     2                           do i = ADM_gmin, ADM_gmax+1
+            1034     2                               ADM_IopJoo(n,ADM_GIoJo) = suf(i  ,j  )
+            1035     2                               ADM_IopJoo(n,ADM_GIpJo) = suf(i+1,j  )
+            1036     2                               ADM_IopJoo(n,ADM_GIpJp) = suf(i+1,j+1)
+            1037     2                               ADM_IopJoo(n,ADM_GIoJp) = suf(i  ,j+1)
+            1038     2                               ADM_IopJoo(n,ADM_GImJo) = suf(i-1,j  )
+            1039     2                               ADM_IopJoo(n,ADM_GImJm) = suf(i-1,j-1)
+            1040     2                               ADM_IopJoo(n,ADM_GIoJm) = suf(i  ,j-1)
+            1041     2                               n = n + 1
+            1042     2                           enddo
+            1043     1                       enddo
+            1044                     
+            1045                             !--- ADM_IopJmo
+            1046                             ADM_IopJmo_nmax = ( gall_in+1 ) * ( gall_in+1 )
+            1047                             allocate( ADM_IopJmo(ADM_IopJmo_nmax,ADM_GIJ_nmax) )
+            1048                             n = 1
+            1049     1                       do j = ADM_gmin-1, ADM_gmax
+            1050     2                           do i = ADM_gmin,   ADM_gmax+1
+            1051     2                               ADM_IopJmo(n,ADM_GIoJo) = suf(i  ,j  )
+            1052     2                               ADM_IopJmo(n,ADM_GIpJo) = suf(i+1,j  )
+            1053     2                               ADM_IopJmo(n,ADM_GIpJp) = suf(i+1,j+1)
+            1054     2                               ADM_IopJmo(n,ADM_GIoJp) = suf(i  ,j+1)
+            1055     2                               ADM_IopJmo(n,ADM_GImJo) = suf(i-1,j  )
+            1056     2                               ADM_IopJmo(n,ADM_GImJm) = suf(i-1,j-1)
+            1057     2                               ADM_IopJmo(n,ADM_GIoJm) = suf(i  ,j-1)
+            1058     2                               n = n + 1
+            1059     2                           enddo
+            1060     1                       enddo
+            1061                     
+            1062                             !--- ADM_IopJop
+            1063                             ADM_IopJop_nmax = ( gall_in+1 ) * ( gall_in+1 )
+            1064                             allocate( ADM_IopJop(ADM_IopJop_nmax,ADM_GIJ_nmax) )
+            1065                             n = 1
+            1066     1                       do j = ADM_gmin, ADM_gmax+1
+            1067     2                           do i = ADM_gmin, ADM_gmax+1
+            1068     2                               ADM_IopJop(n,ADM_GIoJo) = suf(i  ,j  )
+            1069     2                               ADM_IopJop(n,ADM_GIpJo) = suf(i+1,j  )
+            1070     2                               ADM_IopJop(n,ADM_GIpJp) = suf(i+1,j+1)
+            1071     2                               ADM_IopJop(n,ADM_GIoJp) = suf(i  ,j+1)
+            1072     2                               ADM_IopJop(n,ADM_GImJo) = suf(i-1,j  )
+            1073     2                               ADM_IopJop(n,ADM_GImJm) = suf(i-1,j-1)
+            1074     2                               ADM_IopJop(n,ADM_GIoJm) = suf(i  ,j-1)
+            1075     2                               n = n + 1
+            1076     2                           enddo
+            1077     1                       enddo
+            1078                     
+            1079                             !--- ADM_IopJmp
+            1080                             ADM_IopJmp_nmax = ( gall_in+1 ) * ( gall_in+2 )
+            1081                             allocate( ADM_IopJmp(ADM_IopJmp_nmax,ADM_GIJ_nmax) )
+            1082                             n = 1
+            1083     1                       do j = ADM_gmin-1, ADM_gmax+1
+            1084     2                           do i = ADM_gmin, ADM_gmax+1
+            1085     2                               ADM_IopJmp(n,ADM_GIoJo) = suf(i  ,j  )
+            1086     2                               ADM_IopJmp(n,ADM_GIpJo) = suf(i+1,j  )
+            1087     2                               ADM_IopJmp(n,ADM_GIpJp) = suf(i+1,j+1)
+            1088     2                               ADM_IopJmp(n,ADM_GIoJp) = suf(i  ,j+1)
+            1089     2                               ADM_IopJmp(n,ADM_GImJo) = suf(i-1,j  )
+            1090     2                               ADM_IopJmp(n,ADM_GImJm) = suf(i-1,j-1)
+            1091     2                               ADM_IopJmp(n,ADM_GIoJm) = suf(i  ,j-1)
+            1092     2                               n = n + 1
+            1093     2                           enddo
+            1094     1                       enddo
+            1095                     
+            1096                             !--- ADM_ImpJoo
+            1097                             ADM_ImpJoo_nmax = ( gall_in+2 ) * ( gall_in )
+            1098                             allocate( ADM_ImpJoo(ADM_ImpJoo_nmax,ADM_GIJ_nmax) )
+            1099                             n = 1
+            1100     1                       do j = ADM_gmin,   ADM_gmax
+            1101     2                           do i = ADM_gmin-1, ADM_gmax+1
+            1102     2                               ADM_ImpJoo(n,ADM_GIoJo) = suf(i  ,j  )
+            1103     2                               ADM_ImpJoo(n,ADM_GIpJo) = suf(i+1,j  )
+            1104     2                               ADM_ImpJoo(n,ADM_GIpJp) = suf(i+1,j+1)
+            1105     2                               ADM_ImpJoo(n,ADM_GIoJp) = suf(i  ,j+1)
+            1106     2                               ADM_ImpJoo(n,ADM_GImJo) = suf(i-1,j  )
+            1107     2                               ADM_ImpJoo(n,ADM_GImJm) = suf(i-1,j-1)
+            1108     2                               ADM_ImpJoo(n,ADM_GIoJm) = suf(i  ,j-1)
+            1109     2                               n = n + 1
+            1110     2                           enddo
+            1111     1                       enddo
+            1112                     
+            1113                             !--- ADM_ImpJmo
+            1114                             ADM_ImpJmo_nmax = ( gall_in+2 ) * ( gall_in+1 )
+            1115                             allocate( ADM_ImpJmo(ADM_ImpJmo_nmax,ADM_GIJ_nmax) )
+            1116                             n = 1
+            1117     1                       do j = ADM_gmin-1, ADM_gmax
+            1118     2                           do i = ADM_gmin-1, ADM_gmax+1
+            1119     2                               ADM_ImpJmo(n,ADM_GIoJo) = suf(i  ,j  )
+            1120     2                               ADM_ImpJmo(n,ADM_GIpJo) = suf(i+1,j  )
+            1121     2                               ADM_ImpJmo(n,ADM_GIpJp) = suf(i+1,j+1)
+            1122     2                               ADM_ImpJmo(n,ADM_GIoJp) = suf(i  ,j+1)
+            1123     2                               ADM_ImpJmo(n,ADM_GImJo) = suf(i-1,j  )
+            1124     2                               ADM_ImpJmo(n,ADM_GImJm) = suf(i-1,j-1)
+            1125     2                               ADM_ImpJmo(n,ADM_GIoJm) = suf(i  ,j-1)
+            1126     2                               n = n + 1
+            1127     2                           enddo
+            1128     1                       enddo
+            1129                     
+            1130                             !--- ADM_ImpJop
+            1131                             ADM_ImpJop_nmax = ( gall_in+2 ) * ( gall_in+1 )
+            1132                             allocate( ADM_ImpJop(ADM_ImpJop_nmax,ADM_GIJ_nmax) )
+            1133                             n = 1
+            1134     1                       do j = ADM_gmin,   ADM_gmax+1
+            1135     2                           do i = ADM_gmin-1, ADM_gmax+1
+            1136     2                               ADM_ImpJop(n,ADM_GIoJo) = suf(i  ,j  )
+            1137     2                               ADM_ImpJop(n,ADM_GIpJo) = suf(i+1,j  )
+            1138     2                               ADM_ImpJop(n,ADM_GIpJp) = suf(i+1,j+1)
+            1139     2                               ADM_ImpJop(n,ADM_GIoJp) = suf(i  ,j+1)
+            1140     2                               ADM_ImpJop(n,ADM_GImJo) = suf(i-1,j  )
+            1141     2                               ADM_ImpJop(n,ADM_GImJm) = suf(i-1,j-1)
+            1142     2                               ADM_ImpJop(n,ADM_GIoJm) = suf(i  ,j-1)
+            1143     2                               n = n + 1
+            1144     2                           enddo
+            1145     1                       enddo
+            1146                     
+            1147                             !--- ADM_ImpJmp
+            1148                             ADM_ImpJmp_nmax = ( gall_in+2 ) * ( gall_in+2 )
+            1149                             allocate( ADM_ImpJmp(ADM_ImpJmp_nmax,ADM_GIJ_nmax) )
+            1150                             n = 1
+            1151     1                       do j = ADM_gmin-1, ADM_gmax+1
+            1152     2                           do i = ADM_gmin-1, ADM_gmax+1
+            1153     2                               ADM_ImpJmp(n,ADM_GIoJo) = suf(i  ,j  )
+            1154     2                               ADM_ImpJmp(n,ADM_GIpJo) = suf(i+1,j  )
+            1155     2                               ADM_ImpJmp(n,ADM_GIpJp) = suf(i+1,j+1)
+            1156     2                               ADM_ImpJmp(n,ADM_GIoJp) = suf(i  ,j+1)
+            1157     2                               ADM_ImpJmp(n,ADM_GImJo) = suf(i-1,j  )
+            1158     2                               ADM_ImpJmp(n,ADM_GImJm) = suf(i-1,j-1)
+            1159     2                               ADM_ImpJmp(n,ADM_GIoJm) = suf(i  ,j-1)
+            1160     2                               n = n + 1
+            1161     2                           enddo
+            1162     1                       enddo
+            1163                     
+            1164                             return
+            1165                         contains
+            1166                             !---------------------------------------------------------------------------
+            1167                             integer function suf(i,j)
+            1168                                 implicit none
+            1169                     
+            1170                                 integer :: i, j
+            1171                                 !-------------------------------------------------------------------------
+            1172                     
+            1173                                 suf = ADM_gall_1d * (j-1) + i
+            1174                     
+            1175                             end function suf
+            1176                     
+            1177                         end subroutine ADM_mk_suffix
+            1178                     
+            1179                         !-----------------------------------------------------------------------------
+            1180                         !>
+            1181                         !> Description of the subroutine output_info
+            1182                         !>
+            1183                         subroutine output_info
+            1184                             implicit none
+            1185                     
+            1186                             integer :: n, k, m
+            1187                             integer :: rgnid
+            1188                             !---------------------------------------------------------------------------
+            1189                     
+            1190                             write(ADM_LOG_FID,*)
+            1191                             write(ADM_LOG_FID,'(1x,A)'   ) '====== Process management info. ======'
+            1192                             write(ADM_LOG_FID,'(1x,A,I7)') '--- Total number of process           : ', ADM_prc_all
+            1193                             write(ADM_LOG_FID,'(1x,A,I7)') '--- My Process rank                   : ', ADM_prc_me
+            1194                             write(ADM_LOG_FID,'(1x,A)'   ) '====== Region/Grid topology info. ======'
+            1195                             write(ADM_LOG_FID,'(1x,A,A)' ) '--- Grid sysytem                      : ', trim(ADM_HGRID_SYSTEM)
+            1196                             write(ADM_LOG_FID,'(1x,A,I7)') '--- #  of diamond                     : ', NMAX_DMD
+            1197                             write(ADM_LOG_FID,'(1x,A)'   ) '====== Region management info. ======'
+            1198                             write(ADM_LOG_FID,'(1x,A,I7)') '--- Region level (RL)                 : ', ADM_rlevel
+            1199                             write(ADM_LOG_FID,'(1x,A,I7,3(A,I4),A)') '--- Total number of region            : ', ADM_rgn_nmax, &
+            1200                                 ' (', 2**ADM_rlevel, ' x', 2**ADM_rlevel, ' x', NMAX_DMD, ' )'
+            1201                             write(ADM_LOG_FID,'(1x,A,I7)') '--- #  of region per process          : ', ADM_lall
+            1202                             write(ADM_LOG_FID,'(1x,A)'   ) '--- ID of region in my process        : '
+            1203                             write(ADM_LOG_FID,*) ADM_prc_tab(1:ADM_lall, ADM_prc_me)
+            1204                     
+            1205                             write(ADM_LOG_FID,'(1x,A,I7)') '--- Region ID, contains north pole    : ', ADM_rgnid_npl_mng
+            1206                             write(ADM_LOG_FID,'(1x,A,I7)') '--- Region ID, contains south pole    : ', ADM_rgnid_spl_mng
+            1207                             write(ADM_LOG_FID,'(1x,A,I7)') '--- Process rank, managing north pole : ', ADM_prc_npl
+            1208                             write(ADM_LOG_FID,'(1x,A,I7)') '--- Process rank, managing south pole : ', ADM_prc_spl
+            1209                             write(ADM_LOG_FID,'(1x,A)'   ) '====== Grid management info. ======'
+            1210                             write(ADM_LOG_FID,'(1x,A,I7)') '--- Grid level (GL)                   : ', ADM_glevel
+            1211                             write(ADM_LOG_FID,'(1x,A,I7,2(A,I4),A,I7,A)') '--- Total number of grid (horizontal) : ',  &
+            1212                                 4**(ADM_glevel-ADM_rlevel)*ADM_rgn_nmax, &
+            1213                                 ' (', 2**(ADM_glevel-ADM_rlevel),         &
+            1214                                 ' x', 2**(ADM_glevel-ADM_rlevel),         &
+            1215                                 ' x', ADM_rgn_nmax, ' )'
+            1216                             write(ADM_LOG_FID,'(1x,A,I7)') '--- Number of vertical layer          : ', ADM_kmax-ADM_kmin+1
+            1217                     
+            1218     1                       if ( ADM_debug ) then
+            1219     2                           do n = 1, ADM_lall
+            1220     2                               rgnid = ADM_prc_tab(n, ADM_prc_me)
+            1221     2                               write(ADM_LOG_FID,*) ' --- Link information for region', rgnid
+            1222     2               
+            1223     2                               write(ADM_LOG_FID,*) '     < edge link >   --- ( rgnid , edgid )'
+            1224     3   s    s                      do k = ADM_SW, ADM_SE
+            1225     3   m    s                          write(ADM_LOG_FID,*) '     (',rgnid,',',k,') -> ',         &
+            1226     3                                       '(', ADM_rgn_etab(ADM_RID,k,rgnid),   &
+            1227     3                                       ',', ADM_rgn_etab(ADM_DIR,k,rgnid), ')'
+            1228     3   p    s                      enddo
+            1229     2               
+            1230     2                               write(ADM_LOG_FID,*) '     < vertex link > --- ( rgnid , edgid )'
+            1231     3                               do k = ADM_W, ADM_S
+            1232     3                                   write(ADM_LOG_FID,*) '     (',rgnid,',',k,') : ', ADM_rgn_vnum(k,rgnid), 'point link'
+            1233     4   s    s                          do m = 1, ADM_rgn_vnum(k,rgnid)
+            1234     4   m    s                              write(ADM_LOG_FID,*) '                -> ',                  &
+            1235     4                                           '(', ADM_rgn_vtab(ADM_RID,k,rgnid,m),   &
+            1236     4                                           ',', ADM_rgn_vtab(ADM_DIR,k,rgnid,m), ')'
+            1237     4   p    s                          enddo
+            1238     3                               enddo
+            1239     2               
+            1240     2                           enddo
+            1241     1               
+            1242     1                           write(ADM_LOG_FID,*) ' --- Table of corresponding between region ID and process ID'
+            1243     1                           write(ADM_LOG_FID,*) '    region ID :  process ID'
+            1244     2   s    s                  do n = 1, ADM_rgn_nmax
+            1245     2   m    s                      write(ADM_LOG_FID,'(I13,I14)') n, ADM_rgn2prc(n)
+            1246     2   p    s                  enddo
+            1247     1                       endif
+            1248                     
+            1249                             return
+            1250                         end subroutine output_info
+            1251                     
+            1252                     end module mod_adm
+            1253                     !-------------------------------------------------------------------------------
+            1254                     
+
+ Procedure information
+   Lines      : 1254
+   Statements : 747
+   Stack(byte): 15968
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1254
+   Total statements : 747
+   Total stack(byte): 15968
+   Total prefetch num: 0
+

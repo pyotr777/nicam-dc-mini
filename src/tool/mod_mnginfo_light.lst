@@ -1,0 +1,243 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:48:22 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src/tool
+   Source file       : mod_mnginfo_light.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../../src -o mod_mnginfo_light.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../../src -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_mnginfo_light"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  Module manageinfo light
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     module mod_mnginfo_light
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !      mnginfo reader (extraced from mod_adm)
+              11                       !
+              12                       !++ Current Corresponding Author: H.Yashiro
+              13                       !
+              14                       !++ History:
+              15                       !      Version   Date      Comment
+              16                       !      -----------------------------------------------------------------------
+              17                       !      0.90      11-09-01  H.Yashiro : [NEW]
+              18                       !
+              19                       !-----------------------------------------------------------------------------
+              20                       !
+              21                       !++ Used modules
+              22                       !
+              23                       use mod_misc, only : &
+              24                         MISC_get_available_fid
+              25                       !-----------------------------------------------------------------------------
+              26                       implicit none
+              27                       private
+              28                       !-----------------------------------------------------------------------------
+              29                       !
+              30                       !++ public param & variable
+              31                       !
+              32                       public :: MNG_mnginfo_input
+              33                       public :: MNG_mnginfo_noinput
+              34                       !-----------------------------------------------------------------------------
+              35                       !
+              36                       !++ public param & variable
+              37                       !
+              38                       integer, public              :: MNG_PALL
+              39                     
+              40                       integer, allocatable, public :: MNG_prc_rnum(:)
+              41                       integer, allocatable, public :: MNG_prc_tab (:,:)
+              42                       integer, allocatable, public :: MNG_rgn2prc (:)
+              43                       !-----------------------------------------------------------------------------
+              44                     contains
+              45                       !-----------------------------------------------------------------------------
+              46                       !> read mnginfo (light ver.)
+              47                       !-----------------------------------------------------------------------------
+              48                       subroutine MNG_mnginfo_input( rlevel,fname )
+              49                         implicit none
+              50                     
+              51                         integer,          intent(in) :: rlevel
+              52                         character(len=*), intent(in) :: fname
+              53                     
+              54                         integer, parameter :: PRC_RGN_NMAX = 2560
+              55                     
+              56                         integer :: num_of_rgn
+              57                         namelist /rgn_info/ &
+              58                              num_of_rgn             !--- number of region
+              59                     
+              60                         integer :: num_of_proc
+              61                         namelist /proc_info/ &
+              62                              num_of_proc             !--- number of run-processes
+              63                     
+              64                         integer :: peid
+              65                         integer :: num_of_mng
+              66                         integer :: mng_rgnid(PRC_RGN_NMAX)
+              67                         namelist /rgn_mng_info/ &
+              68                              peid,              & !--- process ID
+              69                              num_of_mng,        & !--- number of regions be managed
+              70                              mng_rgnid            !--- managed region ID
+              71                     
+              72                         integer :: fid, ierr
+              73                         integer :: m, n
+              74                         integer :: lall
+              75                         !---------------------------------------------------------------------------
+              76                     
+              77                         lall = 10 * (4**rlevel)
+              78                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+              79        pp    s          mng_rgnid(:)=-1
+              80                     
+              81                         fid = MISC_get_available_fid()
+              82                         open(fid,file=trim(fname),status='old',form='formatted',iostat=ierr)
+              83     1                      if (ierr /= 0) then
+              84     1                         write(*,*) "cannot read mnginfo file :",trim(fname)
+              85     1                         stop
+              86     1                      endif
+              87                     
+              88                            read(fid,nml=rgn_info)
+              89     1                      if ( num_of_rgn /= lall ) then ! [add] H.Yashiro 20120621
+              90     1                         write(*,*) "Inconsintent between rlevel and mnginfo."
+              91     1                         write(*,*) "rlevel,  num_of_mng=", rlevel, lall
+              92     1                         write(*,*) "mnginfo, num_of_rgn=", trim(fname), num_of_rgn
+              93     1                         stop
+              94     1                      endif
+              95                     
+              96                            read(fid,nml=proc_info)
+              97                            MNG_PALL = num_of_proc
+              98                     
+              99                            allocate( MNG_prc_rnum(num_of_proc) )
+             100                            allocate( MNG_prc_tab (num_of_rgn,num_of_proc) )
+             101                            allocate( MNG_rgn2prc (num_of_rgn) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<< Loop-information  End >>>
+             102        pp    s             MNG_prc_tab(:,:) = -1
+             103                     
+             104     1                      do m = 1, num_of_proc
+             105     1                         read(fid,nml=rgn_mng_info)
+             106     1               
+             107     1                         MNG_prc_rnum(m)                = num_of_mng
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             108     1  pp   8s                MNG_prc_tab(1:num_of_mng,peid) = mng_rgnid(1:num_of_mng)
+             109     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             110     2   s   8s                do n = 1, num_of_mng
+             111     2   m   8s                   MNG_rgn2prc(mng_rgnid(n)) = peid
+             112     2   p   8s                enddo
+             113     1                      enddo
+             114                     
+             115                         close(fid)
+             116                     
+             117                         return
+             118                       end subroutine MNG_mnginfo_input
+             119                     
+             120                       !-----------------------------------------------------------------------------
+             121                       !> read mnginfo (light ver.)
+             122                       !-----------------------------------------------------------------------------
+             123                       subroutine MNG_mnginfo_noinput(rlevel)
+             124                         implicit none
+             125                     
+             126                         integer, intent(in) :: rlevel
+             127                     
+             128                         integer :: n
+             129                         integer :: num_of_mng
+             130                         !---------------------------------------------------------------------------
+             131                     
+             132                         num_of_mng = 10 * (4**rlevel)
+             133                         MNG_PALL   = 1
+             134                     
+             135                         allocate( MNG_prc_rnum(1) )
+             136                         allocate( MNG_prc_tab (num_of_mng,1) )
+             137                         allocate( MNG_rgn2prc (num_of_mng) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<< Loop-information  End >>>
+             138        pp    s          MNG_prc_tab(:,:) = -1
+             139                     
+             140                         MNG_prc_rnum(1) = num_of_mng
+             141                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1600
+                                   <<< Loop-information  End >>>
+             142     1  pp   8s          do n = 1, num_of_mng
+             143     1   p   8s             MNG_prc_tab(n,1) = n
+             144     1   p   8s          enddo
+             145                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             146        pp    s          MNG_rgn2prc(:) = 1
+             147                     
+             148                         return
+             149                       end subroutine MNG_mnginfo_noinput
+             150                     
+             151                     end module mod_mnginfo_light
+             152                     !-----------------------------------------------------------------------------
+             153                     
+
+ Procedure information
+   Lines      : 153
+   Statements : 78
+   Stack(byte): 13232
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 153
+   Total statements : 78
+   Total stack(byte): 13232
+   Total prefetch num: 0
+

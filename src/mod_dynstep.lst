@@ -1,0 +1,1358 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:48:13 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/dynamics/mod_dynstep.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_dynstep.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_dynstep"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  Dynamical step
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     module mod_dynstep
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This module is for the dynamical step
+              11                       !
+              12                       !
+              13                       !++ Current Corresponding Author : H.Tomita
+              14                       !
+              15                       !++ History:
+              16                       !      Version   Date       Comment
+              17                       !      -----------------------------------------------------------------------
+              18                       !      0.00      04-02-17   Imported from igdc-4.34
+              19                       !                06-04-17   Add IN_LARGE_STEP2
+              20                       !                06-08-11   Add the option for tracer advection.
+              21                       !                07-01-26   Add flag [rayleigh_damp_only_w]
+              22                       !                           in numfilter_rayleigh_damping.
+              23                       !                07-05-08   H.Tomita : Change the treatment of I_TKE.
+              24                       !                08-01-24   Y.Niwa: add revised MIURA2004 for tracer advection
+              25                       !                           old: 'MIURA2004OLD', revised: 'MIURA2004'
+              26                       !                08-01-30   Y.Niwa: add rho_pl = 0.D0
+              27                       !                08-04-12   T.Mitsui save memory(prgvar, frcvar, rhog0xxxx)
+              28                       !                08-05-24   T.Mitsui fix miss-conditioning for frcvar
+              29                       !                08-09-09   Y.Niwa move nudging routine here
+              30                       !                08-10-05   T.Mitsui all_phystep_post is already needless
+              31                       !                09-09-08   S.Iga  frhog and frhog_pl in ndg are deleted ( suggested by ES staff)
+              32                       !                10-05-06   M.Satoh: define QV_conv only if CP_TYPE='TDK' .or. 'KUO'
+              33                       !                10-07-16   A.T.Noda: bug fix for TDK
+              34                       !                10-08-16   A.T.Noda: Bug fix (Qconv not diveded by density)
+              35                       !                10-08-20   A.T.Noda: Bug fix (Qconv should be TEND, and not be multiplied by DT)
+              36                       !                10-11-29   A.T.Noda: Introduce the Smagorinsky model
+              37                       !                11-08-16   M.Satoh: bug fix for TDK: conv => TEND
+              38                       !                           qv_dyn_tend = v grad q
+              39                       !                                       = ( div(rho v q) - div(rho v)*q )/rho
+              40                       !                11-08-16   M.Satoh: move codes related to CP_TYPE below the tracer calculation
+              41                       !                11-11-28   Y.Yamada: Merge Terai-san timer into the original code.
+              42                       !                12-03-09   S.Iga: tuned (phase4-1)
+              43                       !                12-04-06   T.yamaura: optimized for K
+              44                       !                12-05-30   T.Yashiro: Change arguments from character to index/switch
+              45                       !                12-10-22   R.Yoshida  : add papi instructions
+              46                       !                13-06-13   R.Yoshida  : add tracer advection mode
+              47                       !      -----------------------------------------------------------------------
+              48                       !
+              49                       !-----------------------------------------------------------------------------
+              50                       !
+              51                       !++ Used modules
+              52                       !
+              53                       use mod_debug
+              54                       use mod_adm, only: &
+              55                          ADM_LOG_FID
+              56                       !-----------------------------------------------------------------------------
+              57                       implicit none
+              58                       private
+              59                       !-----------------------------------------------------------------------------
+              60                       !
+              61                       !++ Public procedure
+              62                       !
+              63                       public :: dynstep
+              64                     
+              65                       !-----------------------------------------------------------------------------
+              66                       !
+              67                       !++ Public parameters & variables
+              68                       !
+              69                       !-----------------------------------------------------------------------------
+              70                       !
+              71                       !++ Private procedures
+              72                       !
+              73                       !-----------------------------------------------------------------------------
+              74                       !
+              75                       !++ Private parameters & variables
+              76                       !
+              77                       integer, private, parameter :: I_RHOG     = 1 ! Density x G^{1/2} x gamma^2
+              78                       integer, private, parameter :: I_RHOGVX   = 2 ! Density x G^{1/2} x gamma^2 x Horizontal velocity (X-direction)
+              79                       integer, private, parameter :: I_RHOGVY   = 3 ! Density x G^{1/2} x gamma^2 x Horizontal velocity (Y-direction)
+              80                       integer, private, parameter :: I_RHOGVZ   = 4 ! Density x G^{1/2} x gamma^2 x Horizontal velocity (Z-direction)
+              81                       integer, private, parameter :: I_RHOGW    = 5 ! Density x G^{1/2} x gamma^2 x Vertical   velocity
+              82                       integer, private, parameter :: I_RHOGE    = 6 ! Density x G^{1/2} x gamma^2 x Internal Energy
+              83                       integer, private, parameter :: I_RHOGETOT = 7 ! Density x G^{1/2} x gamma^2 x Total Energy
+              84                     
+              85                       !-----------------------------------------------------------------------------
+              86                     contains
+              87                       !-----------------------------------------------------------------------------
+              88                       subroutine dynstep
+              89                         use mod_debug
+              90                         use mod_adm, only: &
+              91                            ADM_prc_me,  &
+              92                            ADM_prc_pl,  &
+              93                            ADM_gall,    &
+              94                            ADM_gall_pl, &
+              95                            ADM_lall,    &
+              96                            ADM_lall_pl, &
+              97                            ADM_kall,    &
+              98                            ADM_gall_1d, &
+              99                            ADM_gmax,    &
+             100                            ADM_gmin,    &
+             101                            ADM_kmax,    &
+             102                            ADM_kmin,    &
+             103                            ADM_log_fid, &  ! R.Yoshida 13/06/13 [add]
+             104                            ADM_proc_stop   ! R.Yoshida 13/06/13 [add]
+             105                         use mod_cnst, only: &
+             106                            CNST_RAIR, &
+             107                            CNST_RVAP, &
+             108                            CNST_CV
+             109                         use mod_time, only:  &
+             110                            TIME_INTEG_TYPE,  &
+             111                            TIME_SSTEP_MAX,   &
+             112                            TIME_DTL,         &
+             113                            TIME_DTS,         &
+             114                            TIME_SPLIT
+             115                         use mod_grd, only: &
+             116                            GRD_afac, &
+             117                            GRD_bfac
+             118                         use mod_vmtr, only: &
+             119                            VMTR_GSGAM2,     &
+             120                            VMTR_GSGAM2_pl,  &
+             121                            VMTR_GSGAM2H,    &
+             122                            VMTR_GSGAM2H_pl, &
+             123                            VMTR_GZXH,       &
+             124                            VMTR_GZXH_pl,    &
+             125                            VMTR_GZYH,       &
+             126                            VMTR_GZYH_pl,    &
+             127                            VMTR_GZZH,       &
+             128                            VMTR_GZZH_pl,    &
+             129                            VMTR_PHI,        &
+             130                            VMTR_PHI_pl,     &
+             131                            VMTR_C2Wfact,    &
+             132                            VMTR_C2Wfact_pl
+             133                         use mod_comm, only: &
+             134                            COMM_data_transfer
+             135                         use mod_runconf, only: &
+             136                            TRC_VMAX,       &
+             137                            I_QV,           &
+             138                            I_TKE,          &
+             139                            NQW_STR,        &
+             140                            NQW_END,        &
+             141                            CVW,            &
+             142                            NDIFF_LOCATION, &
+             143                            TRC_ADV_TYPE,   &
+             144                            FLAG_NUDGING,   & ! Y.Niwa add 08/09/09
+             145                            CP_TYPE,        & ! 2010.5.11 M.Satoh [add]
+             146                            TB_TYPE,        & ! [add] 10/11/29 A.Noda
+             147                            THUBURN_LIM       ! R.Yoshida 13/06/13 [add]
+             148                         use mod_bsstate, only: &
+             149                            pre_bs, pre_bs_pl, &
+             150                            tem_bs, tem_bs_pl, &
+             151                            rho_bs, rho_bs_pl
+             152                         use mod_bndcnd, only: &
+             153                            bndcnd_all
+             154                         use mod_prgvar, only: &
+             155                            prgvar_set,    &
+             156                            prgvar_get,    &
+             157                            prgvar_get_noq
+             158                         use mod_diagvar, only: &
+             159                            diagvar,       &
+             160                            diagvar_pl,    &
+             161                            I_RHOGQV_CONV, &
+             162                            I_QV_DYN_TEND    ! 2011.08.16 M.Satoh
+             163                         use mod_thrmdyn, only: &
+             164                            thrmdyn_th, &
+             165                            thrmdyn_eth
+             166                         use mod_src, only: &
+             167                            src_advection_convergence_momentum, &
+             168                            src_advection_convergence,          &
+             169                            I_SRC_default
+             170                         use mod_vi, only :         &
+             171                            vi_small_step
+             172                         use mod_trcadv_thuburn, only: &
+             173                            src_update_tracer
+             174                         use mod_numfilter, only: &
+             175                            NUMFILTER_DOrayleigh,       & ! [add] H.Yashiro 20120530
+             176                            NUMFILTER_DOverticaldiff,   & ! [add] H.Yashiro 20120530
+             177                            numfilter_rayleigh_damping, &
+             178                            numfilter_hdiffusion,       &
+             179                            numfilter_vdiffusion
+             180                     !cx remove nudging function
+             181                     !cx    use mod_ndg, only: & ! Y.Niwa add 08/09/09
+             182                     !cx       ndg_nudging_uvtp, &
+             183                     !cx       ndg_update_var
+             184                     !cx remove tb_smg_driver
+             185                     !cx    use mod_tb_smg, only: & ! [add] 10/11/29 A.Noda
+             186                     !cx       tb_smg_driver
+             187                         use mod_forcing_driver, only: &
+             188                            updating          ! R.Yoshida 13/06/13 [add]
+             189                         implicit none
+             190                     
+             191                         integer, parameter :: nmax_TEND   = 7
+             192                         integer, parameter :: nmax_PROG = 6
+             193                         integer, parameter :: nmax_v_mean_c   = 5
+             194                     
+             195                         real(8) :: g_TEND    (ADM_gall,   ADM_kall,ADM_lall,   nmax_TEND) !--- tendency
+             196                         real(8) :: g_TEND_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl,nmax_TEND)
+             197                         real(8) :: g_TENDq   (ADM_gall,   ADM_kall,ADM_lall,   TRC_VMAX)  !--- tendency of q
+             198                         real(8) :: g_TENDq_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl,TRC_VMAX)
+             199                     
+             200                         real(8) :: f_TEND    (ADM_gall,   ADM_kall,ADM_lall,   nmax_TEND) !--- forcing tendency
+             201                         real(8) :: f_TEND_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl,nmax_TEND)
+             202                         real(8) :: f_TENDq   (ADM_gall,   ADM_kall,ADM_lall,   TRC_VMAX)  !--- forcing tendency of q
+             203                         real(8) :: f_TENDq_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl,TRC_VMAX)
+             204                     
+             205                         real(8) :: PROG0     (ADM_gall,   ADM_kall,ADM_lall,   nmax_PROG) !--- prognostic variables (save)
+             206                         real(8) :: PROG0_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl,nmax_PROG)
+             207                         real(8) :: PROGq0    (ADM_gall,   ADM_kall,ADM_lall,   TRC_VMAX)  !--- tracer variables (save)
+             208                         real(8) :: PROGq0_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl,TRC_VMAX)
+             209                     
+             210                         real(8) :: PROG      (ADM_gall,   ADM_kall,ADM_lall,   nmax_PROG) !--- prognostic variables
+             211                         real(8) :: PROG_pl   (ADM_gall_pl,ADM_kall,ADM_lall_pl,nmax_PROG)
+             212                         real(8) :: PROGq     (ADM_gall,   ADM_kall,ADM_lall,   TRC_VMAX)  !--- tracer variables
+             213                         real(8) :: PROGq_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl,TRC_VMAX)
+             214                     
+             215                         real(8) :: PROG_split   (ADM_gall,   ADM_kall,ADM_lall,   nmax_PROG) !--- prognostic variables (split)
+             216                         real(8) :: PROG_split_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl,nmax_PROG)
+             217                     
+             218                         real(8) :: v_mean_c   (ADM_gall,   ADM_kall,ADM_lall   ,nmax_v_mean_c)
+             219                         real(8) :: v_mean_c_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl,nmax_v_mean_c)
+             220                     
+             221                         !--- density ( physical )
+             222                         real(8) :: rho   (ADM_gall,   ADM_kall,ADM_lall   )
+             223                         real(8) :: rho_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             224                     
+             225                         !--- horizontal velocity_x  ( physical )
+             226                         real(8) :: vx   (ADM_gall,   ADM_kall,ADM_lall   )
+             227                         real(8) :: vx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             228                     
+             229                         !--- horizontal velocity_y  ( physical )
+             230                         real(8) :: vy   (ADM_gall,   ADM_kall,ADM_lall   )
+             231                         real(8) :: vy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             232                     
+             233                         !--- horizontal velocity_z  ( physical )
+             234                         real(8) :: vz   (ADM_gall,   ADM_kall,ADM_lall   )
+             235                         real(8) :: vz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             236                     
+             237                         !--- vertical velocity ( physical )
+             238                         real(8) :: w   (ADM_gall,   ADM_kall,ADM_lall   )
+             239                         real(8) :: w_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             240                     
+             241                         !--- [IN]ternal energy  ( physical )
+             242                         real(8) :: ein   (ADM_gall,   ADM_kall,ADM_lall   )
+             243                         real(8) :: ein_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             244                     
+             245                         !--- mass concentration of water substance ( physical )
+             246                         real(8) :: q   (ADM_gall,   ADM_kall,ADM_lall,   TRC_VMAX)
+             247                         real(8) :: q_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl,TRC_VMAX)
+             248                     
+             249                         !--- enthalpy ( physical )
+             250                         real(8) :: eth   (ADM_gall,   ADM_kall,ADM_lall   )
+             251                         real(8) :: eth_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             252                     
+             253                         !--- pressure ( physical )
+             254                         real(8) :: pre   (ADM_gall,   ADM_kall,ADM_lall   )
+             255                         real(8) :: pre_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             256                     
+             257                         !--- temperature ( physical )
+             258                         real(8) :: tem   (ADM_gall,   ADM_kall,ADM_lall   )
+             259                         real(8) :: tem_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             260                     
+             261                         !--- potential temperature ( physical )
+             262                         real(8) :: th   (ADM_gall,   ADM_kall,ADM_lall   )
+             263                         real(8) :: th_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             264                     
+             265                         !--- density deviation from the base state ( G^{1/2} X gamma2 )
+             266                         real(8) :: rhogd   (ADM_gall,   ADM_kall,ADM_lall   )
+             267                         real(8) :: rhogd_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             268                     
+             269                         !--- pressure deviation from the base state ( G^{1/2} X gamma2 )
+             270                         real(8) :: pregd   (ADM_gall,   ADM_kall,ADM_lall   )
+             271                         real(8) :: pregd_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             272                     
+             273                         !--- temperature deviation from the base state ( physical )
+             274                         real(8) :: temd   (ADM_gall,   ADM_kall,ADM_lall   )
+             275                         real(8) :: temd_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             276                     
+             277                         !--- temporary variables
+             278                         real(8) :: qd   (ADM_gall,   ADM_kall,ADM_lall   )
+             279                         real(8) :: qd_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             280                         real(8) :: cv   (ADM_gall,   ADM_kall,ADM_lall   )
+             281                         real(8) :: cv_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             282                     
+             283                         real(8), parameter :: TKE_MIN = 0.D0
+             284                         real(8)            :: TKEg_corr
+             285                     
+             286                         integer :: small_step_ite
+             287                         real(8) :: small_step_dt
+             288                     
+             289                         logical :: ndg_TEND_out
+             290                     
+             291                         logical, save :: iflag = .true.
+             292                         integer, save :: num_of_iteration_lstep    ! number of large steps ( 2-4 )
+             293                         integer, save :: num_of_iteration_sstep(4) ! number of small steps in each of large steps
+             294                     
+             295                         integer :: g, k ,l, nq, nl
+             296                     
+             297                         integer :: i, j, suf
+             298                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             299                         !---------------------------------------------------------------------------
+             300                     #ifdef PAPI_OPS
+             301                         ! <-- [add] PAPI R.Yoshida 20121022
+             302                         !call PAPIF_flips( PAPI_real_time_i, PAPI_proc_time_i, PAPI_flpins, PAPI_mflins, PAPI_check )
+             303                         call PAPIF_flops( PAPI_real_time_o, PAPI_proc_time_o, PAPI_flpops, PAPI_mflops, PAPI_check )
+             304                     #endif
+             305                     
+             306                         call DEBUG_rapstart('++Dynamics')
+             307                     
+             308     1                   if ( iflag ) then
+             309     1                      iflag = .false.
+             310     1               
+             311     2                      select case(trim(TIME_INTEG_TYPE))
+             312     2                      case('RK2')
+             313     2                         num_of_iteration_lstep = 2
+             314     2                         num_of_iteration_sstep(1) = TIME_SSTEP_MAX / 2
+             315     2                         num_of_iteration_sstep(2) = TIME_SSTEP_MAX
+             316     2                      case('RK3')
+             317     2                         num_of_iteration_lstep = 3
+             318     2                         num_of_iteration_sstep(1) = TIME_SSTEP_MAX / 3
+             319     2                         num_of_iteration_sstep(2) = TIME_SSTEP_MAX / 2
+             320     2                         num_of_iteration_sstep(3) = TIME_SSTEP_MAX
+             321     2                      case('RK4')
+             322     2                         num_of_iteration_lstep = 4
+             323     2                         num_of_iteration_sstep(1) = TIME_SSTEP_MAX / 4
+             324     2                         num_of_iteration_sstep(2) = TIME_SSTEP_MAX / 3
+             325     2                         num_of_iteration_sstep(3) = TIME_SSTEP_MAX / 2
+             326     2                         num_of_iteration_sstep(4) = TIME_SSTEP_MAX
+             327     2                      case('TRCADV')  ! R.Yoshida 13/06/13 [add]
+             328     2                         num_of_iteration_lstep = 1
+             329     2                         num_of_iteration_sstep(1) = 1
+             330     2                         num_of_iteration_sstep(2) = 1
+             331     2                      case default
+             332     2                         write(*,*) 'Msg : Sub[sub_dynstep]'
+             333     2                         write(*,*) ' --- Error : invalid TIME_INTEG_TYPE=', TIME_INTEG_TYPE
+             334     2                      endselect
+             335     1                   endif
+             336                     
+             337                         !--- get from prg0
+             338                         call prgvar_get( PROG(:,:,:,I_RHOG),   PROG_pl(:,:,:,I_RHOG),   & !--- [OUT]
+             339                                          PROG(:,:,:,I_RHOGVX), PROG_pl(:,:,:,I_RHOGVX), & !--- [OUT]
+             340                                          PROG(:,:,:,I_RHOGVY), PROG_pl(:,:,:,I_RHOGVY), & !--- [OUT]
+             341                                          PROG(:,:,:,I_RHOGVZ), PROG_pl(:,:,:,I_RHOGVZ), & !--- [OUT]
+             342                                          PROG(:,:,:,I_RHOGW),  PROG_pl(:,:,:,I_RHOGW),  & !--- [OUT]
+             343                                          PROG(:,:,:,I_RHOGE),  PROG_pl(:,:,:,I_RHOGE),  & !--- [OUT]
+             344                                          PROGq(:,:,:,:),       PROGq_pl(:,:,:,:),       & !--- [OUT]
+             345                                          0                                              ) !--- [IN]
+             346                     
+             347                         !--- save
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             348        pp   8v          PROG0   (:,:,:,:) = PROG   (:,:,:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             349        pp   8v          PROG0_pl(:,:,:,:) = PROG_pl(:,:,:,:)
+             350                     
+             351     1                   if ( TRC_ADV_TYPE == 'DEFAULT' ) then
+             352     2                      if ( trim(TIME_INTEG_TYPE) == 'TRCADV' ) then
+             353     2                         write(ADM_LOG_FID,*) 'Tracer Advection Test Mode'
+             354     2                         write(ADM_LOG_FID,*) 'does not support current setting. STOP.'
+             355     2                         call ADM_proc_stop
+             356     2                      endif
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             357     1  pp   8v             PROGq0   (:,:,:,:) = PROGq   (:,:,:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             358     1  pp   8v             PROGq0_pl(:,:,:,:) = PROGq_pl(:,:,:,:)
+             359     1                   endif
+             360                     
+             361                         !---------------------------------------------------------------------------
+             362                         !
+             363                         !> Start large time step integration
+             364                         !
+             365                         !---------------------------------------------------------------------------
+             366     1                   do nl = 1, num_of_iteration_lstep
+             367     1               
+             368     2                      if ( trim(TIME_INTEG_TYPE) /= 'TRCADV' ) then  ! TRC-ADV Test Bifurcation
+             369     2               
+             370     2                      !---< Generate diagnostic values and set the boudary conditions
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             371     2  pp   4v             rho(:,:,:) = PROG(:,:,:,I_RHOG  ) / VMTR_GSGAM2(:,:,:)
+             372     2   p   4v             vx (:,:,:) = PROG(:,:,:,I_RHOGVX) / PROG(:,:,:,I_RHOG)
+             373     2   p   4v             vy (:,:,:) = PROG(:,:,:,I_RHOGVY) / PROG(:,:,:,I_RHOG)
+             374     2   p   4v             vz (:,:,:) = PROG(:,:,:,I_RHOGVZ) / PROG(:,:,:,I_RHOG)
+             375     2   p   4v             ein(:,:,:) = PROG(:,:,:,I_RHOGE ) / PROG(:,:,:,I_RHOG)
+             376     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             377     3  pp                  do nq = 1, TRC_VMAX
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             378     3  pp   6v                q(:,:,:,nq) = PROGq(:,:,:,nq) / PROG(:,:,:,I_RHOG)
+             379     3   p                  enddo
+             380     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             381     2  pp   8v             cv(:,:,:)  = 0.D0
+             382     2   p   8v             qd(:,:,:)  = 1.D0
+             383     3   s                  do nq = NQW_STR, NQW_END
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             384     3  pp   6v                cv(:,:,:) = cv(:,:,:) + q(:,:,:,nq) * CVW(nq)
+             385     3   p   6v                qd(:,:,:) = qd(:,:,:) - q(:,:,:,nq)
+             386     3   p                  enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             387     2  pp   4v             cv(:,:,:) = cv(:,:,:) + qd(:,:,:) * CNST_CV
+             388     2               
+             389     2   p   4v             tem(:,:,:) = ein(:,:,:) / cv(:,:,:)
+             390     2   p   4v             pre(:,:,:) = rho(:,:,:) * tem(:,:,:) * ( qd(:,:,:)*CNST_RAIR + q(:,:,:,I_QV)*CNST_RVAP )
+             391     2               
+             392     3                      do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_afac: 4, GRD_bfac: 4
+                                   <<< Loop-information  End >>>
+             393     4  pp                     do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 147
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             394     5  pp   6v                do g = 1, ADM_gall
+             395     5   p   6v                   w(g,k,l) = PROG(g,k,l,I_RHOGW) &
+             396     5                                     / ( VMTR_GSGAM2H(g,k,l) * 0.5D0 * ( GRD_afac(k) * rho(g,k  ,l) &
+             397     5                                                                       + GRD_bfac(k) * rho(g,k-1,l) ) )
+             398     5   p   6v                enddo
+             399     4   p                     enddo
+             400     3               
+             401     3                         !--- boundary conditions
+             402     3                         call bndcnd_all( ADM_gall,             & !--- [IN]
+             403     3                                          rho   (:,:,l),        & !--- [INOUT]
+             404     3                                          vx    (:,:,l),        & !--- [INOUT]
+             405     3                                          vy    (:,:,l),        & !--- [INOUT]
+             406     3                                          vz    (:,:,l),        & !--- [INOUT]
+             407     3                                          w     (:,:,l),        & !--- [INOUT]
+             408     3                                          ein   (:,:,l),        & !--- [INOUT]
+             409     3                                          tem   (:,:,l),        & !--- [INOUT]
+             410     3                                          pre   (:,:,l),        & !--- [INOUT]
+             411     3                                          PROG(:,:,l,I_RHOG),   & !--- [INOUT]
+             412     3                                          PROG(:,:,l,I_RHOGVX), & !--- [INOUT]
+             413     3                                          PROG(:,:,l,I_RHOGVY), & !--- [INOUT]
+             414     3                                          PROG(:,:,l,I_RHOGVZ), & !--- [INOUT]
+             415     3                                          PROG(:,:,l,I_RHOGW),  & !--- [INOUT]
+             416     3                                          PROG(:,:,l,I_RHOGE),  & !--- [INOUT]
+             417     3                                          VMTR_GSGAM2 (:,:,l),  & !--- [IN]
+             418     3                                          VMTR_GSGAM2H(:,:,l),  & !--- [IN]
+             419     3                                          VMTR_PHI    (:,:,l),  & !--- [IN]
+             420     3                                          VMTR_C2Wfact(:,:,:,l) ) !--- [IN]
+             421     3               
+             422     3                         call thrmdyn_th( ADM_gall, th(:,:,l), tem(:,:,l), pre(:,:,l) )
+             423     3               
+             424     3                         call thrmdyn_eth( ADM_gall, eth(:,:,l), ein(:,:,l), pre(:,:,l), rho(:,:,l) )
+             425     3                      enddo ! region LOOP
+             426     2               
+             427     2                      !--- perturbations ( pred, rhod, temd )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             428     2  pp   4v             pregd(:,:,:) = ( pre(:,:,:) - pre_bs(:,:,:) ) * VMTR_GSGAM2(:,:,:)
+             429     2   p   4v             rhogd(:,:,:) = ( rho(:,:,:) - rho_bs(:,:,:) ) * VMTR_GSGAM2(:,:,:)
+             430     2   p   4v             temd (:,:,:) =   tem(:,:,:) - tem_bs(:,:,:)
+             431     2               
+             432     3                      if ( ADM_prc_me == ADM_prc_pl ) then
+             433     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             434     3  pp   4v                rho_pl(:,:,:) = PROG_pl(:,:,:,I_RHOG  ) / VMTR_GSGAM2_pl(:,:,:)
+             435     3   p   4v                vx_pl (:,:,:) = PROG_pl(:,:,:,I_RHOGVX) / PROG_pl(:,:,:,I_RHOG)
+             436     3   p   4v                vy_pl (:,:,:) = PROG_pl(:,:,:,I_RHOGVY) / PROG_pl(:,:,:,I_RHOG)
+             437     3   p   4v                vz_pl (:,:,:) = PROG_pl(:,:,:,I_RHOGVZ) / PROG_pl(:,:,:,I_RHOG)
+             438     3   p   4v                ein_pl(:,:,:) = PROG_pl(:,:,:,I_RHOGE ) / PROG_pl(:,:,:,I_RHOG)
+             439     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             440     4  pp                     do nq = 1, TRC_VMAX
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             441     4  pp   6v                   q_pl(:,:,:,nq) = PROGq_pl(:,:,:,nq) / PROG_pl(:,:,:,I_RHOG)
+             442     4   p                     enddo
+             443     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             444     3  pp   8v                cv_pl(:,:,:)  = 0.D0
+             445     3   p   8v                qd_pl(:,:,:)  = 1.D0
+             446     4   s                     do nq = NQW_STR, NQW_END
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             447     4  pp   6v                   cv_pl(:,:,:) = cv_pl(:,:,:) + q_pl(:,:,:,nq) * CVW(nq)
+             448     4   p   6v                   qd_pl(:,:,:) = qd_pl(:,:,:) - q_pl(:,:,:,nq)
+             449     4   p                     enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             450     3  pp   4v                cv_pl(:,:,:) = cv_pl(:,:,:) + qd_pl(:,:,:) * CNST_CV
+             451     3               
+             452     3   p   4v                tem_pl(:,:,:) = ein_pl(:,:,:) / cv_pl(:,:,:)
+             453     3   p   4v                pre_pl(:,:,:) = rho_pl(:,:,:) * tem_pl(:,:,:) * ( qd_pl(:,:,:)*CNST_RAIR + q_pl(:,:,:,I_QV)*CNST_RVAP )
+             454     3               
+             455     4                         do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_afac: 4, GRD_bfac: 4
+                                   <<< Loop-information  End >>>
+             456     5  pp                        do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 147
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             457     6  pp   6v                   do g = 1, ADM_gall_pl
+             458     6   p   6v                      w_pl(g,k,l) = PROG_pl(g,k,l,I_RHOGW) &
+             459     6                                           / ( VMTR_GSGAM2H_pl(g,k,l) * 0.5D0 * ( GRD_afac(k) * rho_pl(g,k  ,l) &
+             460     6                                                                                + GRD_bfac(k) * rho_pl(g,k-1,l) ) )
+             461     6   p   6v                   enddo
+             462     5   p                        enddo
+             463     4               
+             464     4                            !--- boundary conditions
+             465     4                            call bndcnd_all( ADM_gall_pl,            & !--- [IN]
+             466     4                                             rho_pl   (:,:,l),       & !--- [INOUT]
+             467     4                                             vx_pl    (:,:,l),       & !--- [INOUT]
+             468     4                                             vy_pl    (:,:,l),       & !--- [INOUT]
+             469     4                                             vz_pl    (:,:,l),       & !--- [INOUT]
+             470     4                                             w_pl     (:,:,l),       & !--- [INOUT]
+             471     4                                             ein_pl   (:,:,l),       & !--- [INOUT]
+             472     4                                             tem_pl   (:,:,l),       & !--- [INOUT]
+             473     4                                             pre_pl   (:,:,l),       & !--- [INOUT]
+             474     4                                             PROG_pl(:,:,l,I_RHOG),   & !--- [INOUT]
+             475     4                                             PROG_pl(:,:,l,I_RHOGVX), & !--- [INOUT]
+             476     4                                             PROG_pl(:,:,l,I_RHOGVY), & !--- [INOUT]
+             477     4                                             PROG_pl(:,:,l,I_RHOGVZ), & !--- [INOUT]
+             478     4                                             PROG_pl(:,:,l,I_RHOGW),  & !--- [INOUT]
+             479     4                                             PROG_pl(:,:,l,I_RHOGE),  & !--- [INOUT]
+             480     4                                             VMTR_GSGAM2_pl (:,:,l),   & !--- [IN]
+             481     4                                             VMTR_GSGAM2H_pl(:,:,l),   & !--- [IN]
+             482     4                                             VMTR_PHI_pl    (:,:,l),   & !--- [IN]
+             483     4                                             VMTR_C2Wfact_pl(:,:,:,l)  ) !--- [IN]
+             484     4               
+             485     4                            call thrmdyn_th( ADM_gall_pl, th_pl(:,:,l), tem_pl(:,:,l), pre_pl(:,:,l) )
+             486     4               
+             487     4                            call thrmdyn_eth( ADM_gall_pl, eth_pl(:,:,l), ein_pl(:,:,l), pre_pl(:,:,l), rho_pl(:,:,l) )
+             488     4                         enddo
+             489     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             490     3  pp   4v                pregd_pl(:,:,:) = ( pre_pl(:,:,:) - pre_bs_pl(:,:,:) ) * VMTR_GSGAM2_pl(:,:,:)
+             491     3   p   4v                rhogd_pl(:,:,:) = ( rho_pl(:,:,:) - rho_bs_pl(:,:,:) ) * VMTR_GSGAM2_pl(:,:,:)
+             492     3   p   4v                temd_pl (:,:,:) =   tem_pl(:,:,:) - tem_bs_pl(:,:,:)
+             493     3                      else
+             494     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             495     3  pp   6v                rho_pl(:,:,:) = 0.D0
+             496     3   p   6v                vx_pl (:,:,:) = 0.D0
+             497     3   p   6v                vy_pl (:,:,:) = 0.D0
+             498     3   p   6v                vz_pl (:,:,:) = 0.D0
+             499     3   p   6v                w_pl  (:,:,:) = 0.D0
+             500     3   p   6v                ein_pl(:,:,:) = 0.D0
+             501     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             502     3  pp    v                q_pl  (:,:,:,:) = 0.D0
+             503     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             504     3  pp   6v                tem_pl(:,:,:) = 0.D0
+             505     3   p   6v                pre_pl(:,:,:) = 0.D0
+             506     3   p   6v                th_pl (:,:,:) = 0.D0
+             507     3   p   6v                eth_pl(:,:,:) = 0.D0
+             508     3               
+             509     3   p   6v                pregd_pl(:,:,:) = 0.D0
+             510     3   p   6v                rhogd_pl(:,:,:) = 0.D0
+             511     3   p   6v                temd_pl (:,:,:) = 0.D0
+             512     3               
+             513     3                      endif
+             514     2               
+             515     2                      !------------------------------------------------------------------------
+             516     2                      !> LARGE step
+             517     2                      !------------------------------------------------------------------------
+             518     2                      call DEBUG_rapstart('+++Large step')
+             519     2               
+             520     2                      !--- calculation of advection tendency including Coriolis force
+             521     2                      call src_advection_convergence_momentum( vx,                     vx_pl,                     & !--- [IN]
+             522     2                                                               vy,                     vy_pl,                     & !--- [IN]
+             523     2                                                               vz,                     vz_pl,                     & !--- [IN]
+             524     2                                                               w,                      w_pl,                      & !--- [IN]
+             525     2                                                               PROG  (:,:,:,I_RHOG  ), PROG_pl  (:,:,:,I_RHOG  ), & !--- [IN]
+             526     2                                                               PROG  (:,:,:,I_RHOGVX), PROG_pl  (:,:,:,I_RHOGVX), & !--- [IN]
+             527     2                                                               PROG  (:,:,:,I_RHOGVY), PROG_pl  (:,:,:,I_RHOGVY), & !--- [IN]
+             528     2                                                               PROG  (:,:,:,I_RHOGVZ), PROG_pl  (:,:,:,I_RHOGVZ), & !--- [IN]
+             529     2                                                               PROG  (:,:,:,I_RHOGW ), PROG_pl  (:,:,:,I_RHOGW ), & !--- [IN]
+             530     2                                                               g_TEND(:,:,:,I_RHOGVX), g_TEND_pl(:,:,:,I_RHOGVX), & !--- [OUT]
+             531     2                                                               g_TEND(:,:,:,I_RHOGVY), g_TEND_pl(:,:,:,I_RHOGVY), & !--- [OUT]
+             532     2                                                               g_TEND(:,:,:,I_RHOGVZ), g_TEND_pl(:,:,:,I_RHOGVZ), & !--- [OUT]
+             533     2                                                               g_TEND(:,:,:,I_RHOGW ), g_TEND_pl(:,:,:,I_RHOGW )  ) !--- [OUT]
+             534     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             535     2  pp   8v             g_TEND   (:,:,:,I_RHOG)     = 0.D0
+             536     2   p   8v             g_TEND   (:,:,:,I_RHOGE)    = 0.D0
+             537     2   p   8v             g_TEND   (:,:,:,I_RHOGETOT) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             538     2  pp   8v             g_TEND_pl(:,:,:,I_RHOG)     = 0.D0
+             539     2   p   8v             g_TEND_pl(:,:,:,I_RHOGE)    = 0.D0
+             540     2   p   8v             g_TEND_pl(:,:,:,I_RHOGETOT) = 0.D0
+             541     2               
+             542     2                      !---< numerical diffusion term
+             543     3                      if ( NDIFF_LOCATION == 'IN_LARGE_STEP' ) then
+             544     3               
+             545     4                         if ( nl == 1 ) then ! only first step
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             546     4  pp    v                   f_TEND    (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             547     4  pp    v                   f_TEND_pl (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             548     4  pp    v                   f_TENDq   (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             549     4  pp    v                   f_TENDq_pl(:,:,:,:) = 0.D0
+             550     4               
+             551     4                            !------ numerical diffusion
+             552     4                            call numfilter_hdiffusion( rho,                       rho_pl,                       & !--- [IN]
+             553     4                                                       vx,                        vx_pl,                        & !--- [IN]
+             554     4                                                       vy,                        vy_pl,                        & !--- [IN]
+             555     4                                                       vz,                        vz_pl,                        & !--- [IN]
+             556     4                                                       w,                         w_pl,                         & !--- [IN]
+             557     4                                                       temd,                      temd_pl,                      & !--- [IN]
+             558     4                                                       q,                         q_pl,                         & !--- [IN]
+             559     4                                                       f_TEND (:,:,:,I_RHOG    ), f_TEND_pl (:,:,:,I_RHOG    ), & !--- [INOUT]
+             560     4                                                       f_TEND (:,:,:,I_RHOGVX  ), f_TEND_pl (:,:,:,I_RHOGVX  ), & !--- [INOUT]
+             561     4                                                       f_TEND (:,:,:,I_RHOGVY  ), f_TEND_pl (:,:,:,I_RHOGVY  ), & !--- [INOUT]
+             562     4                                                       f_TEND (:,:,:,I_RHOGVZ  ), f_TEND_pl (:,:,:,I_RHOGVZ  ), & !--- [INOUT]
+             563     4                                                       f_TEND (:,:,:,I_RHOGW   ), f_TEND_pl (:,:,:,I_RHOGW   ), & !--- [INOUT]
+             564     4                                                       f_TEND (:,:,:,I_RHOGE   ), f_TEND_pl (:,:,:,I_RHOGE   ), & !--- [INOUT]
+             565     4                                                       f_TEND (:,:,:,I_RHOGETOT), f_TEND_pl (:,:,:,I_RHOGETOT), & !--- [INOUT]
+             566     4                                                       f_TENDq(:,:,:,:),          f_TENDq_pl(:,:,:,:)           ) !--- [INOUT]
+             567     4               
+             568     5                            if ( NUMFILTER_DOverticaldiff ) then ! numerical diffusion (vertical)
+             569     5                               call numfilter_vdiffusion( rho,                       rho_pl,                       & !--- [IN]
+             570     5                                                          vx,                        vx_pl,                        & !--- [IN]
+             571     5                                                          vy,                        vy_pl,                        & !--- [IN]
+             572     5                                                          vz,                        vz_pl,                        & !--- [IN]
+             573     5                                                          w,                         w_pl,                         & !--- [IN]
+             574     5                                                          temd,                      temd_pl,                      & !--- [IN]
+             575     5                                                          q,                         q_pl,                         & !--- [IN]
+             576     5                                                          f_TEND (:,:,:,I_RHOG    ), f_TEND_pl (:,:,:,I_RHOG    ), & !--- [INOUT]
+             577     5                                                          f_TEND (:,:,:,I_RHOGVX  ), f_TEND_pl (:,:,:,I_RHOGVX  ), & !--- [INOUT]
+             578     5                                                          f_TEND (:,:,:,I_RHOGVY  ), f_TEND_pl (:,:,:,I_RHOGVY  ), & !--- [INOUT]
+             579     5                                                          f_TEND (:,:,:,I_RHOGVZ  ), f_TEND_pl (:,:,:,I_RHOGVZ  ), & !--- [INOUT]
+             580     5                                                          f_TEND (:,:,:,I_RHOGW   ), f_TEND_pl (:,:,:,I_RHOGW   ), & !--- [INOUT]
+             581     5                                                          f_TEND (:,:,:,I_RHOGE   ), f_TEND_pl (:,:,:,I_RHOGE   ), & !--- [INOUT]
+             582     5                                                          f_TEND (:,:,:,I_RHOGETOT), f_TEND_pl (:,:,:,I_RHOGETOT), & !--- [INOUT]
+             583     5                                                          f_TENDq(:,:,:,:),          f_TENDq_pl(:,:,:,:)           ) !--- [INOUT]
+             584     5                            endif
+             585     4               
+             586     5                            if ( NUMFILTER_DOrayleigh ) then ! rayleigh damping
+             587     5                               call numfilter_rayleigh_damping( rho,                       rho_pl,                       & !--- [IN]
+             588     5                                                                vx,                        vx_pl,                        & !--- [IN]
+             589     5                                                                vy,                        vy_pl,                        & !--- [IN]
+             590     5                                                                vz,                        vz_pl,                        & !--- [IN]
+             591     5                                                                w,                         w_pl,                         & !--- [IN]
+             592     5                                                                f_TEND (:,:,:,I_RHOGVX  ), f_TEND_pl (:,:,:,I_RHOGVX  ), & !--- [INOUT]
+             593     5                                                                f_TEND (:,:,:,I_RHOGVY  ), f_TEND_pl (:,:,:,I_RHOGVY  ), & !--- [INOUT]
+             594     5                                                                f_TEND (:,:,:,I_RHOGVZ  ), f_TEND_pl (:,:,:,I_RHOGVZ  ), & !--- [INOUT]
+             595     5                                                                f_TEND (:,:,:,I_RHOGW   ), f_TEND_pl (:,:,:,I_RHOGW   )  ) !--- [INOUT]
+             596     5                            endif
+             597     4               
+             598     4                         endif
+             599     3               
+             600     3                      elseif( NDIFF_LOCATION == 'IN_LARGE_STEP2' ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             601     3  pp    v                f_TEND    (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             602     3  pp    v                f_TEND_pl (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             603     3  pp    v                f_TENDq   (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             604     3  pp    v                f_TENDq_pl(:,:,:,:) = 0.D0
+             605     3               
+             606     3                         !------ numerical diffusion
+             607     3                         call numfilter_hdiffusion( rho,                       rho_pl,                       & !--- [IN]
+             608     3                                                    vx,                        vx_pl,                        & !--- [IN]
+             609     3                                                    vy,                        vy_pl,                        & !--- [IN]
+             610     3                                                    vz,                        vz_pl,                        & !--- [IN]
+             611     3                                                    w,                         w_pl,                         & !--- [IN]
+             612     3                                                    temd,                      temd_pl,                      & !--- [IN]
+             613     3                                                    q,                         q_pl,                         & !--- [IN]
+             614     3                                                    f_TEND (:,:,:,I_RHOG    ), f_TEND_pl (:,:,:,I_RHOG    ), & !--- [INOUT]
+             615     3                                                    f_TEND (:,:,:,I_RHOGVX  ), f_TEND_pl (:,:,:,I_RHOGVX  ), & !--- [INOUT]
+             616     3                                                    f_TEND (:,:,:,I_RHOGVY  ), f_TEND_pl (:,:,:,I_RHOGVY  ), & !--- [INOUT]
+             617     3                                                    f_TEND (:,:,:,I_RHOGVZ  ), f_TEND_pl (:,:,:,I_RHOGVZ  ), & !--- [INOUT]
+             618     3                                                    f_TEND (:,:,:,I_RHOGW   ), f_TEND_pl (:,:,:,I_RHOGW   ), & !--- [INOUT]
+             619     3                                                    f_TEND (:,:,:,I_RHOGE   ), f_TEND_pl (:,:,:,I_RHOGE   ), & !--- [INOUT]
+             620     3                                                    f_TEND (:,:,:,I_RHOGETOT), f_TEND_pl (:,:,:,I_RHOGETOT), & !--- [INOUT]
+             621     3                                                    f_TENDq(:,:,:,:),          f_TENDq_pl(:,:,:,:)           ) !--- [INOUT]
+             622     3               
+             623     4                         if ( NUMFILTER_DOverticaldiff ) then ! numerical diffusion (vertical)
+             624     4                            call numfilter_vdiffusion( rho,                       rho_pl,                       & !--- [IN]
+             625     4                                                       vx,                        vx_pl,                        & !--- [IN]
+             626     4                                                       vy,                        vy_pl,                        & !--- [IN]
+             627     4                                                       vz,                        vz_pl,                        & !--- [IN]
+             628     4                                                       w,                         w_pl,                         & !--- [IN]
+             629     4                                                       temd,                      temd_pl,                      & !--- [IN]
+             630     4                                                       q,                         q_pl,                         & !--- [IN]
+             631     4                                                       f_TEND (:,:,:,I_RHOG    ), f_TEND_pl (:,:,:,I_RHOG    ), & !--- [INOUT]
+             632     4                                                       f_TEND (:,:,:,I_RHOGVX  ), f_TEND_pl (:,:,:,I_RHOGVX  ), & !--- [INOUT]
+             633     4                                                       f_TEND (:,:,:,I_RHOGVY  ), f_TEND_pl (:,:,:,I_RHOGVY  ), & !--- [INOUT]
+             634     4                                                       f_TEND (:,:,:,I_RHOGVZ  ), f_TEND_pl (:,:,:,I_RHOGVZ  ), & !--- [INOUT]
+             635     4                                                       f_TEND (:,:,:,I_RHOGW   ), f_TEND_pl (:,:,:,I_RHOGW   ), & !--- [INOUT]
+             636     4                                                       f_TEND (:,:,:,I_RHOGE   ), f_TEND_pl (:,:,:,I_RHOGE   ), & !--- [INOUT]
+             637     4                                                       f_TEND (:,:,:,I_RHOGETOT), f_TEND_pl (:,:,:,I_RHOGETOT), & !--- [INOUT]
+             638     4                                                       f_TENDq(:,:,:,:),          f_TENDq_pl(:,:,:,:)           ) !--- [INOUT]
+             639     4                         endif
+             640     3               
+             641     4                         if ( NUMFILTER_DOrayleigh ) then ! rayleigh damping
+             642     4                            call numfilter_rayleigh_damping( rho,                       rho_pl,                       & !--- [IN]
+             643     4                                                             vx,                        vx_pl,                        & !--- [IN]
+             644     4                                                             vy,                        vy_pl,                        & !--- [IN]
+             645     4                                                             vz,                        vz_pl,                        & !--- [IN]
+             646     4                                                             w,                         w_pl,                         & !--- [IN]
+             647     4                                                             f_TEND (:,:,:,I_RHOGVX  ), f_TEND_pl (:,:,:,I_RHOGVX  ), & !--- [INOUT]
+             648     4                                                             f_TEND (:,:,:,I_RHOGVY  ), f_TEND_pl (:,:,:,I_RHOGVY  ), & !--- [INOUT]
+             649     4                                                             f_TEND (:,:,:,I_RHOGVZ  ), f_TEND_pl (:,:,:,I_RHOGVZ  ), & !--- [INOUT]
+             650     4                                                             f_TEND (:,:,:,I_RHOGW   ), f_TEND_pl (:,:,:,I_RHOGW   )  ) !--- [INOUT]
+             651     4                         endif
+             652     3                      endif
+             653     2               
+             654     2                      ! Smagorinksy-type SGS model [add] A.Noda 10/11/29
+             655     3                      if ( TB_TYPE == 'SMG' ) then
+             656     3               !cx
+             657     3               write(0,'(a)') "*** Error. Smagorinksy model was removed in mini-version."
+             658     3               stop
+             659     3               !cx
+             660     3                      endif
+             661     2               
+             662     2                      !--- Nudging routines [add] Y.Niwa 08/09/09
+             663     3                      if ( FLAG_NUDGING ) then
+             664     3               !cx
+             665     3               write(0,'(a)') "*** Error. Nudging function was removed in mini-version."
+             666     3               stop
+             667     3               !cx
+             668     3                      endif
+             669     2               
+             670     2                      !--- sum the large step TEND ( advection + coriolis + num.diff.,SGS,nudge )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             671     2  pp   8v             g_TEND   (:,:,:,:) = g_TEND   (:,:,:,:) + f_TEND   (:,:,:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             672     2  pp   8v             g_TEND_pl(:,:,:,:) = g_TEND_pl(:,:,:,:) + f_TEND_pl(:,:,:,:)
+             673     2               
+             674     2                      call DEBUG_rapend  ('+++Large step')
+             675     2                      !------------------------------------------------------------------------
+             676     2                      !> SMALL step
+             677     2                      !------------------------------------------------------------------------
+             678     2                      call DEBUG_rapstart('+++Small step')
+             679     2               
+             680     3                      if ( nl /= 1 ) then ! update split values
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             681     3  pp   8v                PROG_split   (:,:,:,:) = PROG0   (:,:,:,:) - PROG   (:,:,:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             682     3  pp   8v                PROG_split_pl(:,:,:,:) = PROG0_pl(:,:,:,:) - PROG_pl(:,:,:,:)
+             683     3                      else
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             684     3  pp    v                PROG_split   (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             685     3  pp    v                PROG_split_pl(:,:,:,:) = 0.D0
+             686     3                      endif
+             687     2               
+             688     2                      !------ Core routine for small step
+             689     2                      !------    1. By this subroutine, prognostic variables
+             690     2                      !------       ( rho,.., rhoge ) are calculated through
+             691     2                      !------       the 'num_of_iteration_sstep(nl)'-th times small step.
+             692     2                      !------    2. grho, grhogvx, ..., and  grhoge has the large step
+             693     2                      !------       tendencies initially, however,
+             694     2                      !------       they are re-used in this subroutine.
+             695     2                      !------
+             696     3                      if ( TIME_SPLIT ) then
+             697     3                         small_step_ite = num_of_iteration_sstep(nl)
+             698     3                         small_step_dt  = TIME_DTS
+             699     3                      else
+             700     3                         small_step_ite = 1
+             701     3                         small_step_dt  = TIME_DTL / (num_of_iteration_lstep+1-nl)
+             702     3                      endif
+             703     2               
+             704     2                      call vi_small_step( PROG(:,:,:,I_RHOG  ),       PROG_pl(:,:,:,I_RHOG  ),       & !--- [INOUT] prognostic variables
+             705     2                                          PROG(:,:,:,I_RHOGVX),       PROG_pl(:,:,:,I_RHOGVX),       & !--- [INOUT]
+             706     2                                          PROG(:,:,:,I_RHOGVY),       PROG_pl(:,:,:,I_RHOGVY),       & !--- [INOUT]
+             707     2                                          PROG(:,:,:,I_RHOGVZ),       PROG_pl(:,:,:,I_RHOGVZ),       & !--- [INOUT]
+             708     2                                          PROG(:,:,:,I_RHOGW ),       PROG_pl(:,:,:,I_RHOGW ),       & !--- [INOUT]
+             709     2                                          PROG(:,:,:,I_RHOGE ),       PROG_pl(:,:,:,I_RHOGE ),       & !--- [INOUT]
+             710     2                                          vx,                         vx_pl,                         & !--- [IN] diagnostic value
+             711     2                                          vy,                         vy_pl,                         & !--- [IN]
+             712     2                                          vz,                         vz_pl,                         & !--- [IN]
+             713     2                                          eth,                        eth_pl,                        & !--- [IN]
+             714     2                                          rhogd,                      rhogd_pl,                      & !--- [IN]
+             715     2                                          pregd,                      pregd_pl,                      & !--- [IN]
+             716     2                                          g_TEND(:,:,:,I_RHOG    ),   g_TEND_pl(:,:,:,I_RHOG    ),   & !--- [IN] large step TEND
+             717     2                                          g_TEND(:,:,:,I_RHOGVX  ),   g_TEND_pl(:,:,:,I_RHOGVX  ),   & !--- [IN]
+             718     2                                          g_TEND(:,:,:,I_RHOGVY  ),   g_TEND_pl(:,:,:,I_RHOGVY  ),   & !--- [IN]
+             719     2                                          g_TEND(:,:,:,I_RHOGVZ  ),   g_TEND_pl(:,:,:,I_RHOGVZ  ),   & !--- [IN]
+             720     2                                          g_TEND(:,:,:,I_RHOGW   ),   g_TEND_pl(:,:,:,I_RHOGW   ),   & !--- [IN]
+             721     2                                          g_TEND(:,:,:,I_RHOGE   ),   g_TEND_pl(:,:,:,I_RHOGE   ),   & !--- [IN]
+             722     2                                          g_TEND(:,:,:,I_RHOGETOT),   g_TEND_pl(:,:,:,I_RHOGETOT),   & !--- [IN]
+             723     2                                          PROG_split(:,:,:,I_RHOG  ), PROG_split_pl(:,:,:,I_RHOG  ), & !--- [INOUT] split value
+             724     2                                          PROG_split(:,:,:,I_RHOGVX), PROG_split_pl(:,:,:,I_RHOGVX), & !--- [INOUT]
+             725     2                                          PROG_split(:,:,:,I_RHOGVY), PROG_split_pl(:,:,:,I_RHOGVY), & !--- [INOUT]
+             726     2                                          PROG_split(:,:,:,I_RHOGVZ), PROG_split_pl(:,:,:,I_RHOGVZ), & !--- [INOUT]
+             727     2                                          PROG_split(:,:,:,I_RHOGW ), PROG_split_pl(:,:,:,I_RHOGW ), & !--- [INOUT]
+             728     2                                          PROG_split(:,:,:,I_RHOGE ), PROG_split_pl(:,:,:,I_RHOGE ), & !--- [INOUT]
+             729     2                                          v_mean_c,                   v_mean_c_pl,                   & !--- [OUT] mean value
+             730     2                                          small_step_ite,                                            & !--- [IN]
+             731     2                                          small_step_dt                                              ) !--- [IN]
+             732     2               
+             733     2               
+             734     2                      call DEBUG_rapend  ('+++Small step')
+             735     2               
+             736     2                      else  ! TRC-ADV Test Bifurcation
+             737     2               
+             738     2                         !--- Make v_mean_c  ![add] 20130613 R.Yoshida
+             739     2                         !--- save point(old) is mean here (although it is not exactly valid for rho)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             740     2  pp   8v                v_mean_c(:,:,:,I_rhog)  = PROG0(:,:,:,I_rhog);   v_mean_c_pl(:,:,:,I_rhog)  = PROG0_pl(:,:,:,I_rhog)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             741     2  pp   8v                v_mean_c(:,:,:,I_rhogvx)= PROG0(:,:,:,I_rhogvx); v_mean_c_pl(:,:,:,I_rhogvx)= PROG0_pl(:,:,:,I_rhogvx)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             742     2  pp   8v                v_mean_c(:,:,:,I_rhogvy)= PROG0(:,:,:,I_rhogvy); v_mean_c_pl(:,:,:,I_rhogvy)= PROG0_pl(:,:,:,I_rhogvy)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             743     2  pp   8v                v_mean_c(:,:,:,I_rhogvz)= PROG0(:,:,:,I_rhogvz); v_mean_c_pl(:,:,:,I_rhogvz)= PROG0_pl(:,:,:,I_rhogvz)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             744     2  pp   8v                v_mean_c(:,:,:,I_rhogw) = PROG0(:,:,:,I_rhogw);  v_mean_c_pl(:,:,:,I_rhogw) = PROG0_pl(:,:,:,I_rhogw)
+             745     2               
+             746     2                      endif  ! TRC-ADV Test Bifurcation
+             747     1               
+             748     1                      !------------------------------------------------------------------------
+             749     1                      !>  Tracer advection
+             750     1                      !------------------------------------------------------------------------
+             751     1                      call DEBUG_rapstart('+++Tracer Advection')
+             752     1               
+             753     2                      if ( TRC_ADV_TYPE == 'MIURA2004' ) then
+             754     2               
+             755     3                         if ( nl == num_of_iteration_lstep ) then
+             756     3               
+             757     3                            call src_update_tracer( TRC_VMAX,                                              & !--- [IN]
+             758     3                                                    PROGq(:,:,:,:),           PROGq_pl(:,:,:,:),           & !--- [INOUT]
+             759     3                                                    PROG0(:,:,:,I_RHOG),      PROG0_pl(:,:,:,I_RHOG),      & !--- [IN]
+             760     3                                                    v_mean_c(:,:,:,I_rhog),   v_mean_c_pl(:,:,:,I_rhog),   & !--- [IN]
+             761     3                                                    v_mean_c(:,:,:,I_rhogvx), v_mean_c_pl(:,:,:,I_rhogvx), & !--- [IN]
+             762     3                                                    v_mean_c(:,:,:,I_rhogvy), v_mean_c_pl(:,:,:,I_rhogvy), & !--- [IN]
+             763     3                                                    v_mean_c(:,:,:,I_rhogvz), v_mean_c_pl(:,:,:,I_rhogvz), & !--- [IN]
+             764     3                                                    v_mean_c(:,:,:,I_rhogw),  v_mean_c_pl(:,:,:,I_rhogw),  & !--- [IN]
+             765     3                                                    f_TEND (:,:,:,I_RHOG),    f_TEND_pl (:,:,:,I_RHOG),    & !--- [IN]
+             766     3                                                    TIME_DTL,                                              & !--- [IN]
+             767     3                                                    THUBURN_LIM                                            ) !--- [IN]  ![add] 20130613 R.Yoshida
+             768     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             769     3  pp   8v                   if( TIME_INTEG_TYPE /= 'TRCADV' ) PROGq(:,:,:,:) = PROGq(:,:,:,:) + TIME_DTL * f_TENDq(:,:,:,:) ! update rhogq by viscosity
+             770     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             771     3  pp   8v                   PROGq(:,ADM_kmin-1,:,:) = 0.D0
+             772     3   p   8v                   PROGq(:,ADM_kmax+1,:,:) = 0.D0
+             773     3               
+             774     4                            if ( ADM_prc_pl == ADM_prc_me ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             775     4  pp   8v                      if( TIME_INTEG_TYPE /= 'TRCADV' ) PROGq_pl(:,:,:,:) = PROGq_pl(:,:,:,:) + TIME_DTL * f_TENDq_pl(:,:,:,:)
+             776     4               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             777     4  pp   8v                      PROGq_pl(:,ADM_kmin-1,:,:) = 0.D0
+             778     4   p   8v                      PROGq_pl(:,ADM_kmax+1,:,:) = 0.D0
+             779     4                            endif
+             780     3               
+             781     3                            ! [comment] H.Tomita: I don't recommend adding the hyperviscosity term because of numerical instability in this case.
+             782     3               
+             783     3                         endif ! Last large step only
+             784     2               
+             785     2                      elseif( TRC_ADV_TYPE == 'DEFAULT' ) then
+             786     2                         !This scheme isn't supported in TRC-ADV Test  (20130612 R.Yoshida)
+             787     2               
+             788     3                         do nq = 1, TRC_VMAX
+             789     3               
+             790     3                            call src_advection_convergence( v_mean_c(:,:,:,I_rhogvx), v_mean_c_pl(:,:,:,I_rhogvx), & !--- [IN]
+             791     3                                                            v_mean_c(:,:,:,I_rhogvy), v_mean_c_pl(:,:,:,I_rhogvy), & !--- [IN]
+             792     3                                                            v_mean_c(:,:,:,I_rhogvz), v_mean_c_pl(:,:,:,I_rhogvz), & !--- [IN]
+             793     3                                                            v_mean_c(:,:,:,I_rhogw),  v_mean_c_pl(:,:,:,I_rhogw),  & !--- [IN]
+             794     3                                                            q(:,:,:,nq),              q_pl(:,:,:,nq),              & !--- [IN]
+             795     3                                                            g_TENDq(:,:,:,nq),        g_TENDq_pl(:,:,:,nq),        & !--- [OUT]
+             796     3                                                            I_SRC_default                                          ) !--- [IN]  [mod] H.Yashiro 20120530
+             797     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             798     3  pp   8v                   PROGq(:,:,:,:) = PROGq0(:,:,:,:)                                                                   &
+             799     3                                           + ( num_of_iteration_sstep(nl) * TIME_DTS ) * ( g_TENDq(:,:,:,:) + f_TENDq(:,:,:,:) )
+             800     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             801     3  pp   8v                   PROGq(:,ADM_kmin-1,:,:) = 0.D0
+             802     3   p   8v                   PROGq(:,ADM_kmax+1,:,:) = 0.D0
+             803     3               
+             804     4                            if ( ADM_prc_pl == ADM_prc_me ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             805     4  pp   8v                            PROGq_pl(:,:,:,:) = PROGq0_pl(:,:,:,:)                          &
+             806     4                                                       + ( num_of_iteration_sstep(nl) * TIME_DTS )   &
+             807     4                                                       * ( g_TENDq_pl(:,:,:,:) + f_TENDq_pl(:,:,:,:) )
+             808     4               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             809     4  pp   8v                      PROGq_pl(:,ADM_kmin-1,:,:) = 0.D0
+             810     4   p   8v                      PROGq_pl(:,ADM_kmax+1,:,:) = 0.D0
+             811     4                            endif
+             812     3               
+             813     3                         enddo ! tracer LOOP
+             814     2               
+             815     2                      endif
+             816     1               
+             817     1                      call DEBUG_rapend  ('+++Tracer Advection')
+             818     1               
+             819     2                      if ( trim(TIME_INTEG_TYPE) /= 'TRCADV' ) then  ! TRC-ADV Test Bifurcation
+             820     2               
+             821     2                      !--- TKE fixer ( TKE >= 0.D0 )
+             822     2                      ! 2011/08/16 M.Satoh [comment] need this fixer for every small time steps
+             823     3                      if ( I_TKE >= 0 ) then
+             824     4                         if ( TRC_ADV_TYPE == 'DEFAULT' .OR. nl == num_of_iteration_lstep ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             825     5  pp                        do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             826     6  pp                        do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 320
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 72
+                                   <<<      PROG: 36, PROGq: 36
+                                   <<< Loop-information  End >>>
+             827     7  pp   6s                   do g = 1, ADM_gall
+             828     7   p   6v                      TKEg_corr = TKE_MIN * VMTR_GSGAM2(g,k,l) - PROGq(g,k,l,I_TKE)
+             829     7               
+             830     8   p   6s                      if ( TKEg_corr >= 0.D0 ) then
+             831     8   p   6s                         PROG (g,k,l,I_RHOGE) = PROG (g,k,l,I_RHOGE) - TKEg_corr
+             832     8   p   6s                         PROGq(g,k,l,I_TKE)   = PROGq(g,k,l,I_TKE)   + TKEg_corr
+             833     8   p   6v                      endif
+             834     7   p   6v                   enddo
+             835     6   p                        enddo
+             836     5   p                        enddo
+             837     4               
+             838     5                            if ( ADM_prc_pl == ADM_prc_me ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             839     6  pp                           do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             840     7  pp                           do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 320
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 72
+                                   <<<      PROG_pl: 36, PROGq_pl: 36
+                                   <<< Loop-information  End >>>
+             841     8  pp   6s                      do g = 1, ADM_gall_pl
+             842     8   p   6v                         TKEg_corr = TKE_MIN * VMTR_GSGAM2_pl(g,k,l) - PROGq_pl(g,k,l,I_TKE)
+             843     8               
+             844     9   p   6s                         if ( TKEg_corr >= 0.D0 ) then
+             845     9   p   6s                            PROG_pl (g,k,l,I_RHOGE) = PROG_pl (g,k,l,I_RHOGE) - TKEg_corr
+             846     9   p   6s                            PROGq_pl(g,k,l,I_TKE)   = PROGq_pl(g,k,l,I_TKE)   + TKEg_corr
+             847     9   p   6v                         endif
+             848     8   p   6v                      enddo
+             849     7   p                           enddo
+             850     6   p                           enddo
+             851     5                            endif
+             852     4               
+             853     4                         endif
+             854     3                      endif
+             855     2               
+             856     2                      !------ Update
+             857     3                      if ( nl /= num_of_iteration_lstep ) then
+             858     3                         ! communication
+             859     3                         call COMM_data_transfer( PROG, PROG_pl )
+             860     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             861     3  pp   6s                PROG(suf(ADM_gall_1d,1),:,:,:) = PROG(suf(ADM_gmax+1,ADM_gmin),:,:,:)
+             862     3   p   6s                PROG(suf(1,ADM_gall_1d),:,:,:) = PROG(suf(ADM_gmin,ADM_gmax+1),:,:,:)
+             863     3                      endif
+             864     2               
+             865     2                      endif  ! TRC-ADV Test Bifurcation
+             866     1               
+             867     1                   enddo !--- large step
+             868                     
+             869     1                   if ( trim(TIME_INTEG_TYPE) == 'TRCADV' ) then
+             870     1                      call updating( PROG0(:,:,:,:), PROG0_pl(:,:,:,:), & !--- [IN]
+             871     1                                     PROG (:,:,:,:), PROG_pl (:,:,:,:)  ) !--- [INOUT]
+             872     1                   endif
+             873                     
+             874                         call prgvar_set( PROG(:,:,:,I_RHOG),   PROG_pl(:,:,:,I_RHOG),   & !--- [IN]
+             875                                          PROG(:,:,:,I_RHOGVX), PROG_pl(:,:,:,I_RHOGVX), & !--- [IN]
+             876                                          PROG(:,:,:,I_RHOGVY), PROG_pl(:,:,:,I_RHOGVY), & !--- [IN]
+             877                                          PROG(:,:,:,I_RHOGVZ), PROG_pl(:,:,:,I_RHOGVZ), & !--- [IN]
+             878                                          PROG(:,:,:,I_RHOGW),  PROG_pl(:,:,:,I_RHOGW),  & !--- [IN]
+             879                                          PROG(:,:,:,I_RHOGE),  PROG_pl(:,:,:,I_RHOGE),  & !--- [IN]
+             880                                          PROGq(:,:,:,:),       PROGq_pl(:,:,:,:),       & !--- [IN]
+             881                                          0                                              ) !--- [IN]
+             882                     
+             883                         call DEBUG_rapend  ('++Dynamics')
+             884                     
+             885                     #ifdef PAPI_OPS
+             886                         ! <-- [add] PAPI R.Yoshida 20121022
+             887                         !call PAPIF_flips( PAPI_real_time_i, PAPI_proc_time_i, PAPI_flpins, PAPI_mflins, PAPI_check )
+             888                         call PAPIF_flops( PAPI_real_time_o, PAPI_proc_time_o, PAPI_flpops, PAPI_mflops, PAPI_check )
+             889                     #endif
+             890                     
+             891                         return
+             892                       end subroutine dynstep
+             893                     
+             894                     end module mod_dynstep
+
+ Diagnostic messages: program name(mod_dynstep)
+   jwd8220o-i  "nhm/dynamics/mod_dynstep.f90", line 6: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(dynstep)
+   jwd2006i-i  "nhm/dynamics/mod_dynstep.f90", line 289: 'ndg_TEND_out' is declared but never referenced.
+   jwd8206o-i  "nhm/dynamics/mod_dynstep.f90", line 372: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/dynamics/mod_dynstep.f90", line 373: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/dynamics/mod_dynstep.f90", line 374: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/dynamics/mod_dynstep.f90", line 375: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/dynamics/mod_dynstep.f90", line 390: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/dynamics/mod_dynstep.f90", line 435: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/dynamics/mod_dynstep.f90", line 436: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/dynamics/mod_dynstep.f90", line 437: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/dynamics/mod_dynstep.f90", line 438: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/dynamics/mod_dynstep.f90", line 453: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_dynstep.f90", line 828: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_dynstep.f90", line 842: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 894
+   Statements : 365
+   Stack(byte): 10144
+   Prefetch num: 160
+
+ Total information
+   Procedures       : 1
+   Total lines      : 894
+   Total statements : 365
+   Total stack(byte): 10144
+   Total prefetch num: 160
+

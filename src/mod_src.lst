@@ -1,0 +1,1606 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:08:49 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/dynamics/mod_src.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_src.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_src"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  Source calculation module
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     module mod_src
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This module is for the caluculation of source terms
+              11                       !       in the nhm-model.
+              12                       !
+              13                       !
+              14                       !++ Current Corresponding Author : H.Tomita
+              15                       !
+              16                       !++ History:
+              17                       !      Version   Date       Comment
+              18                       !      -----------------------------------------------------------------------
+              19                       !      0.00      04-02-17   Imported from igdc-4.34
+              20                       !                06-08-11   Add sub[src_update_tracer] for tracer advection.
+              21                       !                07-04-25   K.Suzuki: branch for save_memory in src_update_tracer
+              22                       !                07-11-13   H.Tomita: Change the vertical advection limiter.
+              23                       !                                     apply the limiter from rho q to q.
+              24                       !                07-11-14   Y.Niwa: bug fix /rho_h => /rho_h_pl
+              25                       !                08-01-24   Y.Niwa: add src_update_tracer
+              26                       !                                   save_memory => TRC_SAVE_MEMORY
+              27                       !                08-04-28   Y.Niwa: add initialization and avoid zero-dividing.
+              28                       !                09-05-26   Y.Yamada: add directive, derected by T.Asano
+              29                       !                11-09-27   T.Seiki: merge optimized routines for K by RIST and M.Terai
+              30                       !                12-03-29   T.Yamaura: optimized for K
+              31                       !                12-05-30   T.Yashiro: Change arguments from character to index/switch
+              32                       !      -----------------------------------------------------------------------
+              33                       !
+              34                       !-----------------------------------------------------------------------------
+              35                       !
+              36                       !++ Used modules
+              37                       !
+              38                       use mod_debug
+              39                       !-----------------------------------------------------------------------------
+              40                       implicit none
+              41                       private
+              42                       !-----------------------------------------------------------------------------
+              43                       !
+              44                       !++ Public procedure
+              45                       !
+              46                       public :: src_advection_convergence_momentum
+              47                       public :: src_advection_convergence
+              48                       public :: src_flux_convergence
+              49                     
+              50                       public :: src_gradient
+              51                       public :: src_buoyancy
+              52                     
+              53                       !-----------------------------------------------------------------------------
+              54                       !
+              55                       !++ Public parameters & variables
+              56                       !
+              57                       integer, public, parameter :: I_SRC_horizontal = 1 ! [add] H.Yashiro 20120530
+              58                       integer, public, parameter :: I_SRC_vertical   = 2 ! [add] H.Yashiro 20120530
+              59                       integer, public, parameter :: I_SRC_default    = 3 ! [add] H.Yashiro 20120530
+              60                     
+              61                       !-----------------------------------------------------------------------------
+              62                       !
+              63                       !++ Private procedures
+              64                       !
+              65                       !-----------------------------------------------------------------------------
+              66                       !
+              67                       !++ Private parameters & variables
+              68                       !
+              69                       logical, private, parameter :: first_layer_remedy = .true.
+              70                     
+              71                       !-----------------------------------------------------------------------------
+              72                     contains
+              73                       !-----------------------------------------------------------------------------
+              74                       !> Advection convergence for momentum
+              75                       subroutine src_advection_convergence_momentum( &
+              76                            vx,      vx_pl,      &
+              77                            vy,      vy_pl,      &
+              78                            vz,      vz_pl,      &
+              79                            w,       w_pl,       &
+              80                            rhog,    rhog_pl,    &
+              81                            rhogvx,  rhogvx_pl,  &
+              82                            rhogvy,  rhogvy_pl,  &
+              83                            rhogvz,  rhogvz_pl,  &
+              84                            rhogw,   rhogw_pl,   &
+              85                            grhogvx, grhogvx_pl, &
+              86                            grhogvy, grhogvy_pl, &
+              87                            grhogvz, grhogvz_pl, &
+              88                            grhogw,  grhogw_pl   )
+              89                         use mod_adm, only: &
+              90                            ADM_prc_me,  &
+              91                            ADM_prc_pl,  &
+              92                            ADM_KNONE,   &
+              93                            ADM_lall,    &
+              94                            ADM_lall_pl, &
+              95                            ADM_gall,    &
+              96                            ADM_gall_pl, &
+              97                            ADM_kall,    &
+              98                            ADM_kmin,    &
+              99                            ADM_kmax
+             100                         use mod_cnst, only: &
+             101                            CNST_EOHM
+             102                         use mod_grd, only: &
+             103                            GRD_XDIR,   &
+             104                            GRD_YDIR,   &
+             105                            GRD_ZDIR,   &
+             106                            GRD_rscale, &
+             107                            GRD_e,      &
+             108                            GRD_e_pl,   &
+             109                            GRD_x,      &
+             110                            GRD_x_pl,   &
+             111                            GRD_afac,   &
+             112                            GRD_bfac,   &
+             113                            GRD_cfac,   &
+             114                            GRD_dfac
+             115                         use mod_runconf, only : &
+             116                            NON_HYDRO_ALPHA
+             117                         implicit none
+             118                     
+             119                         real(8), intent(in)  :: vx   (ADM_gall   ,ADM_kall,ADM_lall   )
+             120                         real(8), intent(in)  :: vx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             121                         real(8), intent(in)  :: vy   (ADM_gall   ,ADM_kall,ADM_lall   )
+             122                         real(8), intent(in)  :: vy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             123                         real(8), intent(in)  :: vz   (ADM_gall   ,ADM_kall,ADM_lall   )
+             124                         real(8), intent(in)  :: vz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             125                         real(8), intent(in)  :: w    (ADM_gall   ,ADM_kall,ADM_lall   )
+             126                         real(8), intent(in)  :: w_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             127                     
+             128                         real(8), intent(in)  :: rhog     (ADM_gall   ,ADM_kall,ADM_lall   )
+             129                         real(8), intent(in)  :: rhog_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             130                         real(8), intent(in)  :: rhogvx   (ADM_gall   ,ADM_kall,ADM_lall   )
+             131                         real(8), intent(in)  :: rhogvx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             132                         real(8), intent(in)  :: rhogvy   (ADM_gall   ,ADM_kall,ADM_lall   )
+             133                         real(8), intent(in)  :: rhogvy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             134                         real(8), intent(in)  :: rhogvz   (ADM_gall   ,ADM_kall,ADM_lall   )
+             135                         real(8), intent(in)  :: rhogvz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             136                         real(8), intent(in)  :: rhogw    (ADM_gall   ,ADM_kall,ADM_lall   )
+             137                         real(8), intent(in)  :: rhogw_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             138                     
+             139                         real(8), intent(out) :: grhogvx   (ADM_gall   ,ADM_kall,ADM_lall   )
+             140                         real(8), intent(out) :: grhogvx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             141                         real(8), intent(out) :: grhogvy   (ADM_gall   ,ADM_kall,ADM_lall   )
+             142                         real(8), intent(out) :: grhogvy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             143                         real(8), intent(out) :: grhogvz   (ADM_gall   ,ADM_kall,ADM_lall   )
+             144                         real(8), intent(out) :: grhogvz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             145                         real(8), intent(out) :: grhogw    (ADM_gall   ,ADM_kall,ADM_lall   )
+             146                         real(8), intent(out) :: grhogw_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             147                     
+             148                         real(8) :: vvx   (ADM_gall   ,ADM_kall,ADM_lall   )
+             149                         real(8) :: vvx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             150                         real(8) :: vvy   (ADM_gall   ,ADM_kall,ADM_lall   )
+             151                         real(8) :: vvy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             152                         real(8) :: vvz   (ADM_gall   ,ADM_kall,ADM_lall   )
+             153                         real(8) :: vvz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             154                     
+             155                         real(8) :: dvvx   (ADM_gall   ,ADM_kall,ADM_lall   )
+             156                         real(8) :: dvvx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             157                         real(8) :: dvvy   (ADM_gall   ,ADM_kall,ADM_lall   )
+             158                         real(8) :: dvvy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             159                         real(8) :: dvvz   (ADM_gall   ,ADM_kall,ADM_lall   )
+             160                         real(8) :: dvvz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             161                     
+             162                         real(8) :: grhogwc   (ADM_gall   ,ADM_kall,ADM_lall   )
+             163                         real(8) :: grhogwc_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             164                     
+             165                         real(8) :: prd, wc
+             166                     
+             167                         integer :: g, k, l
+             168                         !---------------------------------------------------------------------------
+             169                     
+             170                         call DEBUG_rapstart('++++src_advection_convergence_m')
+             171                     
+             172                         !---< merge horizontal velocity & vertical velocity >
+             173                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             174     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_cfac: 8, GRD_dfac: 8
+                                   <<< Loop-information  End >>>
+             175     2  pp                  do k = ADM_kmin,ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 126
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             176     3  pp   4v             do g = 1, ADM_gall
+             177     3   p   4v                wc = 0.5D0 * ( GRD_cfac(k) * w(g,k+1,l) &
+             178     3                                      + GRD_dfac(k) * w(g,k  ,l) )
+             179     3               
+             180     3   p   4v                vvx(g,k,l) = vx(g,k,l) + wc * GRD_e(g,l,GRD_XDIR)
+             181     3   p   4v                vvy(g,k,l) = vy(g,k,l) + wc * GRD_e(g,l,GRD_YDIR)
+             182     3   p   4v                vvz(g,k,l) = vz(g,k,l) + wc * GRD_e(g,l,GRD_ZDIR)
+             183     3   p   4v             enddo
+             184     2   p                  enddo
+             185     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 640
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             186     1  pp   6v             vvx(:,ADM_kmin-1,l) = 0.D0
+             187     1   p   6v             vvx(:,ADM_kmax+1,l) = 0.D0
+             188     1   p   6v             vvy(:,ADM_kmin-1,l) = 0.D0
+             189     1   p   6v             vvy(:,ADM_kmax+1,l) = 0.D0
+             190     1   p   6v             vvz(:,ADM_kmin-1,l) = 0.D0
+             191     1   p   6v             vvz(:,ADM_kmax+1,l) = 0.D0
+             192     1   p               enddo
+             193                     
+             194     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             195     2  pp                  do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_cfac: 8, GRD_dfac: 8
+                                   <<< Loop-information  End >>>
+             196     3  pp                     do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 126
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             197     4  pp   4v                do g = 1, ADM_gall_pl
+             198     4   p   4v                   wc = 0.5D0 * ( GRD_cfac(k) * w_pl(g,k+1,l) &
+             199     4                                         + GRD_dfac(k) * w_pl(g,k  ,l) )
+             200     4               
+             201     4   p   4v                   vvx_pl(g,k,l) = vx_pl(g,k,l) + wc * GRD_e_pl(g,l,GRD_XDIR)
+             202     4   p   4v                   vvy_pl(g,k,l) = vy_pl(g,k,l) + wc * GRD_e_pl(g,l,GRD_YDIR)
+             203     4   p   4v                   vvz_pl(g,k,l) = vz_pl(g,k,l) + wc * GRD_e_pl(g,l,GRD_ZDIR)
+             204     4   p   4v                enddo
+             205     3   p                     enddo
+             206     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 640
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             207     2  pp   6v                vvx_pl(:,ADM_kmin-1,l) = 0.D0
+             208     2   p   6v                vvx_pl(:,ADM_kmax+1,l) = 0.D0
+             209     2   p   6v                vvy_pl(:,ADM_kmin-1,l) = 0.D0
+             210     2   p   6v                vvy_pl(:,ADM_kmax+1,l) = 0.D0
+             211     2   p   6v                vvz_pl(:,ADM_kmin-1,l) = 0.D0
+             212     2   p   6v                vvz_pl(:,ADM_kmax+1,l) = 0.D0
+             213     2   p                  enddo
+             214     1                   endif
+             215                     
+             216                         !---< advection term for momentum >
+             217                     
+             218                         call src_advection_convergence( rhogvx, rhogvx_pl, & ! [IN]
+             219                                                         rhogvy, rhogvy_pl, & ! [IN]
+             220                                                         rhogvz, rhogvz_pl, & ! [IN]
+             221                                                         rhogw,  rhogw_pl,  & ! [IN]
+             222                                                         vvx,    vvx_pl,    & ! [IN]
+             223                                                         dvvx,   dvvx_pl,   & ! [OUT]
+             224                                                         I_SRC_default      ) ! [IN]
+             225                     
+             226                         call src_advection_convergence( rhogvx, rhogvx_pl, & ! [IN]
+             227                                                         rhogvy, rhogvy_pl, & ! [IN]
+             228                                                         rhogvz, rhogvz_pl, & ! [IN]
+             229                                                         rhogw,  rhogw_pl,  & ! [IN]
+             230                                                         vvy,    vvy_pl,    & ! [IN]
+             231                                                         dvvy,   dvvy_pl,   & ! [OUT]
+             232                                                         I_SRC_default      ) ! [IN]
+             233                     
+             234                         call src_advection_convergence( rhogvx, rhogvx_pl, & ! [IN]
+             235                                                         rhogvy, rhogvy_pl, & ! [IN]
+             236                                                         rhogvz, rhogvz_pl, & ! [IN]
+             237                                                         rhogw,  rhogw_pl,  & ! [IN]
+             238                                                         vvz,    vvz_pl,    & ! [IN]
+             239                                                         dvvz,   dvvz_pl,   & ! [OUT]
+             240                                                         I_SRC_default      ) ! [IN]
+             241                     
+             242                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             243     1  pp               do l = 1, ADM_lall
+             244     1                      !---< coriolis force >
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             245     2  pp                  do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 302
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             246     3  pp   6v             do g = 1, ADM_gall
+             247     3   p   6v                dvvx(g,k,l) = dvvx(g,k,l) - 2.D0 * rhog(g,k,l) * ( -CNST_EOHM * vvy(g,k,l) )
+             248     3   p   6v                dvvy(g,k,l) = dvvy(g,k,l) - 2.D0 * rhog(g,k,l) * (  CNST_EOHM * vvx(g,k,l) )
+             249     3   p   6v             enddo
+             250     2   p                  enddo
+             251     1               
+             252     1                      !---< horizontalize & separate vertical velocity >
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             253     2  pp                  do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 145
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             254     3  pp   4v             do g = 1, ADM_gall
+             255     3   p   4v                prd = dvvx(g,k,l) * GRD_e(g,l,GRD_XDIR) &
+             256     3                             + dvvy(g,k,l) * GRD_e(g,l,GRD_YDIR) &
+             257     3                             + dvvz(g,k,l) * GRD_e(g,l,GRD_ZDIR)
+             258     3               
+             259     3   p   4v                grhogvx(g,k,l) = dvvx(g,k,l) - prd * GRD_e(g,l,GRD_XDIR)
+             260     3   p   4v                grhogvy(g,k,l) = dvvy(g,k,l) - prd * GRD_e(g,l,GRD_YDIR)
+             261     3   p   4v                grhogvz(g,k,l) = dvvz(g,k,l) - prd * GRD_e(g,l,GRD_ZDIR)
+             262     3               
+             263     3   p   4v                grhogwc(g,k,l) = prd * real(NON_HYDRO_ALPHA,kind=8)
+             264     3   p   4v             enddo
+             265     2   p                  enddo
+             266     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_afac: 8, GRD_bfac: 8
+                                   <<< Loop-information  End >>>
+             267     2  pp                  do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 272
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             268     3  pp   8v             do g = 1, ADM_gall
+             269     3   p   8v                grhogw(g,k,l) = 0.5D0 * ( GRD_afac(k) * grhogwc(g,k  ,l) &
+             270     3                                                 + GRD_bfac(k) * grhogwc(g,k-1,l) )
+             271     3   p   8v             enddo
+             272     2   p                  enddo
+             273     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 471
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             274     1  pp   6v             grhogvx(:,ADM_kmin-1,l) = 0.D0
+             275     1   p   6v             grhogvx(:,ADM_kmax+1,l) = 0.D0
+             276     1   p   6v             grhogvy(:,ADM_kmin-1,l) = 0.D0
+             277     1   p   6v             grhogvy(:,ADM_kmax+1,l) = 0.D0
+             278     1   p   6v             grhogvz(:,ADM_kmin-1,l) = 0.D0
+             279     1   p   6v             grhogvz(:,ADM_kmax+1,l) = 0.D0
+             280     1   p   6v             grhogw (:,ADM_kmin-1,l) = 0.D0
+             281     1   p   6v             grhogw (:,ADM_kmin  ,l) = 0.D0
+             282     1   p   6v             grhogw (:,ADM_kmax+1,l) = 0.D0
+             283     1   p               enddo
+             284                     
+             285     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             286     2  pp                  do l = 1, ADM_lall_pl
+             287     2                         !---< coriolis force >
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             288     3  pp                     do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 302
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             289     4  pp   6v                do g = 1, ADM_gall_pl
+             290     4   p   6v                   dvvx_pl(g,k,l) = dvvx_pl(g,k,l) - 2.D0 * rhog_pl(g,k,l) * ( -CNST_EOHM * vvy_pl(g,k,l) )
+             291     4   p   6v                   dvvy_pl(g,k,l) = dvvy_pl(g,k,l) - 2.D0 * rhog_pl(g,k,l) * (  CNST_EOHM * vvx_pl(g,k,l) )
+             292     4   p   6v                enddo
+             293     3   p                     enddo
+             294     2               
+             295     2                         !---< horizontalize & separate vertical velocity >
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             296     3  pp                     do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 145
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             297     4  pp   4v                do g = 1, ADM_gall_pl
+             298     4   p   4v                   prd = dvvx_pl(g,k,l) * GRD_e_pl(g,l,GRD_XDIR)  &
+             299     4                                + dvvy_pl(g,k,l) * GRD_e_pl(g,l,GRD_YDIR)  &
+             300     4                                + dvvz_pl(g,k,l) * GRD_e_pl(g,l,GRD_ZDIR)
+             301     4               
+             302     4   p   4v                   grhogvx_pl(g,k,l) = dvvx_pl(g,k,l) - prd * GRD_e_pl(g,l,GRD_XDIR)
+             303     4   p   4v                   grhogvy_pl(g,k,l) = dvvy_pl(g,k,l) - prd * GRD_e_pl(g,l,GRD_YDIR)
+             304     4   p   4v                   grhogvz_pl(g,k,l) = dvvz_pl(g,k,l) - prd * GRD_e_pl(g,l,GRD_ZDIR)
+             305     4               
+             306     4   p   4v                   grhogwc_pl(g,k,l) = prd * real(NON_HYDRO_ALPHA,kind=8)
+             307     4   p   4v                enddo
+             308     3   p                     enddo
+             309     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_afac: 8, GRD_bfac: 8
+                                   <<< Loop-information  End >>>
+             310     3  pp                     do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 272
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             311     4  pp   8v                do g = 1, ADM_gall_pl
+             312     4   p   8v                   grhogw_pl(g,k,l) = 0.5D0 * ( GRD_afac(k) * grhogwc_pl(g,k  ,l) &
+             313     4                                                       + GRD_bfac(k) * grhogwc_pl(g,k-1,l) )
+             314     4   p   8v                enddo
+             315     3   p                     enddo
+             316     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 471
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             317     2  pp   6v                grhogvx_pl(:,ADM_kmin-1,l) = 0.D0
+             318     2   p   6v                grhogvx_pl(:,ADM_kmax+1,l) = 0.D0
+             319     2   p   6v                grhogvy_pl(:,ADM_kmin-1,l) = 0.D0
+             320     2   p   6v                grhogvy_pl(:,ADM_kmax+1,l) = 0.D0
+             321     2   p   6v                grhogvz_pl(:,ADM_kmin-1,l) = 0.D0
+             322     2   p   6v                grhogvz_pl(:,ADM_kmax+1,l) = 0.D0
+             323     2   p   6v                grhogw_pl (:,ADM_kmin-1,l) = 0.D0
+             324     2   p   6v                grhogw_pl (:,ADM_kmin  ,l) = 0.D0
+             325     2   p   6v                grhogw_pl (:,ADM_kmax+1,l) = 0.D0
+             326     2   p                  enddo
+             327     1                   endif
+             328                     
+             329                         call DEBUG_rapend('++++src_advection_convergence_m')
+             330                     
+             331                         return
+             332                       end subroutine src_advection_convergence_momentum
+             333                     
+             334                       !-----------------------------------------------------------------------------
+             335                       !> Advection convergence
+             336                       subroutine src_advection_convergence( &
+             337                            rhogvx,   rhogvx_pl,   &
+             338                            rhogvy,   rhogvy_pl,   &
+             339                            rhogvz,   rhogvz_pl,   &
+             340                            rhogw,    rhogw_pl,    &
+             341                            scl,      scl_pl,      &
+             342                            grhogscl, grhogscl_pl, &
+             343                            fluxtype               )
+             344                         use mod_adm, only: &
+             345                            ADM_prc_me,  &
+             346                            ADM_prc_pl,  &
+             347                            ADM_gall,    &
+             348                            ADM_gall_pl, &
+             349                            ADM_lall,    &
+             350                            ADM_lall_pl, &
+             351                            ADM_kall,    &
+             352                            ADM_kmin,    &
+             353                            ADM_kmax
+             354                         use mod_grd, only: &
+             355                            GRD_afac, &
+             356                            GRD_bfac
+             357                         implicit none
+             358                     
+             359                         real(8), intent(in)  :: rhogvx     (ADM_gall,   ADM_kall,ADM_lall   ) ! rho*Vx ( gam2 X G^{1/2} )
+             360                         real(8), intent(in)  :: rhogvx_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             361                         real(8), intent(in)  :: rhogvy     (ADM_gall,   ADM_kall,ADM_lall   ) ! rho*Vy ( gam2 X G^{1/2} )
+             362                         real(8), intent(in)  :: rhogvy_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             363                         real(8), intent(in)  :: rhogvz     (ADM_gall,   ADM_kall,ADM_lall   ) ! rho*Vz ( gam2 X G^{1/2} )
+             364                         real(8), intent(in)  :: rhogvz_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             365                         real(8), intent(in)  :: rhogw      (ADM_gall,   ADM_kall,ADM_lall   ) ! rho*w  ( gam2 X G^{1/2} )
+             366                         real(8), intent(in)  :: rhogw_pl   (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             367                         real(8), intent(in)  :: scl        (ADM_gall,   ADM_kall,ADM_lall   ) ! scalar
+             368                         real(8), intent(in)  :: scl_pl     (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             369                         real(8), intent(out) :: grhogscl   (ADM_gall,   ADM_kall,ADM_lall   ) ! scalar tendency
+             370                         real(8), intent(out) :: grhogscl_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             371                         integer, intent(in)  :: fluxtype                                    ! scheme type
+             372                                                                                             ! I_SRC_horizontal : horizontal convergence
+             373                                                                                             ! I_SRC_vertical   : vertical convergence
+             374                                                                                             ! I_SRC_default    : both of them
+             375                     
+             376                         real(8) :: rhogvxscl   (ADM_gall,   ADM_kall,ADM_lall   )
+             377                         real(8) :: rhogvxscl_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             378                         real(8) :: rhogvyscl   (ADM_gall,   ADM_kall,ADM_lall   )
+             379                         real(8) :: rhogvyscl_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             380                         real(8) :: rhogvzscl   (ADM_gall,   ADM_kall,ADM_lall   )
+             381                         real(8) :: rhogvzscl_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             382                         real(8) :: rhogwscl    (ADM_gall,   ADM_kall,ADM_lall   )
+             383                         real(8) :: rhogwscl_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             384                     
+             385                         integer :: k, l
+             386                         !---------------------------------------------------------------------------
+             387                     
+             388                         call DEBUG_rapstart('++++src_advection_convergence')
+             389                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             390        pp   6v          rhogvxscl(:,:,:) = rhogvx(:,:,:) * scl(:,:,:)
+             391         p   6v          rhogvyscl(:,:,:) = rhogvy(:,:,:) * scl(:,:,:)
+             392         p   6v          rhogvzscl(:,:,:) = rhogvz(:,:,:) * scl(:,:,:)
+             393                     
+             394     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             395     1  pp   6v             rhogvxscl_pl(:,:,:) = rhogvx_pl(:,:,:) * scl_pl(:,:,:)
+             396     1   p   6v             rhogvyscl_pl(:,:,:) = rhogvy_pl(:,:,:) * scl_pl(:,:,:)
+             397     1   p   6v             rhogvzscl_pl(:,:,:) = rhogvz_pl(:,:,:) * scl_pl(:,:,:)
+             398     1                   endif
+             399                     
+             400                         ! rhogwscl = rhow * e_w ( at half level ).
+             401     1                   if ( fluxtype == I_SRC_horizontal ) then
+             402     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             403     1  pp    v             rhogwscl(:,:,:) = 0.D0
+             404     2                      if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             405     2  pp    v                rhogwscl_pl(:,:,:) = 0.D0
+             406     2                      endif
+             407     1               
+             408     1                   else
+             409     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             410     2  pp                  do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<< Loop-information  End >>>
+             411     3  pp                  do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             412     3   p   8v                rhogwscl(:,k,l) = rhogw(:,k,l) * 0.5D0 * ( GRD_afac(k) * scl(:,k,  l) &
+             413     3                                                                  + GRD_bfac(k) * scl(:,k-1,l) )
+             414     3   p                  enddo
+             415     2   p                  enddo
+             416     1               
+             417     2                      if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             418     3  pp                     do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<< Loop-information  End >>>
+             419     4  pp                     do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             420     4   p   8v                   rhogwscl_pl(:,k,l) = rhogw_pl(:,k,l) * 0.5D0 * ( GRD_afac(k) * scl_pl(:,k  ,l) &
+             421     4                                                                           + GRD_bfac(k) * scl_pl(:,k-1,l) )
+             422     4   p                     enddo
+             423     3   p                     enddo
+             424     2                      endif
+             425     1               
+             426     1                   endif
+             427                     
+             428                         !--- flux convergence step
+             429                         call src_flux_convergence( rhogvxscl, rhogvxscl_pl, & !--- [IN]
+             430                                                    rhogvyscl, rhogvyscl_pl, & !--- [IN]
+             431                                                    rhogvzscl, rhogvzscl_pl, & !--- [IN]
+             432                                                    rhogwscl,  rhogwscl_pl,  & !--- [IN]
+             433                                                    grhogscl,  grhogscl_pl,  & !--- [OUT]
+             434                                                    fluxtype                 ) !--- [IN]
+             435                     
+             436                         call DEBUG_rapend('++++src_advection_convergence')
+             437                     
+             438                         return
+             439                       end subroutine src_advection_convergence
+             440                     
+             441                       !-----------------------------------------------------------------------------
+             442                       !> Flux convergence calculation
+             443                       !! 1. Horizontal flux convergence is calculated by using rhovx, rhovy, and
+             444                       !!    rhovz which are defined at cell center (vertical) and A-grid (horizontal).
+             445                       !! 2. Vertical flux convergence is calculated by using rhovx, rhovy, rhovz, and rhow.
+             446                       !! 3. rhovx, rhovy, and rhovz can be replaced by rhovx*h, rhovy*h, and rhovz*h, respectively.
+             447                       !! 4. fluxtype can be set as below.
+             448                       subroutine src_flux_convergence( &
+             449                            rhogvx, rhogvx_pl, &
+             450                            rhogvy, rhogvy_pl, &
+             451                            rhogvz, rhogvz_pl, &
+             452                            rhogw,  rhogw_pl,  &
+             453                            grhog,  grhog_pl,  &
+             454                            fluxtype           )
+             455                         use mod_adm, only: &
+             456                            ADM_prc_me,  &
+             457                            ADM_prc_pl,  &
+             458                            ADM_gall,    &
+             459                            ADM_gall_pl, &
+             460                            ADM_lall,    &
+             461                            ADM_lall_pl, &
+             462                            ADM_kall,    &
+             463                            ADM_kmin,    &
+             464                            ADM_kmax
+             465                         use mod_grd, only: &
+             466                            GRD_rdgz
+             467                         use mod_vmtr, only: &
+             468                            VMTR_RGAM,       &
+             469                            VMTR_RGAM_pl,    &
+             470                            VMTR_RGAMH,      &
+             471                            VMTR_RGAMH_pl,   &
+             472                            VMTR_RGSH,       &
+             473                            VMTR_RGSH_pl,    &
+             474                            VMTR_C2Wfact,    &
+             475                            VMTR_C2Wfact_pl
+             476                         use mod_oprt, only: &
+             477                            OPRT_divergence
+             478                         implicit none
+             479                     
+             480                         real(8), intent(in)  :: rhogvx   (ADM_gall,   ADM_kall,ADM_lall   ) ! rho*Vx ( gam2 X G^{1/2} )
+             481                         real(8), intent(in)  :: rhogvx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             482                         real(8), intent(in)  :: rhogvy   (ADM_gall,   ADM_kall,ADM_lall   ) ! rho*Vy ( gam2 X G^{1/2} )
+             483                         real(8), intent(in)  :: rhogvy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             484                         real(8), intent(in)  :: rhogvz   (ADM_gall,   ADM_kall,ADM_lall   ) ! rho*Vz ( gam2 X G^{1/2} )
+             485                         real(8), intent(in)  :: rhogvz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             486                         real(8), intent(in)  :: rhogw    (ADM_gall,   ADM_kall,ADM_lall   ) ! rho*w  ( gam2 X G^{1/2} )
+             487                         real(8), intent(in)  :: rhogw_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             488                         real(8), intent(out) :: grhog    (ADM_gall,   ADM_kall,ADM_lall   ) ! source
+             489                         real(8), intent(out) :: grhog_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             490                         integer, intent(in)  :: fluxtype                                    ! scheme type
+             491                                                                                             ! I_SRC_horizontal : horizontal convergence
+             492                                                                                             ! I_SRC_vertical   : vertical convergence
+             493                                                                                             ! I_SRC_default    : both of them
+             494                     
+             495                         real(8) :: div_rhogvh   (ADM_gall,   ADM_kall,ADM_lall   )
+             496                         real(8) :: div_rhogvh_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             497                     
+             498                         real(8) :: rhogvx_vm   (ADM_gall,   ADM_kall,ADM_lall   )
+             499                         real(8) :: rhogvx_vm_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             500                         real(8) :: rhogvy_vm   (ADM_gall,   ADM_kall,ADM_lall   )
+             501                         real(8) :: rhogvy_vm_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             502                         real(8) :: rhogvz_vm   (ADM_gall,   ADM_kall,ADM_lall   )
+             503                         real(8) :: rhogvz_vm_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             504                         real(8) :: rhogw_vm    (ADM_gall,   ADM_kall,ADM_lall   )
+             505                         real(8) :: rhogw_vm_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             506                     
+             507                         integer :: g, k, l
+             508                         !---------------------------------------------------------------------------
+             509                     
+             510                         call DEBUG_rapstart('++++src_flux_convergence')
+             511                     
+             512                         ! boundary condition
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 7
+                                   <<< Loop-information  End >>>
+             513     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             514     1   p   8v             rhogw_vm(:,ADM_kmin  ,l) = 0.D0
+             515     1   p   8v             rhogw_vm(:,ADM_kmax+1,l) = 0.D0
+             516     1   p               enddo
+             517                     
+             518     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 7
+                                   <<< Loop-information  End >>>
+             519     2  pp                  do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             520     2   p   8v                rhogw_vm_pl(:,ADM_kmin  ,l) = 0.D0
+             521     2   p   8v                rhogw_vm_pl(:,ADM_kmax+1,l) = 0.D0
+             522     2   p                  enddo
+             523     1                   endif
+             524                     
+             525     1                   if ( fluxtype == I_SRC_horizontal ) then ! Horizontal
+             526     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             527     2  pp                  do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             528     3  pp                  do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 109
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             529     4  pp   2v             do g = 1, ADM_gall
+             530     4   p   2v                rhogw_vm(g,k,l) = ( VMTR_C2Wfact(1,g,k,l) * rhogvx(g,k  ,l) &
+             531     4                                           + VMTR_C2Wfact(2,g,k,l) * rhogvx(g,k-1,l) &
+             532     4                                           + VMTR_C2Wfact(3,g,k,l) * rhogvy(g,k  ,l) &
+             533     4                                           + VMTR_C2Wfact(4,g,k,l) * rhogvy(g,k-1,l) &
+             534     4                                           + VMTR_C2Wfact(5,g,k,l) * rhogvz(g,k  ,l) &
+             535     4                                           + VMTR_C2Wfact(6,g,k,l) * rhogvz(g,k-1,l) &
+             536     4                                           ) * VMTR_RGAMH(g,k,l) ! horizontal contribution
+             537     4   p   2v             enddo
+             538     3   p                  enddo
+             539     2   p                  enddo
+             540     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             541     1  pp   6v             rhogvx_vm(:,:,:) = rhogvx(:,:,:) * VMTR_RGAM(:,:,:)
+             542     1   p   6v             rhogvy_vm(:,:,:) = rhogvy(:,:,:) * VMTR_RGAM(:,:,:)
+             543     1   p   6v             rhogvz_vm(:,:,:) = rhogvz(:,:,:) * VMTR_RGAM(:,:,:)
+             544     1               
+             545     2                      if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             546     3  pp                     do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             547     4  pp                     do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 109
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             548     5  pp   2v                do g = 1, ADM_gall_pl
+             549     5   p   2v                   rhogw_vm_pl(g,k,l) = ( VMTR_C2Wfact_pl(1,g,k,l) * rhogvx_pl(g,k  ,l) &
+             550     5                                                 + VMTR_C2Wfact_pl(2,g,k,l) * rhogvx_pl(g,k-1,l) &
+             551     5                                                 + VMTR_C2Wfact_pl(3,g,k,l) * rhogvy_pl(g,k  ,l) &
+             552     5                                                 + VMTR_C2Wfact_pl(4,g,k,l) * rhogvy_pl(g,k-1,l) &
+             553     5                                                 + VMTR_C2Wfact_pl(5,g,k,l) * rhogvz_pl(g,k  ,l) &
+             554     5                                                 + VMTR_C2Wfact_pl(6,g,k,l) * rhogvz_pl(g,k-1,l) &
+             555     5                                                 ) * VMTR_RGAMH_pl(g,k,l) ! horizontal contribution
+             556     5   p   2v                enddo
+             557     4   p                     enddo
+             558     3   p                     enddo
+             559     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             560     2  pp   6v                rhogvx_vm_pl(:,:,:) = rhogvx_pl(:,:,:) * VMTR_RGAM_pl(:,:,:)
+             561     2   p   6v                rhogvy_vm_pl(:,:,:) = rhogvy_pl(:,:,:) * VMTR_RGAM_pl(:,:,:)
+             562     2   p   6v                rhogvz_vm_pl(:,:,:) = rhogvz_pl(:,:,:) * VMTR_RGAM_pl(:,:,:)
+             563     2                      endif
+             564     1               
+             565     1                      !--- Horizontal flux convergence
+             566     1                      call OPRT_divergence( div_rhogvh, div_rhogvh_pl, & !--- [OUT]
+             567     1                                            rhogvx_vm,  rhogvx_vm_pl,  & !--- [IN]
+             568     1                                            rhogvy_vm,  rhogvy_vm_pl,  & !--- [IN]
+             569     1                                            rhogvz_vm,  rhogvz_vm_pl   ) !--- [IN]
+             570     1               
+             571     1                   elseif( fluxtype == I_SRC_vertical ) then ! Vertical
+             572     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             573     2  pp                  do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             574     3  pp                  do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 272
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             575     4  pp   8v             do g = 1, ADM_gall
+             576     4   p   8v                rhogw_vm(g,k,l) = rhogw(g,k,l) * VMTR_RGSH(g,k,l) ! vertical contribution
+             577     4   p   8v             enddo
+             578     3   p                  enddo
+             579     2   p                  enddo
+             580     1               
+             581     2                      if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             582     3  pp                     do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             583     4  pp                     do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 272
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             584     5  pp   8v                do g = 1, ADM_gall_pl
+             585     5   p   8v                   rhogw_vm_pl(g,k,l) = rhogw_pl(g,k,l) * VMTR_RGSH_pl(g,k,l) ! vertical contribution
+             586     5   p   8v                enddo
+             587     4   p                     enddo
+             588     3   p                     enddo
+             589     2                      endif
+             590     1               
+             591     1                      !--- Horizontal flux convergence
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             592     1  pp    v             div_rhogvh   (:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             593     1  pp    v             div_rhogvh_pl(:,:,:) = 0.D0
+             594     1               
+             595     1                   else ! Default
+             596     1               
+             597     1                      !--- horizontal + vertical contribution to rhogw_vm
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             598     2  pp                  do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             599     3  pp                  do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 87
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             600     4  pp   2v             do g = 1, ADM_gall
+             601     4   p   2v                rhogw_vm(g,k,l) = ( VMTR_C2Wfact(1,g,k,l) * rhogvx(g,k  ,l) &
+             602     4                                           + VMTR_C2Wfact(2,g,k,l) * rhogvx(g,k-1,l) &
+             603     4                                           + VMTR_C2Wfact(3,g,k,l) * rhogvy(g,k  ,l) &
+             604     4                                           + VMTR_C2Wfact(4,g,k,l) * rhogvy(g,k-1,l) &
+             605     4                                           + VMTR_C2Wfact(5,g,k,l) * rhogvz(g,k  ,l) &
+             606     4                                           + VMTR_C2Wfact(6,g,k,l) * rhogvz(g,k-1,l) &
+             607     4                                           ) * VMTR_RGAMH(g,k,l)                     & ! horizontal contribution
+             608     4                                         + rhogw(g,k,l) * VMTR_RGSH(g,k,l)             ! vertical   contribution
+             609     4   p   2v             enddo
+             610     3   p                  enddo
+             611     2   p                  enddo
+             612     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             613     1  pp   6v             rhogvx_vm(:,:,:) = rhogvx(:,:,:) * VMTR_RGAM(:,:,:)
+             614     1   p   6v             rhogvy_vm(:,:,:) = rhogvy(:,:,:) * VMTR_RGAM(:,:,:)
+             615     1   p   6v             rhogvz_vm(:,:,:) = rhogvz(:,:,:) * VMTR_RGAM(:,:,:)
+             616     1               
+             617     2                      if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             618     3  pp                     do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             619     4  pp                     do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 87
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             620     5  pp   2v                do g = 1, ADM_gall_pl
+             621     5   p   2v                   rhogw_vm_pl(g,k,l) = ( VMTR_C2Wfact_pl(1,g,k,l) * rhogvx_pl(g,k  ,l) &
+             622     5                                                 + VMTR_C2Wfact_pl(2,g,k,l) * rhogvx_pl(g,k-1,l) &
+             623     5                                                 + VMTR_C2Wfact_pl(3,g,k,l) * rhogvy_pl(g,k  ,l) &
+             624     5                                                 + VMTR_C2Wfact_pl(4,g,k,l) * rhogvy_pl(g,k-1,l) &
+             625     5                                                 + VMTR_C2Wfact_pl(5,g,k,l) * rhogvz_pl(g,k  ,l) &
+             626     5                                                 + VMTR_C2Wfact_pl(6,g,k,l) * rhogvz_pl(g,k-1,l) &
+             627     5                                                 ) * VMTR_RGAMH_pl(g,k,l)                        & ! horizontal contribution
+             628     5                                               + rhogw_pl(g,k,l) * VMTR_RGSH_pl(g,k,l)             ! vertical   contribution
+             629     5   p   2v                enddo
+             630     4   p                     enddo
+             631     3   p                     enddo
+             632     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             633     2  pp   6v                rhogvx_vm_pl(:,:,:) = rhogvx_pl(:,:,:) * VMTR_RGAM_pl(:,:,:)
+             634     2   p   6v                rhogvy_vm_pl(:,:,:) = rhogvy_pl(:,:,:) * VMTR_RGAM_pl(:,:,:)
+             635     2   p   6v                rhogvz_vm_pl(:,:,:) = rhogvz_pl(:,:,:) * VMTR_RGAM_pl(:,:,:)
+             636     2                      endif
+             637     1               
+             638     1                      !--- Horizontal flux convergence
+             639     1                      call OPRT_divergence( div_rhogvh, div_rhogvh_pl, & !--- [OUT]
+             640     1                                            rhogvx_vm,  rhogvx_vm_pl,  & !--- [IN]
+             641     1                                            rhogvy_vm,  rhogvy_vm_pl,  & !--- [IN]
+             642     1                                            rhogvz_vm,  rhogvz_vm_pl   ) !--- [IN]
+             643     1               
+             644     1                   endif
+             645                     
+             646                         !--- Total flux convergence
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             647     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<< Loop-information  End >>>
+             648     2  pp                  do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             649     2   p   8v                grhog(:,k,l) = - div_rhogvh(:,k,l) &
+             650     2                                        - ( rhogw_vm(:,k+1,l)-rhogw_vm(:,k,l) ) * GRD_rdgz(k)
+             651     2   p                  enddo
+             652     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             653     1  pp   8v             grhog(:,ADM_kmin-1,l) = 0.D0
+             654     1   p   8v             grhog(:,ADM_kmax+1,l) = 0.D0
+             655     1   p               enddo
+             656                     
+             657     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             658     2  pp                  do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<< Loop-information  End >>>
+             659     3  pp                     do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             660     3   p   8v                   grhog_pl(:,k,l) = - div_rhogvh_pl(:,k,l) &
+             661     3                                              - ( rhogw_vm_pl(:,k+1,l)-rhogw_vm_pl(:,k,l) ) * GRD_rdgz(k)
+             662     3   p                     enddo
+             663     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             664     2  pp   8v                grhog_pl(:,ADM_kmin-1,l) = 0.D0
+             665     2   p   8v                grhog_pl(:,ADM_kmax+1,l) = 0.D0
+             666     2   p                  enddo
+             667     1                   endif
+             668                     
+             669                         call DEBUG_rapend('++++src_flux_convergence')
+             670                     
+             671                         return
+             672                       end subroutine src_flux_convergence
+             673                     
+             674                       !-----------------------------------------------------------------------------
+             675                       !> Gradient operator
+             676                       subroutine src_gradient( &
+             677                            e,    e_pl,    &
+             678                            gex,  gex_pl,  &
+             679                            gey,  gey_pl,  &
+             680                            gez,  gez_pl,  &
+             681                            gevz, gevz_pl, &
+             682                            grad_type      )
+             683                         use mod_adm, only: &
+             684                            ADM_prc_me,  &
+             685                            ADM_prc_pl,  &
+             686                            ADM_lall,    &
+             687                            ADM_lall_pl, &
+             688                            ADM_gall,    &
+             689                            ADM_gall_pl, &
+             690                            ADM_kall,    &
+             691                            ADM_kmin,    &
+             692                            ADM_kmax
+             693                         use mod_grd, only: &
+             694                            GRD_rdgz, &
+             695                            GRD_rdgzh
+             696                         use mod_vmtr, only: &
+             697                            VMTR_RGAM,       &
+             698                            VMTR_RGAM_pl,    &
+             699                            VMTR_RGAMH,      &
+             700                            VMTR_RGAMH_pl,   &
+             701                            VMTR_RGSGAM2,    &
+             702                            VMTR_RGSGAM2_pl, &
+             703                            VMTR_GAM2H,      &
+             704                            VMTR_GAM2H_pl,   &
+             705                            VMTR_C2Wfact,    &
+             706                            VMTR_C2Wfact_pl
+             707                         use mod_oprt, only: &
+             708                            OPRT_gradient,          &
+             709                            OPRT_horizontalize_vec
+             710                         implicit none
+             711                     
+             712                         real(8), intent(in)  :: e      (ADM_gall   ,ADM_kall,ADM_lall   ) ! phi * G^{1/2} * gamma^2
+             713                         real(8), intent(in)  :: e_pl   (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             714                         real(8), intent(out) :: gex    (ADM_gall   ,ADM_kall,ADM_lall   ) ! horizontal grad. ( x-comp. )
+             715                         real(8), intent(out) :: gex_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             716                         real(8), intent(out) :: gey    (ADM_gall   ,ADM_kall,ADM_lall   ) ! horizontal grad. ( y-comp. )
+             717                         real(8), intent(out) :: gey_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             718                         real(8), intent(out) :: gez    (ADM_gall   ,ADM_kall,ADM_lall   ) ! horizontal grad. ( z-comp. )
+             719                         real(8), intent(out) :: gez_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             720                         real(8), intent(out) :: gevz   (ADM_gall   ,ADM_kall,ADM_lall   ) ! vertical grad.   ( half point )
+             721                         real(8), intent(out) :: gevz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             722                         integer, intent(in)  :: grad_type                                 ! scheme type
+             723                                                                                           ! I_SRC_horizontal : horizontal gradient
+             724                                                                                           ! I_SRC_vertical   : vertical gradient ( no use )
+             725                                                                                           ! I_SRC_default    : both of them
+             726                     
+             727                         real(8) :: fex_h   (ADM_gall   ,ADM_kall,ADM_lall   )
+             728                         real(8) :: fex_h_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             729                         real(8) :: fey_h   (ADM_gall   ,ADM_kall,ADM_lall   )
+             730                         real(8) :: fey_h_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             731                         real(8) :: fez_h   (ADM_gall   ,ADM_kall,ADM_lall   )
+             732                         real(8) :: fez_h_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             733                     
+             734                         real(8) :: gee   (ADM_gall   ,ADM_kall,ADM_lall   )
+             735                         real(8) :: gee_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             736                     
+             737                         integer :: g, k, l
+             738                         !---------------------------------------------------------------------------
+             739                     
+             740                         call DEBUG_rapstart('++++src_gradient')
+             741                     
+             742                         !------ horizontal gradient without mountain
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             743        pp   8v          gee(:,:,:) = e(:,:,:) * VMTR_RGAM(:,:,:)
+             744     1                   if ( ADM_prc_me == ADM_prc_pl) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             745     1  pp   8v             gee_pl(:,:,:) = e_pl(:,:,:) * VMTR_RGAM_pl(:,:,:)
+             746     1                   endif
+             747                     
+             748                         call OPRT_gradient( gex, gex_pl, & ! [OUT]
+             749                                             gey, gey_pl, & ! [OUT]
+             750                                             gez, gez_pl, & ! [OUT]
+             751                                             gee, gee_pl  ) ! [IN]
+             752                     
+             753                         !--- horizontal gradient
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             754     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             755     2  pp                  do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 116
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             756     3  pp   2v                do g = 1, ADM_gall
+             757     3   p   2v                   fex_h(g,k,l) = ( VMTR_C2Wfact(1,g,k,l) * e(g,k  ,l) &
+             758     3                                           + VMTR_C2Wfact(2,g,k,l) * e(g,k-1,l) ) * VMTR_RGAMH(g,k,l)
+             759     3   p   2v                   fey_h(g,k,l) = ( VMTR_C2Wfact(3,g,k,l) * e(g,k  ,l) &
+             760     3                                           + VMTR_C2Wfact(4,g,k,l) * e(g,k-1,l) ) * VMTR_RGAMH(g,k,l)
+             761     3   p   2v                   fez_h(g,k,l) = ( VMTR_C2Wfact(5,g,k,l) * e(g,k  ,l) &
+             762     3                                           + VMTR_C2Wfact(6,g,k,l) * e(g,k-1,l) ) * VMTR_RGAMH(g,k,l)
+             763     3   p   2v                enddo
+             764     2   p                  enddo
+             765     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             766     2  pp                  do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             767     2   p   8v                gex(:,k,l) = gex(:,k,l) + ( fex_h(:,k+1,l) - fex_h(:,k,l) ) * GRD_rdgz(k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 445
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             768     2  pp   6v                gey(:,k,l) = gey(:,k,l) + ( fey_h(:,k+1,l) - fey_h(:,k,l) ) * GRD_rdgz(k)
+             769     2   p   6v                gez(:,k,l) = gez(:,k,l) + ( fez_h(:,k+1,l) - fez_h(:,k,l) ) * GRD_rdgz(k)
+             770     2   p                  enddo
+             771     1               
+             772     1                      !--- At the lowest layer, do not use the extrapolation value!
+             773     2   p                  if ( first_layer_remedy ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             774     2  pp   8v                gex(:,ADM_kmin,l) = gex(:,ADM_kmin+1,l)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 889
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             775     2  pp   8v                gey(:,ADM_kmin,l) = gey(:,ADM_kmin+1,l)
+             776     2   p   8v                gez(:,ADM_kmin,l) = gez(:,ADM_kmin+1,l)
+             777     2   p                  endif
+             778     1   p               enddo
+             779                     
+             780     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             781     2  pp                  do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             782     3  pp                     do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 116
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             783     4  pp   2v                   do g = 1, ADM_gall_pl
+             784     4   p   2v                   fex_h_pl(g,k,l) = ( VMTR_C2Wfact_pl(1,g,k,l) * e_pl(g,k  ,l) &
+             785     4                                              + VMTR_C2Wfact_pl(2,g,k,l) * e_pl(g,k-1,l) ) * VMTR_RGAMH_pl(g,k,l)
+             786     4   p   2v                   fey_h_pl(g,k,l) = ( VMTR_C2Wfact_pl(3,g,k,l) * e_pl(g,k  ,l) &
+             787     4                                              + VMTR_C2Wfact_pl(4,g,k,l) * e_pl(g,k-1,l) ) * VMTR_RGAMH_pl(g,k,l)
+             788     4   p   2v                   fez_h_pl(g,k,l) = ( VMTR_C2Wfact_pl(5,g,k,l) * e_pl(g,k  ,l) &
+             789     4                                              + VMTR_C2Wfact_pl(6,g,k,l) * e_pl(g,k-1,l) ) * VMTR_RGAMH_pl(g,k,l)
+             790     4   p   2v                   enddo
+             791     3   p                     enddo
+             792     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             793     3  pp                     do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             794     3   p   8v                   gex_pl(:,k,l) = gex_pl(:,k,l) + ( fex_h_pl(:,k+1,l) - fex_h_pl(:,k,l) ) * GRD_rdgz(k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 445
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             795     3  pp   6v                   gey_pl(:,k,l) = gey_pl(:,k,l) + ( fey_h_pl(:,k+1,l) - fey_h_pl(:,k,l) ) * GRD_rdgz(k)
+             796     3   p   6v                   gez_pl(:,k,l) = gez_pl(:,k,l) + ( fez_h_pl(:,k+1,l) - fez_h_pl(:,k,l) ) * GRD_rdgz(k)
+             797     3   p                     enddo
+             798     2               
+             799     2                         !--- At the lowest layer, do not use the extrapolation value!
+             800     3   p                     if ( first_layer_remedy ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             801     3  pp   8v                    gex_pl(:,ADM_kmin,l) = gex_pl(:,ADM_kmin+1,l)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 889
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             802     3  pp   8v                    gey_pl(:,ADM_kmin,l) = gey_pl(:,ADM_kmin+1,l)
+             803     3   p   8v                    gez_pl(:,ADM_kmin,l) = gez_pl(:,ADM_kmin+1,l)
+             804     3   p                     endif
+             805     2   p                  enddo
+             806     1                   endif
+             807                     
+             808                         !--- horizontalize
+             809                         call OPRT_horizontalize_vec( gex, gex_pl, & ! [INOUT]
+             810                                                      gey, gey_pl, & ! [INOUT]
+             811                                                      gez, gez_pl  ) ! [INOUT]
+             812                     
+             813                         !--- vertical gradient ( note : half points )
+             814     1                   if ( grad_type == I_SRC_horizontal ) then
+             815     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             816     1  pp    v             gevz(:,:,:) = 0.D0
+             817     2                      if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             818     2  pp    v                gevz_pl(:,:,:) = 0.D0
+             819     2                      endif
+             820     1               
+             821     1                   else
+             822     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             823     2  pp                  do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_rdgzh: 8
+                                   <<< Loop-information  End >>>
+             824     3  pp                     do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 136
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             825     4  pp   6v                do g = 1, ADM_gall
+             826     4   p   6v                   gevz(g,k,l) = ( e(g,k  ,l) * VMTR_RGSGAM2(g,k  ,l) &
+             827     4                                          - e(g,k-1,l) * VMTR_RGSGAM2(g,k-1,l) &
+             828     4                                          ) * GRD_rdgzh(k) * VMTR_GAM2H(g,k,l)
+             829     4   p   6v                enddo
+             830     3   p                     enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             831     2  pp    v                gevz(:,ADM_kmin-1,l) = 0.D0
+             832     2   p                  enddo
+             833     1               
+             834     2                      if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             835     3  pp                     do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_rdgzh: 8
+                                   <<< Loop-information  End >>>
+             836     4  pp                       do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 136
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             837     5  pp   6v                  do g = 1, ADM_gall_pl
+             838     5   p   6v                     gevz_pl(g,k,l) = ( e_pl(g,k  ,l) * VMTR_RGSGAM2_pl(g,k  ,l) &
+             839     5                                               - e_pl(g,k-1,l) * VMTR_RGSGAM2_pl(g,k-1,l) &
+             840     5                                               ) * GRD_rdgzh(k) * VMTR_GAM2H_pl(g,k,l)
+             841     5   p   6v                  enddo
+             842     4   p                       enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             843     3  pp    v                  gevz_pl(:,ADM_kmin-1,l) = 0.D0
+             844     3   p                     enddo
+             845     2                      endif
+             846     1               
+             847     1                   endif
+             848                     
+             849                         call DEBUG_rapend('++++src_gradient')
+             850                     
+             851                         return
+             852                       end subroutine src_gradient
+             853                     
+             854                       !-----------------------------------------------------------------------------
+             855                       !> Calculation of buoyacy force
+             856                       !> NOTICE : Upward direction is positive for gbz.
+             857                       subroutine src_buoyancy( &
+             858                            rhog, rhog_pl, &
+             859                            gbz,  gbz_pl   )
+             860                         use mod_adm, only: &
+             861                            ADM_prc_me,  &
+             862                            ADM_prc_pl,  &
+             863                            ADM_lall,    &
+             864                            ADM_lall_pl, &
+             865                            ADM_gall,    &
+             866                            ADM_gall_pl, &
+             867                            ADM_kall,    &
+             868                            ADM_kmin,    &
+             869                            ADM_kmax
+             870                         use mod_cnst, only: &
+             871                            CNST_EGRAV
+             872                         use mod_grd, only: &
+             873                            GRD_afac, &
+             874                            GRD_bfac
+             875                         use mod_vmtr, only: &
+             876                            VMTR_RGSGAM2,    &
+             877                            VMTR_RGSGAM2_pl, &
+             878                            VMTR_GSGAM2H,    &
+             879                            VMTR_GSGAM2H_pl
+             880                         implicit none
+             881                     
+             882                         real(8), intent(in)  :: rhog   (ADM_gall   ,ADM_kall,ADM_lall   ) ! density perturbation ( gam2 X G^{1/2} )
+             883                         real(8), intent(in)  :: rhog_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             884                         real(8), intent(out) :: gbz    (ADM_gall   ,ADM_kall,ADM_lall   ) ! buoyancy force  at half level
+             885                         real(8), intent(out) :: gbz_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             886                     
+             887                         integer :: g, k, l
+             888                         !---------------------------------------------------------------------------
+             889                     
+             890                         call DEBUG_rapstart('++++src_buoyancy')
+             891                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             892     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_afac: 8, GRD_bfac: 8
+                                   <<< Loop-information  End >>>
+             893     2  pp                  do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 121
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             894     3  pp   6v             do g = 1, ADM_gall
+             895     3   p   6v                gbz(g,k,l) = -0.5D0 * ( GRD_afac(k) * rhog(g,k  ,l) * VMTR_RGSGAM2(g,k  ,l) &
+             896     3                                               + GRD_bfac(k) * rhog(g,k-1,l) * VMTR_RGSGAM2(g,k-1,l) &
+             897     3                                               ) * VMTR_GSGAM2H(g,k,l) * CNST_EGRAV
+             898     3   p   6v             enddo
+             899     2   p                  enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             900     1  pp    v             gbz(:,ADM_kmin-1,l) = 0.D0
+             901     1   p               enddo
+             902                     
+             903     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             904     2  pp                  do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_afac: 8, GRD_bfac: 8
+                                   <<< Loop-information  End >>>
+             905     3  pp                     do k = ADM_kmin, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 121
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             906     4  pp   6v                do g = 1, ADM_gall_pl
+             907     4   p   6v                   gbz_pl(g,k,l) = -0.5D0 * ( GRD_afac(k) * rhog_pl(g,k  ,l) * VMTR_RGSGAM2_pl(g,k  ,l) &
+             908     4                                                     + GRD_bfac(k) * rhog_pl(g,k-1,l) * VMTR_RGSGAM2_pl(g,k-1,l) &
+             909     4                                                     ) * VMTR_GSGAM2H_pl(g,k,l) * CNST_EGRAV
+             910     4   p   6v                enddo
+             911     3   p                     enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             912     2  pp    v                gbz_pl(:,ADM_kmin-1,l) = 0.D0
+             913     2   p                  enddo
+             914     1                   endif
+             915                     
+             916                         call DEBUG_rapend('++++src_buoyancy')
+             917                     
+             918                         return
+             919                       end subroutine src_buoyancy
+             920                     
+             921                     end module mod_src
+
+ Diagnostic messages: program name(mod_src)
+   jwd8220o-i  "nhm/dynamics/mod_src.f90", line 6: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(src_advection_convergence_momentum)
+   jwd8201o-i  "nhm/dynamics/mod_src.f90", line 180: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "nhm/dynamics/mod_src.f90", line 181: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "nhm/dynamics/mod_src.f90", line 182: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "nhm/dynamics/mod_src.f90", line 201: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "nhm/dynamics/mod_src.f90", line 202: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "nhm/dynamics/mod_src.f90", line 203: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 247: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 248: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 255: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "nhm/dynamics/mod_src.f90", line 255: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 290: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 291: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 298: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "nhm/dynamics/mod_src.f90", line 298: Invariant expression within loop is moved outside loop.
+  Module subprogram name(src_flux_convergence)
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 530: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 537: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 549: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 556: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 601: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 609: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 621: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 629: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 649: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 660: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(src_gradient)
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 826: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 838: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(src_buoyancy)
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 895: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 898: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 907: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/dynamics/mod_src.f90", line 910: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 921
+   Statements : 486
+   Stack(byte): 6816
+   Prefetch num: 112
+
+ Total information
+   Procedures       : 1
+   Total lines      : 921
+   Total statements : 486
+   Total stack(byte): 6816
+   Total prefetch num: 112
+

@@ -1,0 +1,850 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:48:21 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src/tool
+   Source file       : prg_ico2ll.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../../src -o prg_ico2ll.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../../src -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Main program "ico2ll"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  program ico2ll
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     program ico2ll
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This program converts the icosahedral grid data
+              11                       !       to latitude-longitude grid.
+              12                       !
+              13                       !
+              14                       !++ Current Corresponding Author : M.Satoh, S.Iga, Y.Niwa, H.Tomita
+              15                       !
+              16                       !++ History:
+              17                       !      Version   Date       Comment
+              18                       !      -----------------------------------------------------------------------
+              19                       !      0.00      03-02-17   Imported from igdc-4.34
+              20                       !                05-12-02   M.Satoh: modified according to mod_history
+              21                       !                05-12-21   M.Satoh: introduce input_size option
+              22                       !                                    to read double precision data
+              23                       !                05-12-26   S.Iga  : add options to output separately in time
+              24                       !                06-01-06   S.Iga  : Bug fix for separate_time = 'yes'
+              25                       !                06-03-22   S.Iga  : change 'JLY' to 'JUL'
+              26                       !                06-05-08   S.Iga  : Bug fix. (Before the modification,
+              27                       !                                    option 'no' and 'template' didn't
+              28                       !                                    work on the gbnode ).
+              29                       !                06-05-19   Y.Niwa : bug fix
+              30                       !                06-08-04   H.Tomita : add 'header_strings'
+              31                       !                06-08-21   H.Tomita : del duplicated sentense: latlon_data
+              32                       !                07-03-29   T.Mitsui : saving memory latlon_data_swap(ij,k=1)
+              33                       !                07-10-24   W.Yanase: debug in the calculation of 8-byte integer
+              34                       !                08-10-08   W.Yanase: use %h2 instead of %f2 in GrADS template
+              35                       !                09-02-04   M.Satoh:  add option access_icodata
+              36                       !                09-03-16   H.Taniguchi: add option access_icodata
+              37                       !                                        for sequential output of icodata
+              38                       !                09-09-28   Y.Yamada: add option compress and negative
+              39                       !                                        for compressing a floating data
+              40                       !                                            to an integer data and
+              41                       !                                        for negative value
+              42                       !                10-08-03   T.Mitsui: bug(?) fix for gfortran
+              43                       !      -----------------------------------------------------------------------
+              44                       !
+              45                       !-----------------------------------------------------------------------------
+              46                       !
+              47                       !++ Used modules (shared)
+              48                       !
+              49                       use mod_misc
+              50                       use mod_cnst, only : &
+              51                            CNST_UNDEF,     & ! 05/12/21 M.Satoh
+              52                            CNST_UNDEF4
+              53                       use mod_calendar, only : &
+              54                            calendar_ym2dd
+              55                       ! Y.Yamada 09-09-09 ->
+              56                     !  use mod_comp, only :&
+              57                     !       comp_output,   &
+              58                     !       comp_ctlgen
+              59                       !,   &
+              60                            !       comp_8to2
+              61                       ! Y.Yamada 09-09-09 <-
+              62                       implicit none
+              63                     
+              64                       character(128) :: title = 'NICAM_MODEL_OUTPUT' ! 06/08/04 H.Tomita
+              65                       character(128) :: llmap_dir = './'
+              66                       character(128) :: llmap_base = 'llmap'
+              67                       character(128) :: info_fname = 'output.info'
+              68                       logical :: lon_swap = .false.
+              69                       !
+              70                       real(8) :: z(1000)
+              71                       integer :: rlevel=0
+              72                       integer :: glevel=5
+              73                       integer :: kall = 1
+              74                       integer :: tstart = 1
+              75                       integer :: tend = 1
+              76                       integer :: kdum = 0
+              77                       character(128) :: input_dir = './'
+              78                       character(128) :: output_dir = './'
+              79                       integer, parameter :: allowable_vmax = 100
+              80                       character(128) :: base_name(allowable_vmax)
+              81                       character(128) :: header_strings ='' ! H.Tomita 06/08/04 add this option
+              82                       integer :: vmax = 1
+              83                       integer :: rec_counter
+              84                       integer :: input_size = 4  ! 05/12/21 M.Satoh
+              85                       ! S.Iga (051226)=>
+              86                       character(40) :: separate_time = 'no' ! no      : like *******.grd
+              87                       ! yes     : like *******.time01234.grd
+              88                       ! template: like *******.2005-12-01-23h50m.grd (not yet)
+              89                       character(128) :: timename
+              90                       integer :: init_year=0,init_month=1,init_day=1,init_hour=0,init_min=0   ! for the case template
+              91                       integer :: init_timenumber=1   ! for the case yes
+              92                       integer(8) :: initsecond, absosecond! for the case template
+              93                       integer :: absoday! for the case template
+              94                       character(20) :: sec2initplate,sec2template,timeincrement
+              95                       character(20) :: dc1,dc2
+              96                       ! S.Iga (051226)<=
+              97                       logical :: sepdir = .false. !S.Iga060508
+              98                       character(20) :: access_icodata = 'direct' ! 'direct' or 'sequential' ! 09/01/31 M.Satoh
+              99                       !                                          ! or 'sequential-time'     ! 09/03/16 H.Taniguchi
+             100                       ! 2009-09-09 Y.Yamada ->
+             101                     !  integer :: ofid2b
+             102                     !  integer, parameter :: dummy=99999999
+             103                       !  integer(2) :: comp_8to2
+             104                     !  logical :: compress = .FALSE. !
+             105                       logical :: negative = .TRUE.  !
+             106                     !  character(30) :: ofname2b
+             107                       ! 2009-09-09 Y.Yamada <-
+             108                       !
+             109                       namelist / ico2ll_param /&
+             110                            glevel,             &
+             111                            rlevel,             &
+             112                            input_dir,          &
+             113                            output_dir,         &
+             114                            info_fname,         &
+             115                            llmap_dir,          &
+             116                            llmap_base,         &
+             117                            lon_swap,           &
+             118                            tstart,             &  ! t  of icofile
+             119                            input_size,         &  ! 05/12/21 M.Satoh
+             120                            ! S.Iga 051226=>
+             121                            separate_time,      &
+             122                            init_year,          &  ! for the case template (it is used only for output filename and ctl file)
+             123                            init_month,         &  ! for the case template (it is used only for output filename and ctl file)
+             124                            init_day,           &  ! for the case template (it is used only for output filename and ctl file)
+             125                            init_hour,          &  ! for the case template (it is used only for output filename and ctl file)
+             126                            init_min,           &  ! for the case template (it is used only for output filename and ctl file)
+             127                            init_timenumber,    &  ! for the case yes (it is used only for output filename)
+             128                            sepdir,             &  ! whether the input directory is separated.
+             129                            ! S.Iga 051226<=
+             130                            header_strings,     &  ! header of file names
+             131                            access_icodata,     &  ! access type 09/01/31 M.Satoh
+             132                     !       compress,           &  !
+             133                            negative
+             134                       !
+             135                       integer :: llmap_fid
+             136                       integer :: ierr
+             137                       !
+             138                       integer :: i,j
+             139                       integer :: imax,jmax
+             140                       real(8),allocatable :: lon(:),lat(:), lon2(:)
+             141                       character(128) :: fname
+             142                     
+             143                       integer :: t,l,k,v
+             144                       integer :: lall,gall
+             145                       integer :: it ! 09/03/16 H.Taniguchi
+             146                     
+             147                       integer :: n
+             148                     
+             149                       integer,allocatable :: lon_index(:),lat_index(:)
+             150                       integer,allocatable :: n1_index(:),n2_index(:),n3_index(:)
+             151                       real(8),allocatable :: w1(:),w2(:),w3(:)
+             152                     
+             153                       integer,allocatable :: max_num_latlon(:)
+             154                       integer,allocatable :: nstart(:), nend(:)
+             155                     
+             156                       real(4),allocatable :: ico_data(:,:)
+             157                       real(8),allocatable :: ico_data8(:,:)   ! 05/12/21 M.Satoh
+             158                       real(4),allocatable :: latlon_data(:,:,:)
+             159                       real(4),allocatable :: latlon_data_swap(:,:,:)
+             160                       !
+             161                       integer :: fid,ctl_fid,ofid,ifid
+             162                       !  character(128) :: ofname, ifname
+             163                       character(128) :: ifname
+             164                       !
+             165                       integer :: info_fid
+             166                       integer :: tall
+             167                       real(8) :: tintv
+             168                       !
+             169                       real(8) :: pi
+             170                       integer :: fnum
+             171                       integer :: ij ! 05/12/21 M.Satoh
+             172                       !
+             173                       ctl_fid = MISC_get_available_fid()
+             174                       open(CTL_FID,             &
+             175                            file='ico2ll.cnf',   &
+             176                            form='formatted',    &
+             177                            status='old',        &
+             178                            iostat=ierr)
+             179     1                 if(ierr/=0) then
+             180     1                    write(*,*) 'Cannot open PARAMETER file!'
+             181     1                    stop
+             182     1                 end if
+             183                       rewind(ctl_fid)
+             184                       read(ctl_fid,nml=ico2ll_param)
+             185                       close(ctl_fid)
+             186                       !
+             187                       info_fid = MISC_get_available_fid()
+             188                       open(info_fid,file=trim(info_fname),form='formatted',status='old' ,iostat=ierr)
+             189     1                 if(ierr/=0) then
+             190     1                    write(*,*) 'nothing info file!'
+             191     1                    stop
+             192     1                 end if
+             193                     
+             194                       ! 05/12/02 M.Satoh: move from below
+             195                       lall = (2**rlevel)**2 * 10
+             196                       allocate(max_num_latlon(lall))
+             197                       allocate(nstart(lall))
+             198                       allocate(nend(lall))
+             199                       gall = (2**(glevel-rlevel)+2)*(2**(glevel-rlevel)+2)
+             200                     
+             201                       llmap_fid = MISC_get_available_fid()
+             202                       open(llmap_fid,file=trim(trim(llmap_dir)//'/'//trim(llmap_base))//'.info',&
+             203                            form='unformatted',status='old' ,iostat=ierr)
+             204     1                 if(ierr/=0) then
+             205     1                    write(*,*) 'Cannot open llmap info file!'
+             206     1                    stop
+             207     1                 end if
+             208                       read(llmap_fid) imax
+             209                       allocate(lon(imax))
+             210                       read(llmap_fid) lon(:)
+             211                       read(llmap_fid) jmax
+             212                       allocate(lat(jmax))
+             213                       read(llmap_fid) lat(:)
+             214                       close(llmap_fid)
+             215                     
+             216                       allocate(lon_index(imax*jmax))
+             217                       allocate(lat_index(imax*jmax))
+             218                       allocate(n1_index(imax*jmax))
+             219                       allocate(n2_index(imax*jmax))
+             220                       allocate(n3_index(imax*jmax))
+             221                       allocate(w1(imax*jmax))
+             222                       allocate(w2(imax*jmax))
+             223                       allocate(w3(imax*jmax))
+             224                       !
+             225                       allocate(lon2(imax))
+             226                       !
+             227     1                 do l= 1,lall
+             228     1                    call MISC_make_idstr(fname,trim(trim(llmap_dir)//'/'//trim(llmap_base)),'rgn',l)
+             229     1                    ! write(*,*) trim(fname)
+             230     1                    fid = MISC_get_available_fid()
+             231     1                    open(fid,file=trim(fname),form='unformatted',status='old')
+             232     1                    read(fid) max_num_latlon(l)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             233     1  pp  12s           nend(l) = sum(max_num_latlon(1:l))
+             234     1                    nstart(l) = nend(l) - max_num_latlon(l)+1
+             235     2                    if(max_num_latlon(l)/=0) then
+             236     2                       read(fid) lon_index(nstart(l):nend(l))
+             237     2                       read(fid) lat_index(nstart(l):nend(l))
+             238     2                       read(fid) n1_index(nstart(l):nend(l))
+             239     2                       read(fid) n2_index(nstart(l):nend(l))
+             240     2                       read(fid) n3_index(nstart(l):nend(l))
+             241     2                       read(fid) w1(nstart(l):nend(l))
+             242     2                       read(fid) w2(nstart(l):nend(l))
+             243     2                       read(fid) w3(nstart(l):nend(l))
+             244     2                    end if
+             245     1                    close(fid)
+             246     1                 end do
+             247                     
+             248                       !
+             249                       pi=4.0d0*atan(1.0d0)
+             250                     
+             251                     
+             252                       ! 05/12/02 M.Satoh
+             253                       fnum = 0
+             254     1                 do
+             255     1               
+             256     1                    read(info_fid,*,end=1000) tall, tintv
+             257     1                    read(info_fid,*) kall
+             258     2   s    s           do k=1,kall
+             259     2   m    s              read(info_fid,*) z(k)
+             260     2   p    s           end do
+             261     1                    read(info_fid,*) vmax
+             262     2   s    s           do v=1,vmax
+             263     2   p    s              fnum = fnum + 1
+             264     2   m    s              read(info_fid,*) base_name(v)
+             265     2   m    s              write(*,*) 'file number=', fnum, base_name(v)
+             266     2   p    s           end do
+             267     1                    !
+             268     1                    allocate(ico_data(gall,kall))
+             269     2                    if ( input_size == 8 ) then ! 05/12/21 M.Satoh
+             270     2                       allocate(ico_data8(gall,kall))
+             271     2                    end if
+             272     1                    allocate(latlon_data(imax,jmax,kall))
+             273     2                    if(lon_swap) then
+             274     2                       ! T.Mitsui 07.03.29
+             275     2               !!$        allocate(latlon_data_swap(imax,jmax,kall))
+             276     2                       allocate(latlon_data_swap(imax,jmax,1))
+             277     2                    end if
+             278     1               
+             279     1                    !S.Iga051226 =>
+             280     1                    call calendar_ym2dd(absoday,init_year,init_month,init_day)
+             281     1               ! W.Yanase  2007/10/24   debug in calculation of 8-byte integer
+             282     1                    initsecond= absoday*int(86400,8) + init_hour*3600 + init_min*60
+             283     1                    !S.Iga051226 <=
+             284     1                    !
+             285     1                    tend = tstart + tall - 1
+             286     1                    !
+             287     2                    do v=1,vmax
+             288     2                       open(unit=fid,file=trim(output_dir)//'/'//trim(header_strings)//trim(base_name(v))//'.ctl',&
+             289     2                            form='formatted', status='replace')
+             290     2               
+             291     3                       if (trim(separate_time) == 'no') then ! S.Iga051226
+             292     3                          write(unit=fid,fmt='(2a)')   'DSET ','^'//trim(header_strings)//trim(base_name(v))//'.grd'
+             293     3                          ! S.Iga051226=>
+             294     3                          elseif (trim(separate_time) == 'yes') then
+             295     3                          write(unit=fid,fmt='(2a)')   'DSET ','^'//trim(header_strings)//trim(base_name(v))//'.time0%y4'//'.grd'
+             296     3                          write(unit=fid,fmt='(1a)')   'OPTIONS TEMPLATE '
+             297     3                          elseif (trim(separate_time) == 'template') then
+             298     3               !   W. Yanase 081008   use %h2 instead of %f2 for GrADS template
+             299     3                          write(unit=fid,fmt='(2a)')   'DSET ','^'//trim(header_strings)//trim(base_name(v))//'.%y4-%m2-%d2-%h2h%n2m'//'.grd'
+             300     3                          write(unit=fid,fmt='(1a)')   'OPTIONS TEMPLATE '
+             301     3                       endif
+             302     2                       ! S.Iga051226<=
+             303     2               
+             304     2                       write(unit=fid,fmt='(2a)')    'TITLE ',trim(title)
+             305     2                       write(unit=fid,fmt='(1a)')    'OPTIONS BIG_ENDIAN '
+             306     2                       write(unit=fid,fmt='(a,e12.5)')  'UNDEF ', real(-99.9E+33,4)
+             307     2                       write(unit=fid,fmt='(a,i5,a)')   'XDEF ',imax, ' LEVELS'
+             308     3                       if(lon_swap) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             309     3  pp   8v                 lon2(1:imax/2) = lon(imax/2+1:imax)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             310     3  pp   8v                 lon2(imax/2+1:imax) = lon(1:imax/2)+2*pi
+             311     3        s                 write(unit=fid,fmt='(5x,5f10.4)')    (lon2(i)*180.0D0/pi,i=1,imax)
+             312     3                       else
+             313     3        s                 write(unit=fid,fmt='(5x,5f10.4)')    (lon(i)*180.0D0/pi,i=1,imax)
+             314     3                       end if
+             315     2                       write(unit=fid,fmt='(a,i5,a)')   'YDEF ',jmax, ' LEVELS'
+             316     2        s              write(unit=fid,fmt='(5x,5f10.4)')    (lat(j)*180.0D0/pi,j=1,jmax)
+             317     3                       if(kall == 1 ) then
+             318     3                          write(unit=fid,fmt='(a,i5,a,2i5)')   'ZDEF ',kall, ' LINEAR',1,1
+             319     3                       else
+             320     3                          write(unit=fid,fmt='(a,i5,a)')   'ZDEF ',kall-2*kdum, ' LEVELS'
+             321     3        s                 write(unit=fid,fmt='(5f10.3)')  ((z(k)),k=kdum+1,kall-kdum)
+             322     3                       end if
+             323     3                       if (trim(separate_time) == 'no') then ! S.Iga051226
+             324     3                          dc1 = trim(sec2initplate(initsecond)) ! S.Iga060508
+             325     3                          dc2 = trim(timeincrement(int(tintv))) ! S.Iga060508
+             326     3                          write(unit=fid,fmt='(a,i5,2a,1x,a)')  'TDEF ',tend,' LINEAR ',&
+             327     3                               trim(dc1),trim(dc2)
+             328     3                          ! S.Iga051226=>
+             329     3                       elseif (trim(separate_time) == 'yes') then
+             330     3                          !        write(unit=fid,fmt='(a,i5,2a,1x,a)')  'TDEF ',tend,' LINEAR ','00:00Z01JAN0000','1yr'
+             331     3               
+             332     3                          !        S.Iga060106
+             333     3                          call make_idstr(timename,'','',init_timenumber)
+             334     3               
+             335     3                          !        write(*,*) trim(timename)
+             336     3                          !        stop
+             337     3                          write(unit=fid,fmt='(a,i5,2a,1x,a)')  'TDEF ',tend,' LINEAR ','00:00Z01JAN'//timename(3:6),'1yr'
+             338     3                       elseif (trim(separate_time) == 'template') then
+             339     3                          dc1 = trim(sec2initplate(initsecond)) ! S.Iga060508
+             340     3                          dc2 = trim(timeincrement(int(tintv))) ! S.Iga060508
+             341     3                          write(unit=fid,fmt='(a,i5,2a,1x,a)')  'TDEF ',tend,' LINEAR ',&
+             342     3                               trim(dc1),trim(dc2)
+             343     3                       endif
+             344     2                       ! S.Iga051226<=
+             345     2                       write(unit=fid,fmt='(a,i5)')     'VARS ',1
+             346     3                       if(kall == 1) then
+             347     3                          write(unit=fid,fmt='(a,2i5,1x,a)')    trim(base_name(v)),0, 99, 'NONE'
+             348     3                       else
+             349     3                          write(unit=fid,fmt='(a,2i5,1x,a)')    trim(base_name(v)),kall-2*kdum, 99, 'NONE'
+             350     3                       end if
+             351     2                       write(unit=fid,fmt='(a)')        'ENDVARS '
+             352     2                       close(fid)
+             353     2                       !
+             354     2                       ofid = MISC_get_available_fid()
+             355     3                       if (trim(separate_time) == 'no') then !S.Iga051226
+             356     3                          !
+             357     3                          open(ofid,file=trim(trim(output_dir)//'/'//trim(header_strings)//trim(base_name(v))&
+             358     3                               //'.grd'),  form='unformatted',access='direct', &
+             359     3                               recl=imax*jmax*4,status='unknown')
+             360     3                          rec_counter = (kall-2*kdum)*(tstart-1)+1
+             361     3                          !     write(*,*) '#### ',trim(base_name(v))
+             362     3                          ! 09-09-09 Y.Yamada ->
+             363     3               !           if( compress )then
+             364     3               !              ofid2b=MISC_get_available_fid()
+             365     3               !              !              write(*,*) '#### ',trim(trim(output_dir)//'/'//trim(base_name(v))//'_2byte.grd'),ofid2b
+             366     3               !              open(ofid2b,file=trim(trim(output_dir)//'/'//trim(header_strings)//trim(base_name(v))&
+             367     3               !                   //'_2byte.grd'),form='unformatted')
+             368     3               !              write(ofid2b)dummy
+             369     3               !              call comp_ctlgen(   &
+             370     3               !                   output_dir,     &
+             371     3               !                   header_strings, &
+             372     3               !                   base_name(v),   &
+             373     3               !                   title,          &
+             374     3               !                   dc1,            &
+             375     3               !                   dc2,            &
+             376     3               !                   imax,           &
+             377     3               !                   jmax,           &
+             378     3               !                   kall,           &
+             379     3               !                   kdum,           &
+             380     3               !                   tend,           &
+             381     3               !                   z,              &
+             382     3               !                   lon,            &
+             383     3               !                   lat,            &
+             384     3               !                   pi,             &
+             385     3               !                   lon_swap        &
+             386     3               !                   )
+             387     3               !           end if
+             388     3                          ! 09-09-09 Y.Yamada <-
+             389     3                          !
+             390     3                       endif
+             391     3                       do t=tstart, tend
+             392     3                          !S.Iga051226=>
+             393     4                          if (trim(separate_time) == 'yes') then
+             394     4                             !        S.Iga060106
+             395     4                             call make_idstr(timename,&
+             396     4                                  trim(output_dir)//'/'//trim(header_strings)//trim(base_name(v)),'time',t-tstart+init_timenumber)
+             397     4                             open(ofid,file=trim(timename)//'.grd',&
+             398     4                                  form='unformatted',access='direct', &
+             399     4                                  recl=imax*jmax*4,status='unknown')
+             400     4                             rec_counter = 1
+             401     4                             !     write(*,*) '#### ',trim(base_name(v))
+             402     4                             elseif (trim(separate_time) == 'template') then
+             403     4                             absosecond = initsecond + (t-tstart) * tintv
+             404     4                             open(ofid,file=trim(output_dir)//'/'//trim(header_strings)//trim(base_name(v))//'.'&
+             405     4                                  //trim(sec2template(absosecond))//'.grd',&
+             406     4                                  form='unformatted',access='direct', &
+             407     4                                  recl=imax*jmax*4,status='unknown')
+             408     4                             rec_counter = 1
+             409     4                          endif
+             410     3                          !S.Iga051226<=
+             411     3               
+             412     4                          do l=1, lall
+             413     4               
+             414     4               !              write(*,*) 'l=', l, ifname
+             415     4               
+             416     4                             !
+             417     5                             if (sepdir) then
+             418     5                                call MISC_make_idstr(ifname,trim(trim(input_dir)//'/'//&
+             419     5                                     trim(base_name(v))//'/'//trim(base_name(v))),'rgn',l)
+             420     5                             else
+             421     5                                call MISC_make_idstr(ifname,trim(trim(input_dir)//'/'//trim(base_name(v))),'rgn',l)
+             422     5                             endif
+             423     4                             !write(*,*) trim(ifname)
+             424     4                             ifid = MISC_get_available_fid()
+             425     4               
+             426     4                             ! 05/12/21 M.Satoh =>
+             427     4                             !           open(ifid,file=trim(ifname),form='unformatted',access='direct',recl=kall*gall*4,status='old')
+             428     4                             !              read(ifid,rec=t-tstart+1) ico_data(:,:)
+             429     4               
+             430     5                             if ( access_icodata == 'sequential' ) then ! 09/01/31 M.Satoh
+             431     5                                open(ifid,file=trim(ifname),form='unformatted', &
+             432     5                                     access='sequential', status='old')
+             433     5                             else if ( access_icodata == 'sequential-time' ) then ! 09/03/16 H.Taniguchi
+             434     5                                open(ifid,file=trim(ifname),form='unformatted', &
+             435     5                                     access='sequential', status='old')
+             436     5                             else
+             437     5                                open(ifid,file=trim(ifname),form='unformatted', &
+             438     5                                     access='direct',recl=kall*gall*input_size,status='old')
+             439     5                             end if
+             440     4               
+             441     5                             if ( input_size == 4 ) then
+             442     6                                if ( access_icodata == 'sequential' ) then ! 09/01/31 M.Satoh
+             443     6                                   read(ifid) ico_data(:,:)
+             444     6                                else if ( access_icodata == 'sequential-time' ) then ! 09/03/16 H.Taniguchi
+             445     7   s    s                          do it=1,t-tstart+1
+             446     7   m    s                             read(ifid) ico_data(:,:)
+             447     7   p    s                          end do
+             448     6                                else
+             449     6                                   read(ifid,rec=t-tstart+1) ico_data(:,:)
+             450     6                                end if
+             451     5                             else if ( input_size == 8 ) then
+             452     6                                if ( access_icodata == 'sequential' ) then ! 09/01/31 M.Satoh
+             453     6                                   read(ifid) ico_data8(:,:)
+             454     6                                else if ( access_icodata == 'sequential-time' ) then ! 09/03/16 H.Taniguchi
+             455     7   s    s                          do it=1,t-tstart+1
+             456     7   m    s                             read(ifid) ico_data8(:,:)
+             457     7   p    s                          end do
+             458     6                                else
+             459     6                                   read(ifid,rec=t-tstart+1) ico_data8(:,:)
+             460     6                                end if
+             461     5               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             462     6  pp                            do k = 1, kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 203
+                                   <<< Loop-information  End >>>
+             463     7  pp   8s                          do ij = 1, gall
+             464     8   p   8s                             if ( ico_data8(ij,k) == CNST_UNDEF ) then
+             465     8   p   8s                                ico_data(ij,k) = CNST_UNDEF4
+             466     8   p   8s                             else
+             467     8   p   8s                                ico_data(ij,k) = ico_data8(ij,k)
+             468     8   p   8s                             end if
+             469     7   p   8s                          end do
+             470     6   p                            end do
+             471     5                             end if
+             472     4                             ! 05/12/21 M.Satoh <=
+             473     4               
+             474     4               !              write(*,'(A2,I5,A30,2E30.20)') 'l=', l, ifname, maxval(ico_data(1:gall,1:kall)), &
+             475     4               !                   minval(ico_data(1:gall,1:kall))
+             476     4               
+             477     4                             !
+             478     5                             if(max_num_latlon(l)/=0) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             479     6  pp                            do k=kdum+1,kall-kdum
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 52
+                                   <<<      n2_index: 4, lon_index: 16
+                                   <<<      lat_index: 16, n3_index: 4, w2: 4, w1: 4
+                                   <<<      w3: 4
+                                   <<< Loop-information  End >>>
+             480     7   p   2s                          do n = nstart(l),nend(l)
+             481     8   p   2m                             if(ico_data(n1_index(n),k)==CNST_UNDEF4) then
+             482     8   p   2s                                latlon_data(lon_index(n),lat_index(n),k) = CNST_UNDEF4
+             483     8   p   2s                             else if(ico_data(n2_index(n),k)==CNST_UNDEF4) then
+             484     8   p   2s                                latlon_data(lon_index(n),lat_index(n),k) = CNST_UNDEF4
+             485     8   p   2s                             else if(ico_data(n3_index(n),k)==CNST_UNDEF4) then
+             486     8   p   2s                                latlon_data(lon_index(n),lat_index(n),k) = CNST_UNDEF4
+             487     8   p   2s                             else
+             488     8               ! del 06/08/21 M.Satoh
+             489     8               !                          latlon_data(lon_index(n),lat_index(n),k) &
+             490     8               !                               = w1(n)*ico_data(n1_index(n),k)     &
+             491     8               !                               + w2(n)*ico_data(n2_index(n),k)     &
+             492     8               !                               + w3(n)*ico_data(n3_index(n),k)
+             493     8   p   2s                                latlon_data(lon_index(n),lat_index(n),k) &
+             494     8                                              = w1(n)*ico_data(n1_index(n),k)     &
+             495     8                                              + w2(n)*ico_data(n2_index(n),k)     &
+             496     8                                              + w3(n)*ico_data(n3_index(n),k)
+             497     8   p    v                             end if
+             498     7   p    v                          end do
+             499     6   p                            end do
+             500     5                             end if
+             501     4                             close(ifid)
+             502     4                             !
+             503     4                          end do
+             504     4                          if(lon_swap) then
+             505     4                             ! Mod 07.03.29 T.Mitsui saving memory
+             506     5                             do k=1,kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             507     5  pp   8v                       latlon_data_swap(1:imax/2,      1:jmax, 1) = latlon_data(imax/2+1:imax, 1:jmax, k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             508     5  pp   8v                       latlon_data_swap(imax/2+1:imax, 1:jmax, 1) = latlon_data(1:imax/2     , 1:jmax, k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             509     5  pp   8v                       latlon_data(:,:,k) = latlon_data_swap(:,:,1)
+             510     5                             end do
+             511     4               !!$              latlon_data_swap(1:imax/2,1:jmax,1:kall) = latlon_data(imax/2+1:imax,1:jmax,1:kall)
+             512     4               !!$              latlon_data_swap(imax/2+1:imax,1:jmax,1:kall) = latlon_data(1:imax/2,1:jmax,1:kall)
+             513     4               !!$              latlon_data(:,:,:) = latlon_data_swap(:,:,:)
+             514     4                          end if
+             515     4   s                      do k=kdum+1,kall-kdum
+             516     4   m                         write(ofid,rec=rec_counter) latlon_data(:,:,k)
+             517     4                             !
+             518     4               !              if( compress )then
+             519     4               !                 call COMP_output(        &
+             520     4               !                      imax,               &
+             521     4               !                      jmax,               &
+             522     4               !                      rec_counter,        &
+             523     4               !                      ofid2b,             &
+             524     4               !                      latlon_data(:,:,k), &
+             525     4               !                      negative,           &
+             526     4               !                      k,&!XS
+             527     4               !                      base_name(v)        &
+             528     4               !                      )
+             529     4               !              end if
+             530     4   p                         rec_counter = rec_counter+1
+             531     4   p                      end do
+             532     3               !           write(*,*) 't=',t,' : done', maxval(latlon_data), minval(latlon_data)
+             533     3                          write(*,*) 't=',t,' : done'
+             534     4                          if ((trim(separate_time) == 'yes').or.(trim(separate_time) == 'template')) then
+             535     4                             close(ofid)
+             536     4                          endif
+             537     3                       end do
+             538     3                       if (trim(separate_time) == 'no') then
+             539     3                          close(ofid)
+             540     3                          ! 09-09-19 Y.Yamada ->
+             541     3               !           if(compress)then
+             542     3               !              close(ofid2b)
+             543     3               !           end if
+             544     3                       else
+             545     3               !           if(compress)then
+             546     3               !              close(ofid2b)
+             547     3               !           end if
+             548     3                          ! <-
+             549     3                       endif
+             550     2                    end do
+             551     1               
+             552     1                    ! 05/12/02 M.Satoh
+             553     1                    deallocate(ico_data)
+             554     2                    if ( input_size == 8 ) then ! 05/12/21 M.Satoh
+             555     2                       deallocate(ico_data8)
+             556     2                    end if
+             557     1                    deallocate(latlon_data)
+             558     2                    if(lon_swap) then
+             559     2                       deallocate(latlon_data_swap)
+             560     2                    end if
+             561     1               
+             562     1                 end do ! 05/12/02 M.Satoh
+             563                     1000 continue
+             564                       close(info_fid)
+             565                     
+             566                       ! 05/12/02 M.Satoh
+             567                       deallocate(max_num_latlon)
+             568                       deallocate(nstart)
+             569                       deallocate(nend)
+             570                       deallocate(lon)
+             571                       deallocate(lat)
+             572                       deallocate(lon_index)
+             573                       deallocate(lat_index)
+             574                       deallocate(n1_index)
+             575                       deallocate(n2_index)
+             576                       deallocate(n3_index)
+             577                       deallocate(w1)
+             578                       deallocate(w2)
+             579                       deallocate(w3)
+             580                       deallocate(lon2)
+             581                     
+             582                     end program ico2ll
+
+ Diagnostic messages: program name(ico2ll)
+   jwd8220o-i  "prg_ico2ll.f90", line 6: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+   jwd8206o-i  "prg_ico2ll.f90", line 311: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "prg_ico2ll.f90", line 311: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "prg_ico2ll.f90", line 311: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "prg_ico2ll.f90", line 313: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "prg_ico2ll.f90", line 313: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "prg_ico2ll.f90", line 313: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "prg_ico2ll.f90", line 316: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "prg_ico2ll.f90", line 316: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "prg_ico2ll.f90", line 316: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "prg_ico2ll.f90", line 493: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 582
+   Statements : 323
+   Stack(byte): 33616
+   Prefetch num: 52
+
+ External function subprogram "sec2initplate"
+  (inc)(line-no.)(nest)(optimize)
+             583                     
+             584                     !S.Iga051226 =>
+             585                     !-- output grads-like template part  like 01JAN0000
+             586                     function sec2initplate(absosecond) & !in
+             587                          result(plate)
+             588                       !
+             589                       use mod_calendar, only : &
+             590                            calendar_dd2ym
+             591                       !
+             592                       implicit none
+             593                       integer(8) :: absosecond
+             594                       integer :: iday,day,year,month,min,hour
+             595                       ! [mod] 10/08/03 T.Mitsui, can be compiled by gfortran
+             596                     !!$  character(*):: plate
+             597                       character(len=20):: plate
+             598                       character(4):: nyear
+             599                       character(2):: nday, nhour,nmin
+             600                       character(3):: nmonth(12)
+             601                       data nmonth /'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'/
+             602                       !
+             603                       iday= absosecond/86400
+             604                       hour=mod(absosecond,int(86400,8))/3600 !! Y.Niwa 86400 -> int(86400,8)
+             605                       min=mod(absosecond,int(3600,8))/60 !! Y.Niwa 3600 -> int(3600,8)
+             606                       call calendar_dd2ym(year,month,day,iday)
+             607                       write(nyear,'(I4.4)') year
+             608                       write(nday,'(I2.2)') day
+             609                       write(nmin,'(I2.2)') min
+             610                       write(nhour,'(I2.2)') hour
+             611                       plate=nhour//':'//nmin//'Z'//nday//nmonth(month)//nyear
+             612                       !
+             613                     end function sec2initplate
+
+ Procedure information
+   Lines      : 31
+   Statements : 20
+   Stack(byte): 496
+   Prefetch num: 0
+
+ External function subprogram "sec2template"
+  (inc)(line-no.)(nest)(optimize)
+             614                     
+             615                     
+             616                     !-- output grads-like template part  like 2005-12-01-23h50m
+             617                     function sec2template(absosecond) & !in
+             618                          result(plate)
+             619                       !
+             620                       use mod_calendar, only : &
+             621                            calendar_dd2ym
+             622                       !
+             623                       implicit none
+             624                       integer(8) :: absosecond
+             625                       integer :: iday,day,year,month,min,hour
+             626                       ! [Mod] 10/08/03 T.Mitsui
+             627                     !!$  character(*):: plate
+             628                       character(len=20):: plate
+             629                       character(4):: nyear
+             630                       character(2):: nday, nhour,nmin,nmonth
+             631                       !
+             632                       iday= absosecond/86400
+             633                       hour=mod(absosecond,int(86400,8))/3600 !! Y.Niwa 86400 -> int(86400,8)
+             634                       min=mod(absosecond,int(3600,8))/60 !! Y.Niwa 3600 -> int(3600,8)
+             635                       call calendar_dd2ym(year,month,day,iday)
+             636                       write(nyear,'(I4.4)') year
+             637                       write(nday,'(I2.2)') day
+             638                       write(nmin,'(I2.2)') min
+             639                       write(nhour,'(I2.2)') hour
+             640                       write(nmonth,'(I2.2)') month
+             641                       plate=nyear//'-'//nmonth//'-'//nday//'-'//nhour//'h'//nmin//'m'
+             642                       !
+             643                     end function sec2template
+
+ Procedure information
+   Lines      : 30
+   Statements : 19
+   Stack(byte): 608
+   Prefetch num: 0
+
+ External function subprogram "timeincrement"
+  (inc)(line-no.)(nest)(optimize)
+             644                     
+             645                     function timeincrement(isec)&
+             646                          result(plate)
+             647                       !
+             648                       implicit none
+             649                       integer :: isec
+             650                       character(20):: plate
+             651                       character(18):: tmp
+             652                       write(tmp,*) max(isec/60,1)
+             653                       plate=trim(tmp)//'mn'
+             654                       !
+             655                     end function timeincrement
+
+ Procedure information
+   Lines      : 12
+   Statements : 8
+   Stack(byte): 208
+   Prefetch num: 0
+
+ External subroutine subprogram "make_idstr"
+  (inc)(line-no.)(nest)(optimize)
+             656                     
+             657                     !S.Iga051226 <=
+             658                     
+             659                     !S.Iga060106 =>
+             660                     subroutine make_idstr( &
+             661                          str,                   & !--- INOUT : file name
+             662                          headstr,               & !--- IN : header name
+             663                          ext,                   & !--- IN : extention string
+             664                          rank )                   !--- IN : ID number
+             665                       !
+             666                       implicit none
+             667                       !
+             668                       character(*), intent(inout) :: str   !--- strings
+             669                       character(*), intent(in) :: headstr  !--- header strings
+             670                       character(*), intent(in) :: ext      !--- extention( eg. ***.dat )
+             671                       integer, intent(in) :: rank          !--- number(+1)
+             672                       !
+             673                       character(128) :: cnum
+             674                       character(5) cnum1
+             675                       !
+             676                       write(cnum,'(I128.128)') rank
+             677                       cnum1(1:5) = cnum(128-(5-1):128)
+             678                       str=headstr//'.'//trim(ext)//cnum1
+             679                       !
+             680                     end subroutine make_idstr
+             681                     
+
+ Procedure information
+   Lines      : 26
+   Statements : 12
+   Stack(byte): 400
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 5
+   Total lines      : 681
+   Total statements : 382
+   Total stack(byte): 35328
+   Total prefetch num: 52
+

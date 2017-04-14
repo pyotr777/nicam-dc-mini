@@ -1,0 +1,603 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 16:47:33 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_debug.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_debug.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_debug"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! Debug utility module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module is for dubug.
+               7                     !!
+               8                     !! @author  H.Tomita
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2012-06-29 (H.Yashiro)  [NEW]
+              12                     !<
+              13                     module mod_debug
+              14                       !-----------------------------------------------------------------------------
+              15                       !
+              16                       !++ Used modules
+              17                       !
+              18                       use mpi
+              19                       use mod_adm, only: &
+              20                          ADM_LOG_FID, &
+              21                          ADM_NSYS,    &
+              22                          ADM_MAXFNAME
+              23                       !-----------------------------------------------------------------------------
+              24                       implicit none
+              25                       private
+              26                       !-----------------------------------------------------------------------------
+              27                       !
+              28                       !++ Public procedure
+              29                       !
+              30                       public :: DEBUG_dampdata
+              31                       public :: DEBUG_dampascii4D
+              32                       public :: DEBUG_dampascii3D
+              33                       public :: DEBUG_rapstart
+              34                       public :: DEBUG_rapend
+              35                       public :: DEBUG_rapreport
+              36                     
+              37                       !-----------------------------------------------------------------------------
+              38                       !
+              39                       !++ Public parameters & variables
+              40                       !
+              41                       !-----------------------------------------------------------------------------
+              42                       !
+              43                       !++ Private procedure
+              44                       !
+              45                       private :: DEBUG_rapid
+              46                     
+              47                       !-----------------------------------------------------------------------------
+              48                       !
+              49                       !++ Private parameters & variables
+              50                       !
+              51                       integer,                 private, parameter :: DEBUG_rapnlimit = 100
+              52                       integer,                 private,      save :: DEBUG_rapnmax   = 0
+              53                       character(len=ADM_NSYS), private,      save :: DEBUG_rapname(DEBUG_rapnlimit)
+              54                       real(8),                 private,      save :: DEBUG_raptstr(DEBUG_rapnlimit)
+              55                       real(8),                 private,      save :: DEBUG_rapttot(DEBUG_rapnlimit)
+              56                       integer,                 private,      save :: DEBUG_rapnstr(DEBUG_rapnlimit)
+              57                       integer,                 private,      save :: DEBUG_rapnend(DEBUG_rapnlimit)
+              58                     
+              59                     #ifdef PAPI_OPS
+              60                       ! <-- [add] PAPI R.Yoshida 20121022
+              61                       !integer(8),public, save :: papi_flpins    !total floating point instructions since the first call
+              62                       integer(8),public, save :: papi_flpops    !total floating point operations since the first call
+              63                       !real(4),   public, save :: papi_real_time_i !total realtime since the first PAPI_flins() call
+              64                       !real(4),   public, save :: papi_proc_time_i !total process time since the first PAPI_flins() call
+              65                       real(4),   public, save :: papi_real_time_o !total realtime since the first PAPI_flops() call
+              66                       real(4),   public, save :: papi_proc_time_o !total process time since the first PAPI_flops() call
+              67                       !real(4),   public, save :: papi_mflins    !Mflip/s achieved since the previous call
+              68                       real(4),   public, save :: papi_mflops    !Mflop/s achieved since the previous call
+              69                       integer,   public, save :: papi_check
+              70                     #endif
+              71                     
+              72                       !-----------------------------------------------------------------------------
+              73                     contains
+              74                     
+              75                       !-----------------------------------------------------------------------------
+              76                       !>
+              77                       !> Damp all data
+              78                       !>
+              79                       subroutine DEBUG_dampdata( &
+              80                           basename, & !--- [IN]
+              81                           var,      & !--- [IN]
+              82                           var_pl    ) !--- [IN]
+              83                         use mod_misc, only: &
+              84                            MISC_make_idstr, &
+              85                            MISC_get_available_fid
+              86                         use mod_adm, only: &
+              87                              ADM_PRC_PL, &
+              88                              ADM_prc_me
+              89                         implicit none
+              90                     
+              91                         character(len=*), intent(in) :: basename
+              92                         real(8),          intent(in) :: var   (:,:,:,:)
+              93                         real(8),          intent(in) :: var_pl(:,:,:,:)
+              94                     
+              95                         integer :: shp(4)
+              96                     
+              97                         character(LEN=ADM_MAXFNAME) :: fname
+              98                     
+              99                         integer :: fid
+             100                         !---------------------------------------------------------------------------
+             101                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             102             f           shp(:) = shape(var)
+             103                     
+             104                         call MISC_make_idstr(fname,trim(basename),'pe',ADM_prc_me)
+             105                         fid = MISC_get_available_fid()
+             106                         open( unit   = fid,                           &
+             107                               file   = trim(fname),                   &
+             108                               form   = 'unformatted',                 &
+             109                               access = 'direct',                      &
+             110                               recl   = shp(1)*shp(2)*shp(3)*shp(4)*8, &
+             111                               status = 'unknown'                      )
+             112                     
+             113                            write(fid,rec=1) var
+             114                     
+             115                         close(fid)
+             116                     
+             117     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             118     1       f              shp(:) = shape(var_pl)
+             119     1               
+             120     1                      fname = trim(basename)//'.pl'
+             121     1                      fid = MISC_get_available_fid()
+             122     1                      open( unit   = fid,                           &
+             123     1                            file   = trim(fname),                   &
+             124     1                            form   = 'unformatted',                 &
+             125     1                            access = 'direct',                      &
+             126     1                            recl   = shp(1)*shp(2)*shp(3)*shp(4)*8, &
+             127     1                            status = 'unknown'                      )
+             128     1               
+             129     1                         write(fid,rec=1) var_pl
+             130     1               
+             131     1                      close(fid)
+             132     1               
+             133     1                   endif
+             134                     
+             135                       end subroutine DEBUG_dampdata
+             136                     
+             137                       !-----------------------------------------------------------------------------
+             138                       !>
+             139                       !> Damp all data
+             140                       !>
+             141                       subroutine DEBUG_dampascii4D( &
+             142                           basename, & !--- [IN]
+             143                           var,      & !--- [IN]
+             144                           var_pl    ) !--- [IN]
+             145                         use mod_misc, only: &
+             146                            MISC_make_idstr, &
+             147                            MISC_get_available_fid
+             148                         use mod_adm, only: &
+             149                            ADM_prc_pl, &
+             150                            ADM_prc_me
+             151                         implicit none
+             152                     
+             153                         character(len=*), intent(in) :: basename
+             154                         real(8),          intent(in) :: var   (:,:,:,:)
+             155                         real(8),          intent(in) :: var_pl(:,:,:,:)
+             156                     
+             157                         integer :: shp(4)
+             158                     
+             159                         character(LEN=ADM_MAXFNAME) :: fname
+             160                     
+             161                         integer :: fid
+             162                         integer :: i1,i2,i3,i4
+             163                         !---------------------------------------------------------------------------
+             164                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             165             f           shp(:) = shape(var)
+             166                     
+             167                         call MISC_make_idstr(fname,trim(basename),'txt',ADM_prc_me)
+             168                         fid = MISC_get_available_fid()
+             169                         open( unit   = fid,         &
+             170                               file   = trim(fname), &
+             171                               form   = 'formatted', &
+             172                               status = 'unknown'    )
+             173                     
+             174     1                      do i4 = 1, shp(4)
+             175     2                      do i3 = 1, shp(3)
+             176     3                      do i2 = 1, shp(2)
+             177     4   s    s             do i1 = 1, shp(1)
+             178     4   m    m                write(fid,*) "(",i1,",",i2,",",i3,",",i4,")=",var(i1,i2,i3,i4)
+             179     4   p    v             enddo
+             180     3                      enddo
+             181     2                      enddo
+             182     1                      enddo
+             183                     
+             184                         close(fid)
+             185                     
+             186     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             187     1       f              shp(:) = shape(var_pl)
+             188     1               
+             189     1                      fname = trim(basename)//'.txtpl'
+             190     1                      fid = MISC_get_available_fid()
+             191     1                      open( unit   = fid,         &
+             192     1                            file   = trim(fname), &
+             193     1                            form   = 'formatted', &
+             194     1                            status = 'unknown'    )
+             195     1               
+             196     2                         do i4 = 1, shp(4)
+             197     3                         do i3 = 1, shp(3)
+             198     4                         do i2 = 1, shp(2)
+             199     5   s    s                do i1 = 1, shp(1)
+             200     5   m    m                   write(fid,*) "(",i1,",",i2,",",i3,",",i4,")=",var_pl(i1,i2,i3,i4)
+             201     5   p    v                enddo
+             202     4                         enddo
+             203     3                         enddo
+             204     2                         enddo
+             205     1               
+             206     1                      close(fid)
+             207     1               
+             208     1                   endif
+             209                     
+             210                       end subroutine DEBUG_dampascii4D
+             211                     
+             212                       !-----------------------------------------------------------------------------
+             213                       !>
+             214                       !> Damp all data
+             215                       !>
+             216                       subroutine DEBUG_dampascii3D( &
+             217                           basename, & !--- [IN]
+             218                           var,      & !--- [IN]
+             219                           var_pl    ) !--- [IN]
+             220                         use mod_misc, only: &
+             221                            MISC_make_idstr, &
+             222                            MISC_get_available_fid
+             223                         use mod_adm, only: &
+             224                            ADM_prc_pl, &
+             225                            ADM_prc_me
+             226                         implicit none
+             227                     
+             228                         character(len=*), intent(in) :: basename
+             229                         real(8),          intent(in) :: var   (:,:,:)
+             230                         real(8),          intent(in) :: var_pl(:,:,:)
+             231                     
+             232                         integer :: shp(3)
+             233                     
+             234                         character(LEN=ADM_MAXFNAME) :: fname
+             235                     
+             236                         integer :: fid
+             237                         integer :: i1,i2,i3
+             238                         !---------------------------------------------------------------------------
+             239                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             240             f           shp(:) = shape(var)
+             241                     
+             242                         call MISC_make_idstr(fname,trim(basename),'txt',ADM_prc_me)
+             243                         fid = MISC_get_available_fid()
+             244                         open( unit   = fid,         &
+             245                               file   = trim(fname), &
+             246                               form   = 'formatted', &
+             247                               status = 'unknown'    )
+             248                     
+             249     1                      do i3 = 1, shp(3)
+             250     2                      do i2 = 1, shp(2)
+             251     3   s    s             do i1 = 1, shp(1)
+             252     3   m    m                write(fid,*) "(",i1,",",i2,",",i3,")=",var(i1,i2,i3)
+             253     3   p    v             enddo
+             254     2                      enddo
+             255     1                      enddo
+             256                     
+             257                         close(fid)
+             258                     
+             259     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             260     1       f              shp(:) = shape(var_pl)
+             261     1               
+             262     1                      fname = trim(basename)//'.txtpl'
+             263     1                      fid = MISC_get_available_fid()
+             264     1                      open( unit   = fid,         &
+             265     1                            file   = trim(fname), &
+             266     1                            form   = 'formatted', &
+             267     1                            status = 'unknown'    )
+             268     1               
+             269     2                         do i3 = 1, shp(3)
+             270     3                         do i2 = 1, shp(2)
+             271     4   s    s                do i1 = 1, shp(1)
+             272     4   m    m                   write(fid,*) "(",i1,",",i2,",",i3,")=",var_pl(i1,i2,i3)
+             273     4   p    v                enddo
+             274     3                         enddo
+             275     2                         enddo
+             276     1               
+             277     1                      close(fid)
+             278     1               
+             279     1                   endif
+             280                     
+             281                       end subroutine DEBUG_dampascii3D
+             282                     
+             283                       !-----------------------------------------------------------------------------
+             284                       function DEBUG_rapid( rapname ) result(id)
+             285                         implicit none
+             286                     
+             287                         character(len=*), intent(in) :: rapname
+             288                     
+             289                         integer :: id
+             290                         !---------------------------------------------------------------------------
+             291                     
+             292     1                   if ( DEBUG_rapnmax >= 1 ) then
+             293     2                      do id = 1, DEBUG_rapnmax
+             294     2                         if( trim(rapname) == trim(DEBUG_rapname(id)) ) return
+             295     2                      enddo
+             296     1                   endif
+             297                     
+             298                         DEBUG_rapnmax     = DEBUG_rapnmax + 1
+             299                         id                = DEBUG_rapnmax
+             300                         DEBUG_rapname(id) = trim(rapname)
+             301                         DEBUG_raptstr(id) = 0.D0
+             302                         DEBUG_rapttot(id) = 0.D0
+             303                         DEBUG_rapnstr(id) = 0
+             304                         DEBUG_rapnend(id) = 0
+             305                     
+             306                       end function DEBUG_rapid
+             307                     
+             308                       !-----------------------------------------------------------------------------
+             309                       subroutine DEBUG_rapstart( rapname )
+             310                         implicit none
+             311                     
+             312                         character(len=*), intent(in) :: rapname
+             313                     
+             314                         real(8) :: time
+             315                     
+             316                         integer :: id
+             317                         !---------------------------------------------------------------------------
+             318                     
+             319                         id = DEBUG_rapid( rapname )
+             320                     
+             321                         time = real(MPI_WTIME(), kind=8)
+             322                     
+             323                         DEBUG_raptstr(id) = time
+             324                         DEBUG_rapnstr(id) = DEBUG_rapnstr(id) + 1
+             325                     
+             326                     #ifdef _FAPP_
+             327                     call START_COLLECTION( rapname )
+             328                     #endif
+             329                     
+             330                         return
+             331                       end subroutine DEBUG_rapstart
+             332                     
+             333                       !-----------------------------------------------------------------------------
+             334                       subroutine DEBUG_rapend( rapname )
+             335                         implicit none
+             336                     
+             337                         character(len=*), intent(in) :: rapname
+             338                     
+             339                         real(8) :: time
+             340                     
+             341                         integer :: id
+             342                         !---------------------------------------------------------------------------
+             343                     
+             344                         id = DEBUG_rapid( rapname )
+             345                     
+             346                         time = real(MPI_WTIME(), kind=8)
+             347                     
+             348                         DEBUG_rapttot(id) = DEBUG_rapttot(id) + ( time-DEBUG_raptstr(id) )
+             349                         DEBUG_rapnend(id) = DEBUG_rapnend(id) + 1
+             350                     
+             351                     #ifdef _FAPP_
+             352                     call STOP_COLLECTION( rapname )
+             353                     #endif
+             354                     
+             355                         return
+             356                       end subroutine DEBUG_rapend
+             357                     
+             358                       !-----------------------------------------------------------------------------
+             359                       subroutine DEBUG_rapreport
+             360                         use mod_adm, only: &
+             361                            ADM_COMM_RUN_WORLD, &
+             362                            ADM_prc_all,        &
+             363                            ADM_prc_me
+             364                         implicit none
+             365                     
+             366                         real(8) :: sendbuf(1)
+             367                         real(8) :: recvbuf(ADM_prc_all)
+             368                     
+             369                         real(8) :: globalavg, globalmax, globalmin
+             370                     #ifdef PAPI_OPS
+             371                         real(8) :: globalsum, total_flops
+             372                     #endif
+             373                     
+             374                         integer :: ierr
+             375                         integer :: id
+             376                         !---------------------------------------------------------------------------
+             377                     
+             378     1                   if ( DEBUG_rapnmax >= 1 ) then
+             379     1               
+             380     2   s    s             do id = 1, DEBUG_rapnmax
+             381     3   p    s                if ( DEBUG_rapnstr(id) /= DEBUG_rapnend(id) ) then
+             382     3   m    s                    write(*,*) '*** Mismatch Report',id,DEBUG_rapname(id),DEBUG_rapnstr(id),DEBUG_rapnend(id)
+             383     3   p    s                endif
+             384     2   p    s             enddo
+             385     1               
+             386     1                      write(ADM_LOG_FID,*)
+             387     1                      write(ADM_LOG_FID,*) '*** Computational Time Report'
+             388     1               
+             389     1               !       do id = 1, DEBUG_rapnmax
+             390     1               !          write(ADM_LOG_FID,'(1x,A,I3.3,A,A,A,F10.3,A,I7)') &
+             391     1               !          '*** ID=',id,' : ',DEBUG_rapname(id),' T=',DEBUG_rapttot(id),' N=',DEBUG_rapnstr(id)
+             392     1               !       enddo
+             393     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    OTHER PREFETCH : 24
+                                   <<< Loop-information  End >>>
+             394     2                      do id = 1, DEBUG_rapnmax
+             395     2                         sendbuf(1) = DEBUG_rapttot(id)
+             396     2                         call MPI_Allgather( sendbuf,              &
+             397     2                                             1,                    &
+             398     2                                             MPI_DOUBLE_PRECISION, &
+             399     2                                             recvbuf,              &
+             400     2                                             1,                    &
+             401     2                                             MPI_DOUBLE_PRECISION, &
+             402     2                                             ADM_COMM_RUN_WORLD,   &
+             403     2                                             ierr                  )
+             404     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             405     2  pp   8v                globalavg = sum( recvbuf(:) ) / real(ADM_prc_all,kind=8)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 889
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             406     2  pp   6v                globalmax = maxval( recvbuf(:) )
+             407     2   p   6v                globalmin = minval( recvbuf(:) )
+             408     2               
+             409     2                         write(ADM_LOG_FID,'(1x,A,I3.3,A,A,A,F10.3,A,F10.3,A,F10.3,A,I7)') &
+             410     2                                           '*** ID=',   id,                &
+             411     2                                           ' : ',       DEBUG_rapname(id), &
+             412     2                                           '  T(avg)=', globalavg,         &
+             413     2                                           ', T(max)=', globalmax,         &
+             414     2                                           ', T(min)=', globalmin,         &
+             415     2                                           ', N=',      DEBUG_rapnstr(id)
+             416     2                      enddo
+             417     1                   else
+             418     1                      write(ADM_LOG_FID,*)
+             419     1                      write(ADM_LOG_FID,*) '*** Computational Time Report: NO item.'
+             420     1                   endif
+             421                     
+             422                     #ifdef PAPI_OPS
+             423                         ! [add] PAPI R.Yoshida 20121022
+             424                         !write(ADM_LOG_FID,*) ' *** Type: Instructions'
+             425                         !write(ADM_LOG_FID,*) ' --- Real Time:',papi_real_time_i*2.0d0,' Proc. Time:',papi_proc_time_i*2.0d0
+             426                         !write(ADM_LOG_FID,*) ' --- flop inst:',papi_flpins*2,'  Gflins/s:',papi_mflins*2.0d0/1.0d3  !GIGA
+             427                         write(ADM_LOG_FID,*)
+             428                         write(ADM_LOG_FID,*) '********* PAPI report *********'
+             429                         write(ADM_LOG_FID,*) '*** Type: Operations'
+             430                         write(ADM_LOG_FID,*) '--- Wall clock Time      [sec] (this PE):', papi_real_time_o
+             431                         write(ADM_LOG_FID,*) '--- Processor Time       [sec] (this PE):', papi_proc_time_o
+             432                         write(ADM_LOG_FID,*) '--- Floating Operations [FLOP] (this PE):', papi_flpops
+             433                         write(ADM_LOG_FID,*) '--- FLOPS by PAPI     [MFLOPS] (this PE):', papi_mflops
+             434                         write(ADM_LOG_FID,*) '--- FLOP / Time       [MFLOPS] (this PE):', papi_flpops / papi_proc_time_o / 1024.D0**2 !GIGA
+             435                         write(ADM_LOG_FID,*)
+             436                     
+             437                         sendbuf(1) = real(papi_proc_time_o,kind=8)
+             438                         call MPI_Allgather( sendbuf,              &
+             439                                             1,                    &
+             440                                             MPI_DOUBLE_PRECISION, &
+             441                                             recvbuf,              &
+             442                                             1,                    &
+             443                                             MPI_DOUBLE_PRECISION, &
+             444                                             ADM_COMM_RUN_WORLD,   &
+             445                                             ierr                  )
+             446                     
+             447                         globalavg = sum( recvbuf(:) ) / real(ADM_prc_all,kind=8)
+             448                         globalmax = maxval( recvbuf(:) )
+             449                         globalmin = minval( recvbuf(:) )
+             450                     
+             451                         call COMM_Stat_avg( real(papi_proc_time_o,kind=8), globalavg )
+             452                         call COMM_Stat_max( real(papi_proc_time_o,kind=8), globalmax )
+             453                         call COMM_Stat_min( real(papi_proc_time_o,kind=8), globalmin )
+             454                     
+             455                         write(ADM_LOG_FID,'(1x,A,F10.3,A,F10.3,A,F10.3)') &
+             456                                           '--- Processor Time        [sec] (avg)=', globalavg, &
+             457                                                                         ', (max)=', globalmax, &
+             458                                                                         ', (min)=', globalmin
+             459                     
+             460                         sendbuf(1) = real(papi_flpops,kind=8)
+             461                         call MPI_Allgather( sendbuf,              &
+             462                                             1,                    &
+             463                                             MPI_DOUBLE_PRECISION, &
+             464                                             recvbuf,              &
+             465                                             1,                    &
+             466                                             MPI_DOUBLE_PRECISION, &
+             467                                             ADM_COMM_RUN_WORLD,   &
+             468                                             ierr                  )
+             469                     
+             470                         globalsum = sum( recvbuf(:) )
+             471                         globalavg = globalsum / real(ADM_prc_all,kind=8)
+             472                         globalmax = maxval( recvbuf(:) )
+             473                         globalmin = minval( recvbuf(:) )
+             474                     
+             475                         total_flops = globalsum / globalmax / 1024.D0**3
+             476                     
+             477                         write(ADM_LOG_FID,'(1x,A,F10.3,A,F10.3,A,F10.3)') &
+             478                                           '--- Floating Operations [GFLOP] (avg)=', globalavg / 1024.D0**3, &
+             479                                                                         ', (max)=', globalmax / 1024.D0**3, &
+             480                                                                         ', (min)=', globalmin / 1024.D0**3
+             481                         write(ADM_LOG_FID,'(1x,A,F10.3)') &
+             482                                           '--- Total Flops [GFLOPS] (all PE):',total_flops
+             483                     
+             484                         call PAPIF_shutdown
+             485                     #endif
+             486                     
+             487                         return
+             488                       end subroutine DEBUG_rapreport
+             489                     
+             490                     end module mod_debug
+
+ Diagnostic messages: program name(mod_debug)
+   jwd8220o-i  "share/mod_debug.f90", line 13: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(DEBUG_dampascii4D)
+   jwd8209o-i  "share/mod_debug.f90", line 178: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_debug.f90", line 200: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(DEBUG_dampascii3D)
+   jwd8209o-i  "share/mod_debug.f90", line 252: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_debug.f90", line 272: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(DEBUG_rapreport)
+   jwd8208o-i  "share/mod_debug.f90", line 405: Method of calculating sum or product is changed.
+
+ Procedure information
+   Lines      : 490
+   Statements : 195
+   Stack(byte): 22256
+   Prefetch num: 24
+
+ Total information
+   Procedures       : 1
+   Total lines      : 490
+   Total statements : 195
+   Total stack(byte): 22256
+   Total prefetch num: 24
+

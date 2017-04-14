@@ -1,0 +1,343 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 16:59:51 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_time.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_time.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_time"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! Time management module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module is for the time management.
+               7                     !! @author  H.Tomita
+               8                     !! @par History
+               9                     !! @li      2004-02-17 (H.Tomita) Imported from igdc-4.33
+              10                     !! @li      2004-05-31 (      )   Calculation of "num_of_iteration_[sl]step" are moved to mod[onestep].
+              11                     !<
+              12                     module mod_time
+              13                       !-----------------------------------------------------------------------------
+              14                       !
+              15                       !++ Used modules
+              16                       !
+              17                       use mod_adm, only: &
+              18                          ADM_LOG_FID, &
+              19                          ADM_NSYS
+              20                       !-----------------------------------------------------------------------------
+              21                       implicit none
+              22                       private
+              23                       !-----------------------------------------------------------------------------
+              24                       !
+              25                       !++ Public procedure
+              26                       !
+              27                       public :: TIME_setup
+              28                       public :: TIME_report
+              29                       public :: TIME_advance
+              30                     
+              31                       !-----------------------------------------------------------------------------
+              32                       !
+              33                       !++ Public parameters & variables
+              34                       !
+              35                       !--- Integration method in large steps
+              36                       character(ADM_NSYS), public, save :: TIME_INTEG_TYPE = 'RK2' ! Runge-Kutta 2nd
+              37                       !                                                    = 'RK3'   Runge-Kutta 3rd
+              38                       !
+              39                       !--- Horizontally spliting or not
+              40                       logical, public, save :: TIME_SPLIT = .TRUE.
+              41                       !
+              42                       !--- Time interval for large step
+              43                       real(8), public, save :: TIME_DTL = 5.0D0
+              44                       !
+              45                       !--- Time interval for small step ( calculated in sub[TIME_setup] )
+              46                       real(8), public, save :: TIME_DTS
+              47                       !
+              48                       !--- Start time
+              49                       real(8), public, save :: TIME_START = 0.0D0
+              50                       !
+              51                       !--- End time ( calculated in sub[TIME_setup] )
+              52                       real(8), public, save :: TIME_END
+              53                       !
+              54                       !--- Max steps of large step
+              55                       integer, public, save :: TIME_LSTEP_MAX = 10
+              56                       !
+              57                       !--- Max steps of small step
+              58                       integer, public, save :: TIME_SSTEP_MAX = 10
+              59                       !
+              60                       !--- Number of initial steps
+              61                       integer, public, save :: TIME_NUM_OF_INITIAL_STEPS = 1
+              62                       !
+              63                       !--- Current time step ( calculated in sub[TIME_setup] )
+              64                       integer, public, save :: TIME_CSTEP
+              65                       !
+              66                       !--- Current time ( calculated in sub[TIME_setup] )
+              67                       real(8), public, save :: TIME_CTIME
+              68                       !
+              69                       !--- Time step at the start ( calculated in sub[TIME_setup] )
+              70                       integer, public, save :: TIME_NSTART
+              71                       !
+              72                       !--- Time step at the end ( calculated in sub[TIME_setup] )
+              73                       integer, public, save :: TIME_NEND
+              74                       !
+              75                       !--- Time filter for leapfrog ( if alpha < 0: no use of filter )
+              76                       real(8), public, save :: TIME_ALPHA_TIME_FILTER = 0.05D0
+              77                     
+              78                       !-----------------------------------------------------------------------------
+              79                       !
+              80                       !++ Private procedure
+              81                       !
+              82                       !-----------------------------------------------------------------------------
+              83                       !
+              84                       !++ Private parameters & variables
+              85                       !
+              86                       !-----------------------------------------------------------------------------
+              87                     contains
+              88                     
+              89                       !-----------------------------------------------------------------------------
+              90                       !>
+              91                       !> Setup the temporal scheme and time management
+              92                       !>
+              93                       subroutine TIME_setup
+              94                         use mod_adm, only: &
+              95                            ADM_CTL_FID, &
+              96                            ADM_proc_stop
+              97                         use mod_calendar, only: &
+              98                            calendar_yh2ss, &
+              99                            calendar_ss2cc
+             100                         implicit none
+             101                     
+             102                         character(len=ADM_NSYS) :: integ_type
+             103                     
+             104                         integer :: start_year
+             105                         integer :: start_month
+             106                         integer :: start_day
+             107                         integer :: start_hour
+             108                         integer :: start_min
+             109                         integer :: start_sec
+             110                     
+             111                         real(8) :: dtl
+             112                         integer :: lstep_max
+             113                         integer :: sstep_max
+             114                         integer :: num_of_initial_steps
+             115                         real(8) :: alpha_time_filter
+             116                         logical :: split
+             117                     
+             118                         namelist / TIMEPARAM /     &
+             119                              integ_type,           &  !--- integration method
+             120                              dtl,                  &  !--- delta t in large step
+             121                              lstep_max,            &  !--- maximum number of large steps
+             122                              sstep_max,            &  !--- division number in large step
+             123                              num_of_initial_steps, &  !--- initial step number
+             124                              alpha_time_filter,    &  !--- time filter for leapfrog
+             125                              split,                &  !--- time spliting flag
+             126                              start_year,           &  !--- start year
+             127                              start_month,          &  !--- start month
+             128                              start_day,            &  !--- start day
+             129                              start_hour,           &  !--- start hour
+             130                              start_min,            &  !--- start min
+             131                              start_sec                !--- start sec
+             132                     
+             133                         integer           :: start_date(6)
+             134                         character(len=20) :: HTIME_start
+             135                         character(len=20) :: HTIME_end
+             136                     
+             137                         integer :: ierr
+             138                         !---------------------------------------------------------------------------
+             139                     
+             140                         integ_type           = TIME_integ_type
+             141                         dtl                  = TIME_dtl
+             142                         lstep_max            = TIME_lstep_max
+             143                         sstep_max            = TIME_sstep_max
+             144                         num_of_initial_steps = TIME_num_of_initial_steps
+             145                         alpha_time_filter    = TIME_alpha_time_filter
+             146                         split                = TIME_split
+             147                     
+             148                         start_year =  0
+             149                         start_month = 1
+             150                         start_day   = 1
+             151                         start_hour  = 0
+             152                         start_min   = 0
+             153                         start_sec   = 0
+             154                     
+             155                         !--- read parameters
+             156                         write(ADM_LOG_FID,*)
+             157                         write(ADM_LOG_FID,*) '+++ Module[time]/Category[common share]'
+             158                         rewind(ADM_CTL_FID)
+             159                         read(ADM_CTL_FID,nml=TIMEPARAM,iostat=ierr)
+             160     1                   if ( ierr < 0 ) then
+             161     1                      write(ADM_LOG_FID,*) '*** TIMEPARAM is not specified. use default.'
+             162     1                   elseif( ierr > 0 ) then
+             163     1                      write(*,          *) 'xxx Not appropriate names in namelist TIMEPARAM. STOP.'
+             164     1                      write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist TIMEPARAM. STOP.'
+             165     1                      call ADM_proc_stop
+             166     1                   endif
+             167                         write(ADM_LOG_FID,TIMEPARAM)
+             168                     
+             169                         !--- rewrite
+             170                         TIME_integ_type = integ_type
+             171                         TIME_dtl                  = dtl
+             172                         TIME_lstep_max            = lstep_max
+             173                         TIME_sstep_max            = sstep_max
+             174                         TIME_num_of_initial_steps = num_of_initial_steps
+             175                         TIME_alpha_time_filter    = alpha_time_filter
+             176                         TIME_split                = split
+             177                     
+             178                         start_date(1) = start_year
+             179                         start_date(2) = start_month
+             180                         start_date(3) = start_day
+             181                         start_date(4) = start_hour
+             182                         start_date(5) = start_min
+             183                         start_date(6) = start_sec
+             184                         call calendar_yh2ss( TIME_start, start_date )
+             185                     
+             186     1                   if ( TIME_LSTEP_MAX > 0 ) then
+             187     1                      TIME_END = TIME_START + TIME_LSTEP_MAX * TIME_DTL
+             188     1                   endif
+             189                     
+             190                         call calendar_ss2cc ( HTIME_start, TIME_START )
+             191                         call calendar_ss2cc ( HTIME_end,   TIME_END   )
+             192                     
+             193                         !------ set the step number at the intial step
+             194                         TIME_NSTART = 0
+             195                     
+             196                         !------ set the step number at the final step
+             197                         TIME_NEND = TIME_NSTART + TIME_LSTEP_MAX
+             198                     
+             199                         !------ set the current step
+             200                         TIME_CSTEP = TIME_NSTART
+             201                     
+             202                         !------ intitialize the current time
+             203                         TIME_CTIME = TIME_START
+             204                     
+             205                         !--- < small step configuration > ---
+             206     1                   if ( TIME_INTEG_TYPE == 'LEAPFROG' ) then
+             207     1                      TIME_DTS = 2.0D0 * TIME_DTL / dble(TIME_SSTEP_MAX)
+             208     1                   else
+             209     1                      TIME_DTS = TIME_DTL / dble(TIME_SSTEP_MAX)
+             210     1                   endif
+             211                     
+             212                         !------ Fix TIME_NUM_OF_INITIAL_STEPS for consistency with
+             213                         !------ initial step method.
+             214                         !------ If TIME_INTEG_TYPE=='LEAPFROG',
+             215                         !------ the initial conditions for two steps are required.
+             216                         !
+             217     1                   if ( TIME_NUM_OF_INITIAL_STEPS < 0 ) then
+             218     2                      if ( TIME_INTEG_TYPE == 'LEAPFROG' ) then
+             219     2                         TIME_NUM_OF_INITIAL_STEPS = 1
+             220     2                      else
+             221     2                         TIME_NUM_OF_INITIAL_STEPS = 0
+             222     2                      endif
+             223     1                   endif
+             224                     
+             225                         !--- output the information for debug
+             226                         write(ADM_LOG_FID,*)
+             227                         write(ADM_LOG_FID,*) '====== Time management ======'
+             228                         write(ADM_LOG_FID,*) '--- Time integration scheme (large step): ', trim(TIME_INTEG_TYPE)
+             229                         write(ADM_LOG_FID,*) '--- Time interval for large step        : ', TIME_DTL
+             230                         write(ADM_LOG_FID,*) '--- Time interval for small step        : ', TIME_DTS
+             231                         write(ADM_LOG_FID,*) '--- Max steps of large step             : ', TIME_LSTEP_MAX
+             232                         write(ADM_LOG_FID,*) '--- Max steps of small step             : ', TIME_SSTEP_MAX
+             233                         write(ADM_LOG_FID,*) '--- Start time (sec)                    : ', TIME_START
+             234                         write(ADM_LOG_FID,*) '--- End time   (sec)                    : ', TIME_END
+             235                         write(ADM_LOG_FID,*) '--- Start time (date)                   : ', HTIME_start
+             236                         write(ADM_LOG_FID,*) '--- End time   (date)                   : ', HTIME_end
+             237                         write(ADM_LOG_FID,*) '--- total integration time              : ', TIME_END - TIME_START
+             238                         write(ADM_LOG_FID,*) '--- Time step at the start              : ', TIME_NSTART
+             239                         write(ADM_LOG_FID,*) '--- Time step at the end                : ', TIME_NEND
+             240                         write(ADM_LOG_FID,*) '--- Number of initial steps             : ', TIME_NUM_OF_INITIAL_STEPS
+             241                         write(ADM_LOG_FID,*) '--- Time filter for leapfrog            : ', TIME_ALPHA_TIME_FILTER
+             242                     
+             243                         return
+             244                       end subroutine TIME_setup
+             245                     
+             246                       !-----------------------------------------------------------------------------
+             247                       subroutine TIME_report
+             248                         use mod_adm, only: &
+             249                            ADM_prc_run_master, &
+             250                            ADM_prc_me
+             251                         use mod_calendar, only: &
+             252                            calendar_ss2cc
+             253                         implicit none
+             254                     
+             255                         character(len=20) :: HTIME
+             256                         !---------------------------------------------------------------------------
+             257                     
+             258                         call calendar_ss2cc ( HTIME, TIME_CTIME )
+             259                     
+             260                         write(ADM_LOG_FID,*) '### TIME =', HTIME,'( step = ', TIME_CSTEP, ' )'
+             261     1                   if( ADM_prc_me == ADM_prc_run_master ) then
+             262     1                      write(*,*) '### TIME = ', HTIME,'( step = ', TIME_CSTEP, ' )'
+             263     1                   endif
+             264                     
+             265                         return
+             266                       end subroutine TIME_report
+             267                     
+             268                       !-----------------------------------------------------------------------------
+             269                       subroutine TIME_advance
+             270                         implicit none
+             271                         !---------------------------------------------------------------------------
+             272                     
+             273                         ! time advance
+             274                         TIME_CTIME = TIME_CTIME + TIME_DTL
+             275                         TIME_CSTEP = TIME_CSTEP + 1
+             276                     
+             277                         call TIME_report
+             278                     
+             279                         return
+             280                       end subroutine TIME_advance
+             281                     
+             282                     end module mod_time
+             283                     !-------------------------------------------------------------------------------
+
+ Procedure information
+   Lines      : 283
+   Statements : 142
+   Stack(byte): 4032
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 283
+   Total statements : 142
+   Total stack(byte): 4032
+   Total prefetch num: 0
+

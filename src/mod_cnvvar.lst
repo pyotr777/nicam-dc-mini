@@ -1,0 +1,1503 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:05:36 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/share/mod_cnvvar.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_cnvvar.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_cnvvar"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! variable conversion module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         Conversion tools for prognostic variables
+               7                     !!
+               8                     !! @author H.Tomita
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2004-02-17 (H.Tomita)   Imported from igdc-4.34
+              12                     !! @li      2009-07-10 (H.Tomita)   Change the cnvvar_rhokin, cnvvar_kin for the energy conservation.
+              13                     !! @li      2011-07-22 (T.Ohno)     add subroutines for plane hgrid systems
+              14                     !!
+              15                     !<
+              16                     module mod_cnvvar
+              17                       !-----------------------------------------------------------------------------
+              18                       !
+              19                       !++ Used modules
+              20                       !
+              21                       !-----------------------------------------------------------------------------
+              22                       implicit none
+              23                       private
+              24                       !-----------------------------------------------------------------------------
+              25                       !
+              26                       !++ Public procedure
+              27                       !
+              28                       public :: cnvvar_d2p
+              29                       public :: cnvvar_p2d
+              30                       public :: cnvvar_rhokin
+              31                       public :: cnvvar_kin
+              32                     
+              33                       public :: cnvvar_rhokin_ijkl
+              34                     
+              35                       public :: cnvvar_rhokin_plane ! [add] T.Ohno 110722
+              36                       public :: cnvvar_kin_plane    ! [add] T.Ohno 110722
+              37                       public :: cnvvar_ve_plane     ! [add] T.Ohno 110722
+              38                     
+              39                       !-----------------------------------------------------------------------------
+              40                       !
+              41                       !++ Public parameters & variables
+              42                       !
+              43                       !-----------------------------------------------------------------------------
+              44                       !
+              45                       !++ Private procedures
+              46                       !
+              47                       !-----------------------------------------------------------------------------
+              48                       !
+              49                       !++ Private parameters & variables
+              50                       !
+              51                       !-----------------------------------------------------------------------------
+              52                     contains
+              53                       !-----------------------------------------------------------------------------
+              54                       subroutine cnvvar_d2p(&
+              55                            ijdim,           & !--- IN : number of horizontal grid
+              56                            pre,             &  !--- IN : pressure ( physical )
+              57                            tem,             &  !--- IN : temperature ( physical )
+              58                            vx,              &  !--- IN : Vx ( physical )
+              59                            vy,              &  !--- IN : Vy ( physical )
+              60                            vz,              &  !--- IN : Vz ( physical )
+              61                            w,               &  !--- IN : w  ( physical )
+              62                            q,               &  !--- IN : mass concentration ( physical )
+              63                            rhog,            &  !--- OUT : density ( gam2 X G^{1/2} )
+              64                            rhogvx,          &  !--- OUT : rho*Vx  ( gam2 X G^{1/2} )
+              65                            rhogvy,          &  !--- OUT : rho*Vy  ( gam2 X G^{1/2} )
+              66                            rhogvz,          &  !--- OUT : rho*Vz  ( gam2 X G^{1/2} )
+              67                            rhogw,           &  !--- OUT : rho*w   ( gam2 X G^{1/2} )
+              68                            rhoge,           &  !--- OUT : rho*ein ( gam2 X G^{1/2} )
+              69                            rhogq,           &  !--- OUT : rho*q   ( gam2 X G^{1/2} )
+              70                            gsqrtgam2,       &  !--- IN : G^{1/2} at the cell center
+              71                            gsqrtgam2h       &  !--- IN : G^{1/2} at the cell wall
+              72                            )
+              73                         !------
+              74                         !------ Generation of prognostic variables ( e.g. rhogvx )
+              75                         !------     1. calculation domain : (:,:,:)
+              76                         !------
+              77                         !
+              78                         use mod_adm, only :       &
+              79                              kdim => ADM_kall,    &
+              80                              kmin => ADM_kmin,    &
+              81                              kmax => ADM_kmax
+              82                         use mod_grd, only :  &
+              83                              GRD_afac,       &
+              84                              GRD_bfac
+              85                         use mod_thrmdyn, only :    &
+              86                              thrmdyn_ein,      &
+              87                              thrmdyn_rho,      &
+              88                              thrmdyn_qd
+              89                         use mod_runconf, only : &
+              90                              nqmax => TRC_VMAX
+              91                         !
+              92                         implicit none
+              93                         !
+              94                         integer, intent(in) :: ijdim
+              95                         real(8), intent(in) :: pre(1:ijdim,1:kdim)
+              96                         real(8), intent(in) :: tem(1:ijdim,1:kdim)
+              97                         real(8), intent(in) :: vx(1:ijdim,1:kdim)
+              98                         real(8), intent(in) :: vy(1:ijdim,1:kdim)
+              99                         real(8), intent(in) :: vz(1:ijdim,1:kdim)
+             100                         real(8), intent(in) :: w(1:ijdim,1:kdim)
+             101                         real(8), intent(in) :: q(1:ijdim,1:kdim,1:nqmax)
+             102                         real(8), intent(in) :: gsqrtgam2(1:ijdim,1:kdim)
+             103                         real(8), intent(in) :: gsqrtgam2h(1:ijdim,1:kdim)
+             104                         !
+             105                         real(8), intent(out) :: rhog(1:ijdim,1:kdim)
+             106                         real(8), intent(out) :: rhogvx(1:ijdim,1:kdim)
+             107                         real(8), intent(out) :: rhogvy(1:ijdim,1:kdim)
+             108                         real(8), intent(out) :: rhogvz(1:ijdim,1:kdim)
+             109                         real(8), intent(out) :: rhogw(1:ijdim,1:kdim)
+             110                         real(8), intent(out) :: rhoge(1:ijdim,1:kdim)
+             111                         real(8), intent(out) :: rhogq(1:ijdim,1:kdim,1:nqmax)
+             112                         !
+             113                         real(8) :: grho_h(1:ijdim,1:kdim)
+             114                         real(8) :: ein(1:ijdim,1:kdim)
+             115                         real(8) :: qd(1:ijdim,1:kdim)
+             116                         real(8) :: rho(1:ijdim,1:kdim)
+             117                         !
+             118                         integer :: nq
+             119                         integer :: k
+             120                         !
+             121                         !--- calculation of dry mass concentration
+             122                         call thrmdyn_qd( &
+             123                              ijdim,      & !--- in
+             124                              qd,         & !--- out
+             125                              q )           !--- in
+             126                         !
+             127                         !--- calculation  of density
+             128                         call thrmdyn_rho( &
+             129                              ijdim,       & !--- in
+             130                              rho,         & !--- OUT
+             131                              pre,         & !--- IN
+             132                              tem,         & !--- IN
+             133                              qd,          & !--- IN
+             134                              q  )           !--- IN
+             135                         !
+             136                         !--- calculation of internal energy
+             137                         call thrmdyn_ein( &
+             138                              ijdim,       & !--- in
+             139                              ein,         & !--- OUT
+             140                              tem,         & !--- IN
+             141                              qd,          & !--- IN
+             142                              q )            !--- IN
+             143                         !
+             144                         !--- calculation of rhoge, rhogvx, rhogvy, rhogvz
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             145        pp   4v          rhog(:,:) = rho(:,:) * gsqrtgam2(:,:)
+             146         p   4v          rhoge(:,:) = ein(:,:) * rhog(:,:)
+             147         p   4v          rhogvx(:,:) = vx(:,:) * rhog(:,:)
+             148         p   4v          rhogvy(:,:) = vy(:,:) * rhog(:,:)
+             149         p   4v          rhogvz(:,:) = vz(:,:) * rhog(:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             150     1  pp               do nq = 1,nqmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             151     1  pp   8v             rhogq(:,:,nq) = q(:,:,nq) * rhog(:,:)
+             152     1   p               end do
+             153                         !
+             154                         !
+             155                         !--- calculation of rhogw
+             156                         !------ interpolation of grho_h
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<< Loop-information  End >>>
+             157     1  pp               do k =kmin,kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             158     1   p   8v             grho_h(:,k) = 0.5D0 *           &
+             159     1                           ( GRD_afac(k) * rho(:,k  ) &
+             160     1                           + GRD_bfac(k) * rho(:,k-1) &
+             161     1                           ) * gsqrtgam2h(:,k)
+             162     1   p               end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             163        pp   8v          grho_h(:,kmin-1) = grho_h(:,kmin)
+             164                         !
+             165                         !------ grho_h is ( gam2 * G^{1/2} * rho ) at the cell wall.
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             166        pp   8v          rhogw(:,:) = w(:,:)* grho_h(:,:)
+             167                         !
+             168                       end subroutine cnvvar_d2p
+             169                       !-----------------------------------------------------------------------------
+             170                       subroutine cnvvar_p2d(&
+             171                            ijdim,           &  !--- IN : number of horizontal grid
+             172                            rho,             &  !--- OUT : density ( physical )
+             173                            pre,             &  !--- OUT : pressure ( physical )
+             174                            tem,             &  !--- OUT : temperature ( physical )
+             175                            vx,              &  !--- OUT : Vx ( physical )
+             176                            vy,              &  !--- OUT : Vy ( physical )
+             177                            vz,              &  !--- OUT : Vz ( physical )
+             178                            w,               &  !--- OUT : w  ( physical )
+             179                            q,               &  !--- OUT : mass concentration ( physical )
+             180                            rhog,            &  !--- IN : density ( gam2 X G^{1/2} )
+             181                            rhogvx,          &  !--- IN : rho*Vx  ( gam2 X G^{1/2} )
+             182                            rhogvy,          &  !--- IN : rho*Vy  ( gam2 X G^{1/2} )
+             183                            rhogvz,          &  !--- IN : rho*Vz  ( gam2 X G^{1/2} )
+             184                            rhogw,           &  !--- IN : rho*w   ( gam2 X G^{1/2} )
+             185                            rhoge,           &  !--- IN : rho*ein ( gam2 X G^{1/2} )
+             186                            rhogq,           &  !--- IN : rho*q   ( gam2 X G^{1/2} )
+             187                            gsqrtgam2,       &  !--- IN : G^{1/2} at the cell center
+             188                            gsqrtgam2h       &  !--- IN : G^{1/2} at the cell wall
+             189                            )
+             190                         !------
+             191                         !------ Generation of diagnostic variables ( e.g. vx )
+             192                         !------     1. calculation domain : (:,:)
+             193                         !------
+             194                         !
+             195                         use mod_adm, only :       &
+             196                              kdim => ADM_kall,    &
+             197                              kmin => ADM_kmin,    &
+             198                              kmax => ADM_kmax
+             199                         use mod_grd, only :  &
+             200                              GRD_afac,       &
+             201                              GRD_bfac
+             202                         use mod_thrmdyn, only :    &
+             203                              thrmdyn_tempre,   &
+             204                              thrmdyn_qd
+             205                         use mod_runconf, only : &
+             206                              nqmax => TRC_VMAX
+             207                         !
+             208                         implicit none
+             209                         !
+             210                         integer, intent(in) :: ijdim
+             211                         real(8), intent(out) :: rho(1:ijdim,1:kdim)
+             212                         real(8), intent(out) :: pre(1:ijdim,1:kdim)
+             213                         real(8), intent(out) :: tem(1:ijdim,1:kdim)
+             214                         real(8), intent(out) :: vx(1:ijdim,1:kdim)
+             215                         real(8), intent(out) :: vy(1:ijdim,1:kdim)
+             216                         real(8), intent(out) :: vz(1:ijdim,1:kdim)
+             217                         real(8), intent(out) :: w(1:ijdim,1:kdim)
+             218                         real(8), intent(out) :: q(1:ijdim,1:kdim,1:nqmax)
+             219                         !
+             220                         real(8), intent(in) :: gsqrtgam2(1:ijdim,1:kdim)
+             221                         real(8), intent(in) :: gsqrtgam2h(1:ijdim,1:kdim)
+             222                         !
+             223                         real(8), intent(in) :: rhog(1:ijdim,1:kdim)
+             224                         real(8), intent(in) :: rhogvx(1:ijdim,1:kdim)
+             225                         real(8), intent(in) :: rhogvy(1:ijdim,1:kdim)
+             226                         real(8), intent(in) :: rhogvz(1:ijdim,1:kdim)
+             227                         real(8), intent(in) :: rhogw(1:ijdim,1:kdim)
+             228                         real(8), intent(in) :: rhoge(1:ijdim,1:kdim)
+             229                         real(8), intent(in) :: rhogq(1:ijdim,1:kdim,1:nqmax)
+             230                         !
+             231                         real(8) :: rrhog(1:ijdim,1:kdim)
+             232                     !    real(8) :: grho_h(1:ijdim,1:kdim)
+             233                         real(8) :: ein(1:ijdim,1:kdim)
+             234                         real(8) :: qd(1:ijdim,1:kdim)
+             235                         !
+             236                         integer :: nq
+             237                         integer :: k,ij
+             238                         !
+             239                         !--- calculation of rgrho
+             240                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 223
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 241,251)
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             241     1  pp   4v          do k = 1, kdim
+             242     1               !del
+             243     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 244,254,259,264,269,274)
+                                   <<<    COLLAPSED
+                                   <<< Loop-information  End >>>
+             244     2   p   4              do ij = 1, ijdim
+             245     2   p   4v                rrhog(ij,k) = 1.0D0 / rhog(ij,k)
+             246     2   p   4v             end do
+             247     1   p               end do
+             248                         !
+             249                         !--- calculation of ein vx,vy,vz
+             250                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             251     1                   do k = 1, kdim
+             252     1               !del
+             253     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             254     2                      do ij = 1, ijdim
+             255     2                         rho(ij,k) = rhog(ij,k) / gsqrtgam2(ij,k)
+             256     2                      end do
+             257     1               !del
+             258     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             259     2                      do ij = 1, ijdim
+             260     2                         ein(ij,k) = rhoge(ij,k) * rrhog(ij,k)
+             261     2                      end do
+             262     1               !del
+             263     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             264     2                      do ij = 1, ijdim
+             265     2                         vx(ij,k) = rhogvx(ij,k) * rrhog(ij,k)
+             266     2                      end do
+             267     1               !del
+             268     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             269     2                      do ij = 1, ijdim
+             270     2                         vy(ij,k) = rhogvy(ij,k) * rrhog(ij,k)
+             271     2                      end do
+             272     1               !del
+             273     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             274     2                      do ij = 1, ijdim
+             275     2                         vz(ij,k) = rhogvz(ij,k) * rrhog(ij,k)
+             276     2                      end do
+             277     1                   end do
+             278                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<< Loop-information  End >>>
+             279     1  pp               do nq = 1,nqmax
+             280     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 572
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             281     2  pp   8v             do k = 1, kdim
+             282     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<< Loop-information  End >>>
+             283     3   p   8                 do ij = 1, ijdim
+             284     3   p   8v                   q(ij,k,nq) = rhogq(ij,k,nq) * rrhog(ij,k)
+             285     3   p   8v                end do
+             286     2   p    v             end do
+             287     1   p               end do
+             288                         !
+             289                         !--- calculation of dry mass concentration
+             290                         call thrmdyn_qd( &
+             291                              ijdim,      &
+             292                              qd,         & !--- OUT  : dry mass concentration
+             293                              q )           !--- IN  : mass concentration
+             294                         !
+             295                         !
+             296                         !--- calculation of tem, pre, and th
+             297                         call thrmdyn_tempre( &
+             298                              ijdim,          &
+             299                              tem,            &  !--- out
+             300                              pre,            &  !--- out
+             301                              ein,            &  !--- in
+             302                              rho,            &  !--- in
+             303                              qd,             &  !--- in
+             304                              q )                !--- in
+             305                         !
+             306                         !---- Vertical velocity ( w )
+             307                         !------- calculation of grho at the call wall
+             308                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_afac: 4, GRD_bfac: 4
+                                   <<< Loop-information  End >>>
+             309     1  pp               do k = kmin, kmax+1
+             310     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 220
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             311     2  pp   6v             do ij = 1, ijdim
+             312     2   p   6v                w(ij,k) = rhogw(ij,k) / ( 0.5D0 * &
+             313     2                              ( GRD_afac(k) * rho(ij,k  )  &
+             314     2                              + GRD_bfac(k) * rho(ij,k-1)  &
+             315     2                              ) * gsqrtgam2h(ij,k) )
+             316     2   p   6v             end do
+             317     1   p               end do
+             318                         !
+             319                     !del
+             320                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 411
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             321     1  pp   6v          do ij = 1, ijdim
+             322     1   p   6v             w(ij,kmin-1) = rhogw(ij,kmin-1) / ( 0.5D0 * &
+             323     1                           ( GRD_afac(kmin) * rho(ij,kmin  )  &
+             324     1                           + GRD_bfac(kmin) * rho(ij,kmin-1)  &
+             325     1                           ) * gsqrtgam2h(ij,kmin) )
+             326     1   p   6v          end do
+             327                         !
+             328                       end subroutine cnvvar_p2d
+             329                       !-----------------------------------------------------------------------------
+             330                       subroutine cnvvar_rhokin(&
+             331                            ijdim,              & !--- IN : number of horizontal grid
+             332                            rhog,               &  !--- IN : rho     ( gam2 X G^{1/2}  )
+             333                            rhogvx,             &  !--- IN : rho*Vx  ( gam2 X G^{1/2}  )
+             334                            rhogvy,             &  !--- IN : rho*Vy  ( gam2 X G^{1/2}  )
+             335                            rhogvz,             &  !--- IN : rho*Vz  ( gam2 X G^{1/2}  )
+             336                            rhogw,              &  !--- IN : rho*w   ( gam2 X G^{1/2}  )
+             337                            gsqrtgam2,          &  !--- IN : G^{1/2} at the cell center
+             338                            gsqrtgam2h,         &  !--- IN : G^{1/2} at the cell wall
+             339                            rhogkin,            &  !--- OUT : 1/2 rho*v^2  ( gam2 X G^{1/2}  )
+             340                            rhogkin_h,          &
+             341                            rhogkin_v           &
+             342                            )
+             343                         !------
+             344                         !------ Calculation of kinetic energy.
+             345                         !------
+             346                         !
+             347                         use mod_adm, only :       &
+             348                              kdim => ADM_kall,    &
+             349                              kmin => ADM_kmin,    &
+             350                              kmax => ADM_kmax
+             351                         use mod_grd, only :      &
+             352                              GRD_afac, GRD_bfac,         GRD_cfac, GRD_dfac
+             353                         !
+             354                         implicit none
+             355                         integer, intent(in) :: ijdim
+             356                         real(8), intent(in) :: rhog(1:ijdim,1:kdim)
+             357                         real(8), intent(in) :: rhogvx(1:ijdim,1:kdim)
+             358                         real(8), intent(in) :: rhogvy(1:ijdim,1:kdim)
+             359                         real(8), intent(in) :: rhogvz(1:ijdim,1:kdim)
+             360                         real(8), intent(in) :: rhogw(1:ijdim,1:kdim)
+             361                         real(8), intent(in) :: gsqrtgam2(1:ijdim,1:kdim)
+             362                         real(8), intent(in) :: gsqrtgam2h(1:ijdim,1:kdim)
+             363                         real(8), intent(out) :: rhogkin(1:ijdim,1:kdim)
+             364                         !
+             365                         real(8) :: rhog_h(1:ijdim,1:kdim)
+             366                         real(8), intent(out), optional :: rhogkin_h(1:ijdim,1:kdim)
+             367                         real(8), intent(out), optional :: rhogkin_v(1:ijdim,1:kdim)
+             368                         real(8) :: rhogkin_h0(1:ijdim,1:kdim)
+             369                         real(8) :: rhogkin_v0(1:ijdim,1:kdim)
+             370                         !
+             371                         integer :: k,ij
+             372                     
+             373                     
+             374                     
+             375                     
+             376                     
+             377                         !--- rhogkin = gamma^2 * g_sqrt * rho * kin
+             378                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 379,385)
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             379     1  pp   8v          do ij = 1, ijdim
+             380     1   p   8v             rhogkin_v0(ij,kmin) = 0.0D0
+             381     1   p   8v          end do
+             382                     !del
+             383                     !del
+             384                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             385     1                   do ij = 1, ijdim
+             386     1                      rhogkin_v0(ij,kmax+1) = 0.0D0
+             387     1                   end do
+             388                     
+             389                         !--- horizontal kinetic energy
+             390                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             391     1  pp               do k = kmin, kmax
+             392     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 211
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             393     2  pp   4v             do ij = 1, ijdim
+             394     2   p   4v                rhogkin_h0(ij,k)  &
+             395     2                              =((rhogvx(ij,k)/rhog(ij,k))**2 &
+             396     2                              + (rhogvy(ij,k)/rhog(ij,k))**2 &
+             397     2                              + (rhogvz(ij,k)/rhog(ij,k))**2)&
+             398     2                              * rhog(ij,k)*0.5D0
+             399     2   p   4v             end do
+             400     1   p               end do
+             401                         !
+             402                         !--- rhog at the half level
+             403                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_afac: 4, GRD_bfac: 4
+                                   <<< Loop-information  End >>>
+             404     1  pp               do k = kmin, kmax+1
+             405     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 226
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             406     2  pp   4v             do ij = 1, ijdim
+             407     2   p   4v                rhog_h(ij,k) = 0.5D0 *            &
+             408     2                              ( GRD_afac(k) * rhog(ij,k  ) / gsqrtgam2(ij,k  ) &
+             409     2                              + GRD_bfac(k) * rhog(ij,k-1) / gsqrtgam2(ij,k-1) &
+             410     2                              ) * gsqrtgam2h(ij,k)
+             411     2   p   4v             end do
+             412     1   p               end do
+             413                         !
+             414                         !--- vertical kinetic energy
+             415                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             416     1  pp               do k = kmin+1, kmax
+             417     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 400
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             418     2  pp   6v             do ij = 1, ijdim
+             419     2   p   6v                rhogkin_v0(ij,k) &
+             420     2                              =((rhogw(ij,k)/rhog_h(ij,k))**2) &
+             421     2                              * rhog_h(ij,k)*0.5D0
+             422     2   p   6v             end do
+             423     1   p               end do
+             424                         !
+             425                     !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_dfac: 4, GRD_cfac: 4
+                                   <<< Loop-information  End >>>
+             426     1  pp               do k = kmin, kmax
+             427     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 291
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             428     2  pp   8v             do ij = 1, ijdim
+             429     2   p   8v                rhogkin(ij,k) = rhogkin_h0(ij,k)&
+             430     2                              + (GRD_dfac(k) * rhogkin_v0(ij,k+1)&
+             431     2                              +  GRD_cfac(k) * rhogkin_v0(ij,k  ) )*0.5D0
+             432     2   p   8v             end do
+             433     1   p               end do
+             434                         !
+             435     1                   if(present(rhogkin_h)) then
+             436     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             437     2  pp   8v             do k = 1, kdim
+             438     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<< Loop-information  End >>>
+             439     3   p   8                 do ij = 1, ijdim
+             440     3   p   8v                   rhogkin_h(ij,k) = rhogkin_h0(ij,k)
+             441     3   p   8v                end do
+             442     2   p                  end do
+             443     1                   end if
+             444     1                   if(present(rhogkin_v)) then
+             445     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             446     2  pp   8v             do k = 1, kdim
+             447     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<< Loop-information  End >>>
+             448     3   p   8                 do ij = 1, ijdim
+             449     3   p   8v                   rhogkin_v(ij,k) = rhogkin_v0(ij,k)
+             450     3   p   8v                end do
+             451     2   p                  end do
+             452     1                   end if
+             453                     
+             454                     
+             455                     
+             456                     
+             457                     
+             458                       end subroutine cnvvar_rhokin
+             459                       !-----------------------------------------------------------------------------
+             460                       subroutine cnvvar_kin(&
+             461                            ijdim,           &  !--- IN : number of horizontal grid
+             462                            rhog,            &  !--- IN : density ( gam2 X G^{1/2} )
+             463                            rhogvx,          &  !--- IN : rho*Vx  ( gam2 X G^{1/2} )
+             464                            rhogvy,          &  !--- IN : rho*Vy  ( gam2 X G^{1/2} )
+             465                            rhogvz,          &  !--- IN : rho*Vz  ( gam2 X G^{1/2} )
+             466                            rhogw,           &  !--- IN : rho*w   ( gam2 X G^{1/2} )
+             467                            gsqrtgam2,       &  !--- IN : G^{1/2} at the cell center
+             468                            gsqrtgam2h,      &  !--- IN : G^{1/2} at the cell wall
+             469                            kin              &  !--- OUT : 1/2 v^2 ( physical )
+             470                            )
+             471                         !------
+             472                         !------ Calculation of kinetic energy.
+             473                         !------
+             474                         !
+             475                         use mod_adm, only :       &
+             476                              kdim => ADM_kall
+             477                         implicit none
+             478                     
+             479                         integer, intent(in) :: ijdim
+             480                         real(8), intent(in) :: rhog(1:ijdim,1:kdim)
+             481                         real(8), intent(in) :: rhogvx(1:ijdim,1:kdim)
+             482                         real(8), intent(in) :: rhogvy(1:ijdim,1:kdim)
+             483                         real(8), intent(in) :: rhogvz(1:ijdim,1:kdim)
+             484                         real(8), intent(in) :: rhogw(1:ijdim,1:kdim)
+             485                         real(8), intent(in) :: gsqrtgam2(1:ijdim,1:kdim)
+             486                         real(8), intent(in) :: gsqrtgam2h(1:ijdim,1:kdim)
+             487                         real(8), intent(out) :: kin(1:ijdim,1:kdim)
+             488                     
+             489                         call cnvvar_rhokin(&
+             490                              ijdim,        &
+             491                              rhog,         &
+             492                              rhogvx,       &
+             493                              rhogvy,       &
+             494                              rhogvz,       &
+             495                              rhogw,        &
+             496                              gsqrtgam2,    &
+             497                              gsqrtgam2h,   &
+             498                              kin           )
+             499                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             500        pp   6v          kin(:,:) = kin(:,:) / rhog(:,:)
+             501                     
+             502                       end subroutine cnvvar_kin
+             503                     
+             504                       !-----------------------------------------------------------------------------
+             505                       subroutine cnvvar_rhokin_plane(&
+             506                            ijdim,              & !--- IN : number of horizontal grid
+             507                            rhog,               &  !--- IN : rho     ( gam2 X G^{1/2}  )
+             508                            rhogvx,             &  !--- IN : rho*Vx  ( gam2 X G^{1/2}  )
+             509                            rhogvy,             &  !--- IN : rho*Vy  ( gam2 X G^{1/2}  )
+             510                            rhogw,              &  !--- IN : rho*w   ( gam2 X G^{1/2}  )
+             511                            gsqrtgam2,          &  !--- IN : G^{1/2} at the cell center
+             512                            gsqrtgam2h,         &  !--- IN : G^{1/2} at the cell wall
+             513                            rhogkin,            &  !--- OUT : 1/2 rho*v^2  ( gam2 X G^{1/2}  )
+             514                            rhogkin_h,          &
+             515                            rhogkin_v           &
+             516                            )
+             517                         ! [add] T.Ohno 110722
+             518                         !------
+             519                         !------ Calculation of kinetic energy.
+             520                         !------
+             521                         !
+             522                         use mod_adm, only :       &
+             523                              kdim => ADM_kall,    &
+             524                              kmin => ADM_kmin,    &
+             525                              kmax => ADM_kmax,    &
+             526                              ADM_VMISS
+             527                         use mod_grd, only :      &
+             528                              GRD_afac, GRD_bfac,         GRD_cfac, GRD_dfac
+             529                         !
+             530                         implicit none
+             531                         integer, intent(in) :: ijdim
+             532                         real(8), intent(in) :: rhog(1:ijdim,1:kdim)
+             533                         real(8), intent(in) :: rhogvx(1:ijdim,1:kdim)
+             534                         real(8), intent(in) :: rhogvy(1:ijdim,1:kdim)
+             535                         real(8), intent(in) :: rhogw(1:ijdim,1:kdim)
+             536                         real(8), intent(in) :: gsqrtgam2(1:ijdim,1:kdim)
+             537                         real(8), intent(in) :: gsqrtgam2h(1:ijdim,1:kdim)
+             538                         real(8), intent(out) :: rhogkin(1:ijdim,1:kdim)
+             539                         !
+             540                         real(8) :: rhog_h(1:ijdim,1:kdim)
+             541                         real(8), intent(out), optional :: rhogkin_h(1:ijdim,1:kdim)
+             542                         real(8), intent(out), optional :: rhogkin_v(1:ijdim,1:kdim)
+             543                         real(8) :: rhogkin_h0(1:ijdim,1:kdim)
+             544                         real(8) :: rhogkin_v0(1:ijdim,1:kdim)
+             545                         !
+             546                         integer :: k
+             547                         !
+             548                         !--- rhogkin = gamma^2 * g_sqrt * rho * kin
+             549                         !
+             550                         !--- horizontal kinetic energy
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             551        pp   8v          rhogkin_h0(:,kmin-1) = ADM_VMISS
+             552         p   8v          rhogkin_h0(:,kmax+1) = ADM_VMISS
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             553     1  pp               do k = kmin, kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             554     1   p   6v             rhogkin_h0(:,k)  &
+             555     1                           =((rhogvx(:,k)/rhog(:,k))**2 &
+             556     1                           + (rhogvy(:,k)/rhog(:,k))**2)&
+             557     1                           * rhog(:,k)*0.5D0
+             558     1   p               end do
+             559                         !
+             560                         !--- rhog at the half level
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<< Loop-information  End >>>
+             561     1  pp               do k =kmin,kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             562     1   p   4v             rhog_h(:,k) = 0.5D0 *            &
+             563     1                           ( GRD_afac(k) * rhog(:,k  )/gsqrtgam2(:,k  ) &
+             564     1                           + GRD_bfac(k) * rhog(:,k-1)/gsqrtgam2(:,k-1) &
+             565     1                           ) * gsqrtgam2h(:,k)
+             566     1   p               end do
+             567                         !
+             568                         !--- vertical kinetic energy
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             569        pp   8v          rhogkin_v0(:,kmin-1) = ADM_VMISS
+             570         p   8v          rhogkin_v0(:,kmin) = 0.0D0
+             571         p   8v          rhogkin_v0(:,kmax+1) = 0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<< Loop-information  End >>>
+             572     1  pp               do k = kmin+1, kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             573     1   p   6v             rhogkin_v0(:,k) &
+             574     1                           =((rhogw(:,k)/rhog_h(:,k))**2) &
+             575     1                           * rhog_h(:,k)*0.5D0
+             576     1   p               end do
+             577                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             578        pp   8v          rhogkin(:,kmin-1) = ADM_VMISS
+             579         p   8v          rhogkin(:,kmax+1) = ADM_VMISS
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<< Loop-information  End >>>
+             580     1  pp               do k = kmin, kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             581     1   p   8v             rhogkin(:,k) = rhogkin_h0(:,k)&
+             582     1                           + (GRD_dfac(k  )*rhogkin_v0(:,k+1)&
+             583     1                           +  GRD_cfac(k  )*rhogkin_v0(:,k  ) )*0.5D0
+             584     1   p               end do
+             585                         !
+             586     1                   if(present(rhogkin_h)) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 7
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             587     1  pp   8v             rhogkin_h = rhogkin_h0
+             588     1                   end if
+             589     1                   if(present(rhogkin_v)) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 7
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             590     1  pp   8v             rhogkin_v = rhogkin_v0
+             591     1                   end if
+             592                         !
+             593                       end subroutine cnvvar_rhokin_plane
+             594                     
+             595                       !-----------------------------------------------------------------------------
+             596                       ! [add] T.Ohno 110722
+             597                       subroutine cnvvar_kin_plane(&
+             598                            ijdim,           &  !--- IN : number of horizontal grid
+             599                            rhog,            &  !--- IN : density ( gam2 X G^{1/2} )
+             600                            rhogvx,          &  !--- IN : rho*Vx  ( gam2 X G^{1/2} )
+             601                            rhogvy,          &  !--- IN : rho*Vy  ( gam2 X G^{1/2} )
+             602                            rhogw,           &  !--- IN : rho*w   ( gam2 X G^{1/2} )
+             603                            gsqrtgam2,       &  !--- IN : G^{1/2} at the cell center
+             604                            gsqrtgam2h,      &  !--- IN : G^{1/2} at the cell wall
+             605                            kin              &  !--- OUT : 1/2 v^2 ( physical )
+             606                            )
+             607                         use mod_adm, only :       &
+             608                              kdim => ADM_kall
+             609                         implicit none
+             610                     
+             611                         integer, intent(in) :: ijdim
+             612                         real(8), intent(in) :: rhog(1:ijdim,1:kdim)
+             613                         real(8), intent(in) :: rhogvx(1:ijdim,1:kdim)
+             614                         real(8), intent(in) :: rhogvy(1:ijdim,1:kdim)
+             615                         real(8), intent(in) :: rhogw(1:ijdim,1:kdim)
+             616                         real(8), intent(in) :: gsqrtgam2(1:ijdim,1:kdim)
+             617                         real(8), intent(in) :: gsqrtgam2h(1:ijdim,1:kdim)
+             618                         real(8), intent(out) :: kin(1:ijdim,1:kdim)
+             619                     
+             620                         call cnvvar_rhokin_plane(&
+             621                              ijdim,        &
+             622                              rhog,         &
+             623                              rhogvx,       &
+             624                              rhogvy,       &
+             625                              rhogw,        &
+             626                              gsqrtgam2,    &
+             627                              gsqrtgam2h,   &
+             628                              kin           &
+             629                            )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             630        pp   6v          kin(:,:) = kin(:,:) / rhog(:,:)
+             631                         !
+             632                       end subroutine cnvvar_kin_plane
+             633                       !-----------------------------------------------------------------------------
+             634                       subroutine cnvvar_ve_plane( &
+             635                            ijdim,           & !--- IN : number of horizontal grid
+             636                            rhog,            & !--- INOUT : density ( gam2 X G^{1/2} )
+             637                            rhogvx,          & !--- INOUT : rho*Vx  ( gam2 X G^{1/2} )
+             638                            rhogvy,          & !--- INOUT : rho*Vy  ( gam2 X G^{1/2} )
+             639                            rhogw,           & !--- INOUT : rho*w   ( gam2 X G^{1/2} )
+             640                            rhoge,           & !--- INOUT : rho*ein ( gam2 X G^{1/2} )
+             641                            rhogq,           & !--- INOUT : rho*q   ( gam2 X G^{1/2} )
+             642                            rho,             & !--- OUT : density( physical )
+             643                            vx,              & !--- OUT : Vx ( physical )
+             644                            vy,              & !--- OUT : Vy ( physical )
+             645                            w,               & !--- OUT : w  ( physical )
+             646                            ein,             & !--- OUT : int. enrg. ( physical )
+             647                            q,               & !--- OUT : mass concentration. ( physical )
+             648                            pre,             & !--- OUT : pressure   ( physical )
+             649                            tem,             & !--- OUT : temperature( physical )
+             650                            rhod,            & !--- OUT : perturb dens. ( gam2 X G^{1/2} )
+             651                            pred,            & !--- OUT : perturb pres. ( gam2 X G^{1/2} )
+             652                            temd,            & !--- OUT : perturb temp. ( physical )
+             653                            pre_bs,          & !--- IN : pressure basicstate
+             654                            tem_bs,          & !--- IN : temperature basicstate
+             655                            rho_bs,          & !--- IN : density basicstate
+             656                            phi,             & !--- IN : geoptential
+             657                            gsqrtgam2,       & !--- IN : G^{1/2} at the cell center
+             658                            gsqrtgam2h,      & !--- IN : G^{1/2} at the cell wall
+             659                            g3xh,            & !--- IN : G3X at the cell wall
+             660                            g3yh,            & !--- IN : G3Y at the cell wall
+             661                            bc_flag)
+             662                         ! [add] T.Ohno 110722
+             663                         !------
+             664                         !------ Generation of the phyisical variables from prognositc variables.
+             665                         !------    1. with boundary condision setting for all variables.
+             666                         !------    2. perturbation quantities are also calculated.
+             667                         !------
+             668                         !
+             669                         use mod_adm, only :       &
+             670                              kdim => ADM_kall,    &
+             671                              kmin => ADM_kmin,    &
+             672                              kmax => ADM_kmax
+             673                         use mod_grd, only :  &
+             674                              GRD_afac,       &
+             675                              GRD_bfac
+             676                         use mod_bndcnd, only : &
+             677                              bndcnd_all_plane
+             678                         use mod_thrmdyn, only :    &
+             679                              thrmdyn_tempre,   &
+             680                              thrmdyn_qd
+             681                         use mod_runconf, only : &
+             682                              nqmax => TRC_VMAX
+             683                         !
+             684                         implicit none
+             685                         !
+             686                         integer, intent(in) :: ijdim
+             687                         real(8), intent(inout) :: rhog(1:ijdim,1:kdim)
+             688                         real(8), intent(inout) :: rhogvx(1:ijdim,1:kdim)
+             689                         real(8), intent(inout) :: rhogvy(1:ijdim,1:kdim)
+             690                         real(8), intent(inout) :: rhogw(1:ijdim,1:kdim)
+             691                         real(8), intent(inout) :: rhoge(1:ijdim,1:kdim)
+             692                         real(8), intent(inout) :: rhogq(1:ijdim,1:kdim,1:nqmax)
+             693                         !
+             694                         real(8), intent(out) :: rho(1:ijdim,1:kdim)
+             695                         real(8), intent(out) :: pre(1:ijdim,1:kdim)
+             696                         real(8), intent(out) :: tem(1:ijdim,1:kdim)
+             697                         real(8), intent(out) :: rhod(1:ijdim,1:kdim)
+             698                         real(8), intent(out) :: pred(1:ijdim,1:kdim)
+             699                         real(8), intent(out) :: temd(1:ijdim,1:kdim)
+             700                         real(8), intent(out) :: ein(1:ijdim,1:kdim)
+             701                         real(8), intent(out) :: q(1:ijdim,1:kdim,1:nqmax)
+             702                         real(8), intent(out) :: vx(1:ijdim,1:kdim)
+             703                         real(8), intent(out) :: vy(1:ijdim,1:kdim)
+             704                         real(8), intent(out) :: w(1:ijdim,1:kdim)
+             705                         !
+             706                         real(8), intent(in)  :: phi(1:ijdim,1:kdim)
+             707                         real(8), intent(in)  :: pre_bs(1:ijdim,1:kdim)
+             708                         real(8), intent(in)  :: tem_bs(1:ijdim,1:kdim)
+             709                         real(8), intent(in)  :: rho_bs(1:ijdim,1:kdim)
+             710                         !
+             711                         real(8), intent(in)  :: gsqrtgam2(1:ijdim,1:kdim)
+             712                         real(8), intent(in)  :: gsqrtgam2h(1:ijdim,1:kdim)
+             713                         real(8), intent(in)  :: g3xh(1:ijdim,1:kdim)
+             714                         real(8), intent(in)  :: g3yh(1:ijdim,1:kdim)
+             715                         !
+             716                         logical, intent(in) ::  bc_flag
+             717                         !
+             718                         real(8) :: rhog_h(1:ijdim,1:kdim)
+             719                         real(8) :: qd(1:ijdim,1:kdim)
+             720                         real(8) :: rrhog(1:ijdim,1:kdim)
+             721                         !
+             722                         integer :: nq
+             723                         integer :: k
+             724                         !
+             725                         !--- calculation of rrhog
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             726        pp   4v          rrhog(:,:) = 1.0D0/rhog(:,:)
+             727                         !
+             728                         !--- calculation of rho, ein vx,vy,vz, q
+             729         p   4v          rho(:,:) = rhog(:,:) / gsqrtgam2(:,:)
+             730         p   4v          ein(:,:) = rhoge(:,:) * rrhog(:,:)
+             731         p   4v          vx(:,:) = rhogvx(:,:) * rrhog(:,:)
+             732         p   4v          vy(:,:) = rhogvy(:,:) * rrhog(:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             733     1  pp               do nq=1,nqmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             734     1  pp   8v             q(:,:,nq) = rhogq(:,:,nq) * rrhog(:,:)
+             735     1   p               end do
+             736                         !
+             737                         !--- calculation of dry mass concentration
+             738                         call thrmdyn_qd( &
+             739                              ijdim,      & !--- in
+             740                              qd,         & !--- out
+             741                              q )           !--- in
+             742                         !
+             743                         !--- calculation of tem, pre, and th
+             744                         call thrmdyn_tempre( &
+             745                              ijdim,          &
+             746                              tem,            &  !--- out
+             747                              pre,            &  !--- out
+             748                              ein,            &  !--- in
+             749                              rho,            &  !--- in
+             750                              qd,             &  !--- in
+             751                              q )                !--- in
+             752                         !
+             753                         !---- Vertical velocity ( w )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<< Loop-information  End >>>
+             754     1  pp               do k =kmin,kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             755     1   p   8v             rhog_h(:,k) = 0.5D0 *           &
+             756     1                           ( GRD_afac(k) * rho(:,k  ) &
+             757     1                           + GRD_bfac(k) * rho(:,k-1) &
+             758     1                           ) * gsqrtgam2h(:,k)
+             759     1   p               end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             760        pp   8v          rhog_h(:,kmin-1) = rhog_h(:,kmin)
+             761                         !
+             762                         !------ except boundaries of [kmin] and [kmax+1]
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             763        pp   6v          w(:,kmin+1:kmax)            &
+             764                              = rhogw(:,kmin+1:kmax) &
+             765                              / rhog_h(:,kmin+1:kmax)
+             766                         !
+             767                         !--- Setting the boundary conditions
+             768     1                   if(bc_flag) then
+             769     1                      call bndcnd_all_plane(&
+             770     1                           ijdim,     &  !--- in
+             771     1                           vx,        &  !--- inout
+             772     1                           vy,        &  !--- inout
+             773     1                           w,         &  !--- inout
+             774     1                           tem,       &  !--- inout
+             775     1                           rho,       &  !--- inout
+             776     1                           pre,       &  !--- inout
+             777     1                           ein,       &  !--- inout
+             778     1                           rhog,      &  !--- inout
+             779     1                           rhogvx,    &  !--- inout
+             780     1                           rhogvy,    &  !--- inout
+             781     1                           rhogw,     &  !--- inout
+             782     1                           rhoge,     &  !--- inout
+             783     1                           phi,       &  !--- in
+             784     1                           gsqrtgam2, &  !--- in
+             785     1                           gsqrtgam2h,&  !--- in
+             786     1                           g3xh,      &  !--- in
+             787     1                           g3yh       &  !--- in
+             788     1                           )
+             789     1                   end if
+             790                         !
+             791                         !--- Calculation of perturbations ( pred, rhod, temd )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             792        pp   4v          pred(:,:) = ( pre(:,:) - pre_bs(:,:) ) * gsqrtgam2(:,:)
+             793         p   4v          rhod(:,:) = ( rho(:,:) - rho_bs(:,:) ) * gsqrtgam2(:,:)
+             794         p   4v          temd(:,:) = tem(:,:) - tem_bs(:,:)
+             795                         !
+             796                       end subroutine cnvvar_ve_plane
+             797                     
+             798                       !-----------------------------------------------------------------------------
+             799                       subroutine cnvvar_rhokin_ijkl( &
+             800                            rhog,    rhog_pl,   &
+             801                            rhogvx,  rhogvx_pl, &
+             802                            rhogvy,  rhogvy_pl, &
+             803                            rhogvz,  rhogvz_pl, &
+             804                            rhogw,   rhogw_pl,  &
+             805                            rhogkin, rhogkin_pl )
+             806                         use mod_adm, only: &
+             807                            ADM_prc_me,  &
+             808                            ADM_prc_pl,  &
+             809                            ADM_gall,    &
+             810                            ADM_gall_pl, &
+             811                            ADM_lall,    &
+             812                            ADM_lall_pl, &
+             813                            ADM_kall,    &
+             814                            ADM_kmax,    &
+             815                            ADM_kmin
+             816                         use mod_grd, only: &
+             817                            GRD_afac, &
+             818                            GRD_bfac, &
+             819                            GRD_cfac, &
+             820                            GRD_dfac
+             821                         use mod_vmtr, only: &
+             822                            VMTR_GSGAM2H,     &
+             823                            VMTR_GSGAM2H_pl,  &
+             824                            VMTR_RGSGAM2,     &
+             825                            VMTR_RGSGAM2_pl
+             826                         implicit none
+             827                     
+             828                         real(8), intent(in)  :: rhog      (ADM_gall,   ADM_kall,ADM_lall   ) ! rho X ( G^{1/2} X gamma2 )
+             829                         real(8), intent(in)  :: rhog_pl   (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             830                         real(8), intent(in)  :: rhogvx    (ADM_gall,   ADM_kall,ADM_lall   ) ! rho X ( G^{1/2} X gamma2 ) X vx
+             831                         real(8), intent(in)  :: rhogvx_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             832                         real(8), intent(in)  :: rhogvy    (ADM_gall,   ADM_kall,ADM_lall   ) ! rho X ( G^{1/2} X gamma2 ) X vy
+             833                         real(8), intent(in)  :: rhogvy_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             834                         real(8), intent(in)  :: rhogvz    (ADM_gall,   ADM_kall,ADM_lall   ) ! rho X ( G^{1/2} X gamma2 ) X vz
+             835                         real(8), intent(in)  :: rhogvz_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             836                         real(8), intent(in)  :: rhogw     (ADM_gall,   ADM_kall,ADM_lall   ) ! rho X ( G^{1/2} X gamma2 ) X w
+             837                         real(8), intent(in)  :: rhogw_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             838                         real(8), intent(out) :: rhogkin   (ADM_gall,   ADM_kall,ADM_lall   ) ! rho X ( G^{1/2} X gamma2 ) X kin
+             839                         real(8), intent(out) :: rhogkin_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             840                     
+             841                         real(8) :: rhogkin_h   (ADM_gall,   ADM_kall) ! rho X ( G^{1/2} X gamma2 ) X kin (horizontal)
+             842                         real(8) :: rhogkin_h_pl(ADM_gall_pl,ADM_kall)
+             843                         real(8) :: rhogkin_v   (ADM_gall,   ADM_kall) ! rho X ( G^{1/2} X gamma2 ) X kin (vertical)
+             844                         real(8) :: rhogkin_v_pl(ADM_gall_pl,ADM_kall)
+             845                     
+             846                         real(8) :: rhog_h   (ADM_gall,   ADM_kall)
+             847                         real(8) :: rhog_h_pl(ADM_gall_pl,ADM_kall)
+             848                     
+             849                         integer :: ij, k, l
+             850                         !---------------------------------------------------------------------------
+             851                     
+             852                     !del
+             853     1                   do l = 1, ADM_lall
+             854     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 855,865)
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_afac: 4, GRD_bfac: 4
+                                   <<< Loop-information  End >>>
+             855     2  pp                  do k = ADM_kmin+1, ADM_kmax
+             856     2                         !--- rhog at the half level
+             857     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 105
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 858,867)
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             858     3  pp   4v                do ij = 1, ADM_gall
+             859     3   p   4v                   rhog_h(ij,k) = 0.5D0 * ( GRD_afac(k) * VMTR_RGSGAM2(ij,k  ,l) * rhog(ij,k  ,l) &
+             860     3                                                   + GRD_bfac(k) * VMTR_RGSGAM2(ij,k-1,l) * rhog(ij,k-1,l) &
+             861     3                                                   ) * VMTR_GSGAM2H(ij,k,l)
+             862     3   p   4v                enddo
+             863     2   p                  enddo
+             864     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             865     2                      do k = ADM_kmin+1, ADM_kmax
+             866     2                         !--- vertical kinetic energy
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             867     3                         do ij = 1, ADM_gall
+             868     3   p                        rhogkin_v(ij,k) = 0.5D0 * ( rhogw(ij,k,l) * rhogw(ij,k,l) ) / rhog_h(ij,k)
+             869     3                         enddo
+             870     2                      enddo
+             871     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             872     2  pp   8v             do ij = 1, ADM_gall
+             873     2   p   8v                rhogkin_v(ij,ADM_kmin  ) = 0.D0
+             874     2   p   8v                rhogkin_v(ij,ADM_kmax+1) = 0.D0
+             875     2   p   8v             enddo
+             876     1               
+             877     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 878,888)
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_dfac: 4, GRD_cfac: 4
+                                   <<< Loop-information  End >>>
+             878     2  pp                  do k = ADM_kmin, ADM_kmax
+             879     2                         !--- horizontal kinetic energy
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 184
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 880,891)
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             880     3  pp   4v                do ij = 1, ADM_gall
+             881     3   p   4v                   rhogkin_h(ij,k) = 0.5D0 * ( rhogvx(ij,k,l) * rhogvx(ij,k,l) &
+             882     3                                                      + rhogvy(ij,k,l) * rhogvy(ij,k,l) &
+             883     3                                                      + rhogvz(ij,k,l) * rhogvz(ij,k,l) ) / rhog(ij,k,l)
+             884     3   p   4v                enddo
+             885     2   p                  enddo
+             886     1               
+             887     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             888     2                      do k = ADM_kmin, ADM_kmax
+             889     2                         !--- total kinetic energy
+             890     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             891     3                         do ij = 1, ADM_gall
+             892     3   p                        rhogkin(ij,k,l) = rhogkin_h(ij,k)                           &
+             893     3                                            + 0.5D0 * ( GRD_dfac(k) * rhogkin_v(ij,k+1) &
+             894     3                                                      + GRD_cfac(k) * rhogkin_v(ij,k  ) )
+             895     3                         enddo
+             896     2                      enddo
+             897     1               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             898     2  pp   8v             do ij = 1, ADM_gall
+             899     2   p   8v                rhogkin(ij,ADM_kmin-1,l) = 0.D0
+             900     2   p   8v                rhogkin(ij,ADM_kmax+1,l) = 0.D0
+             901     2   p   8v             enddo
+             902     1               
+             903     1                   enddo
+             904                     
+             905     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             906     1               !del
+             907     2                      do l = 1, ADM_lall_pl
+             908     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 909,919)
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_afac: 4, GRD_bfac: 4
+                                   <<< Loop-information  End >>>
+             909     3  pp                     do k = ADM_kmin+1, ADM_kmax
+             910     3                            !--- rhog at the half level
+             911     3               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 105
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 912,921)
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             912     4  pp   4v                   do ij = 1, ADM_gall_pl
+             913     4   p   4v                      rhog_h_pl(ij,k) = 0.5D0 * ( GRD_afac(k) * VMTR_RGSGAM2_pl(ij,k  ,l) * rhog_pl(ij,k  ,l) &
+             914     4                                                         + GRD_bfac(k) * VMTR_RGSGAM2_pl(ij,k-1,l) * rhog_pl(ij,k-1,l) &
+             915     4                                                         ) * VMTR_GSGAM2H_pl(ij,k,l)
+             916     4   p   4v                   enddo
+             917     3   p                     enddo
+             918     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             919     3                         do k = ADM_kmin+1, ADM_kmax
+             920     3                            !--- vertical kinetic energy
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             921     4                            do ij = 1, ADM_gall_pl
+             922     4   p                           rhogkin_v_pl(ij,k) = 0.5D0 * ( rhogw_pl(ij,k,l) * rhogw_pl(ij,k,l) ) / rhog_h_pl(ij,k)
+             923     4                            enddo
+             924     3                         enddo
+             925     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             926     3  pp   8v                do ij = 1, ADM_gall_pl
+             927     3   p   8v                   rhogkin_v_pl(ij,ADM_kmin  ) = 0.D0
+             928     3   p   8v                   rhogkin_v_pl(ij,ADM_kmax+1) = 0.D0
+             929     3   p   8v                enddo
+             930     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 931,941)
+                                   <<<    PREFETCH       : 8
+                                   <<<      GRD_dfac: 4, GRD_cfac: 4
+                                   <<< Loop-information  End >>>
+             931     3  pp                     do k = ADM_kmin, ADM_kmax
+             932     3                            !--- horizontal kinetic energy
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 184
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED(lines: 933,943)
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             933     4  pp   4v                   do ij = 1, ADM_gall_pl
+             934     4   p   4v                      rhogkin_h_pl(ij,k) = 0.5D0 * ( rhogvx_pl(ij,k,l) * rhogvx_pl(ij,k,l) &
+             935     4                                                            + rhogvy_pl(ij,k,l) * rhogvy_pl(ij,k,l) &
+             936     4                                                            + rhogvz_pl(ij,k,l) * rhogvz_pl(ij,k,l) ) / rhog_pl(ij,k,l)
+             937     4   p   4v                   enddo
+             938     3   p                     enddo
+             939     2               
+             940     2               !del
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             941     3                         do k = ADM_kmin, ADM_kmax
+             942     3                            !--- total kinetic energy
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FUSED
+                                   <<< Loop-information  End >>>
+             943     4                            do ij = 1, ADM_gall_pl
+             944     4   p                           rhogkin_pl(ij,k,l) = rhogkin_h_pl(ij,k)                           &
+             945     4                                                  + 0.5D0 * ( GRD_dfac(k) * rhogkin_v_pl(ij,k+1) &
+             946     4                                                            + GRD_cfac(k) * rhogkin_v_pl(ij,k  ) )
+             947     4                            enddo
+             948     3                         enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             949     3  pp   8v                do ij = 1, ADM_gall_pl
+             950     3   p   8v                   rhogkin_pl(ij,ADM_kmin-1,l) = 0.D0
+             951     3   p   8v                   rhogkin_pl(ij,ADM_kmax+1,l) = 0.D0
+             952     3   p   8v                enddo
+             953     2               
+             954     2                      enddo
+             955     1                   endif
+             956                     
+             957                         return
+             958                       end subroutine cnvvar_rhokin_ijkl
+             959                     
+             960                     end module mod_cnvvar
+             961                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_cnvvar)
+   jwd8220o-i  "nhm/share/mod_cnvvar.f90", line 16: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(cnvvar_d2p)
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 158: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(cnvvar_p2d)
+   jwd8201o-i  "nhm/share/mod_cnvvar.f90", line 284: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 312: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 322: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(cnvvar_rhokin)
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 394: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_cnvvar.f90", line 394: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 407: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 411: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 419: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(cnvvar_rhokin_plane)
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 554: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_cnvvar.f90", line 554: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 562: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 573: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(cnvvar_ve_plane)
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 755: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(cnvvar_rhokin_ijkl)
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 859: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 862: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 868: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 881: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 913: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 916: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 922: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_cnvvar.f90", line 934: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 961
+   Statements : 410
+   Stack(byte): 3488
+   Prefetch num: 56
+
+ Total information
+   Procedures       : 1
+   Total lines      : 961
+   Total statements : 410
+   Total stack(byte): 3488
+   Total prefetch num: 56
+

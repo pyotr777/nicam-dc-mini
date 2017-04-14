@@ -1,0 +1,1343 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:05:51 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/share/mod_sfcvar.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_sfcvar.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_sfcvar"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  Diagnostic variable module
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     module mod_sfcvar
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This module contains the surface diagnostic variables and
+              11                       !       control subroutines for the non-hydrostatic model.
+              12                       !
+              13                       !++ Current Corresponding Author : H.Tomita
+              14                       !
+              15                       !++ History:
+              16                       !      Version   Date       Comment
+              17                       !      -----------------------------------------------------------------------
+              18                       !      0.00      04-02-17   Add this module
+              19                       !      0.05      xx-xx-xx   Change module name.
+              20                       !                05-10-21   M.Satoh set default of I_CUMFRC = 0
+              21                       !                06-04-18   T.Mitsui add precip_energy_cp,mp and sfcvar_set2
+              22                       !                07-05-08   H.Tomita : Delete I_TKE_SFC
+              23                       !                07-06-27   T.Mitsui : add sfcvar_set1
+              24                       !                07-07-23   K.Suzuki : Add I_CEV for use in SPRINTARS
+              25                       !                09-07-10   H.Tomita: Add several variables for energy budget.
+              26                       !                10-06-19   A.T.Noda:
+              27                       !                                Allow to use a convection parameterization
+              28                       !                                with an advanced microphysics schemes,
+              29                       !                                such as G98, NSW?,
+              30                       !                11-11-28   Y.Yamada:
+              31                       !                                Merge Terai-san timer code
+              32                       !                                                     into the original code.
+              33                       !                12-03-28   T.Seiki: add friction velocity used in SPRINTARS
+              34                       !      -----------------------------------------------------------------------
+              35                       !
+              36                       !-----------------------------------------------------------------------------
+              37                       !
+              38                       !++ Used modules
+              39                       !
+              40                       use mpi
+              41                       use mod_adm, only :     &
+              42                            ADM_LOG_FID
+              43                       !-----------------------------------------------------------------------------
+              44                       implicit none
+              45                       private
+              46                       !-----------------------------------------------------------------------------
+              47                       !
+              48                       !++ Public procedure
+              49                       !
+              50                       public :: sfcvar_setup
+              51                       public :: sfcvar_get
+              52                       public :: sfcvar_get1
+              53                       public :: sfcvar_get2
+              54                       public :: sfcvar_set
+              55                       public :: sfcvar_set1     ! add T.Mitsui 07.06.27
+              56                       public :: sfcvar_get_in
+              57                       public :: sfcvar_set_in
+              58                       public :: sfcvar_set1_in
+              59                       public :: sfcvar_get1_in
+              60                       public :: sfcvar_set2_in
+              61                       public :: sfcvar_get2_in
+              62                       public :: sfcvar_set2     ! add T.Mitsui 06.04.18
+              63                       public :: sfcvar_comm
+              64                       !-----------------------------------------------------------------------------
+              65                       !
+              66                       !++ Public variables
+              67                       !
+              68                       !-----------------------------------------------------------------------------
+              69                       !
+              70                       !++ Public procedures
+              71                       !
+              72                       !-----------------------------------------------------------------------------
+              73                       !
+              74                       !++ Public & Private parameters
+              75                       !
+              76                       !--- index of surface
+              77                       integer, public, parameter :: INDEX_LAND = 2
+              78                       integer, public, parameter :: INDEX_LANDICE = 1
+              79                       integer, public, parameter :: INDEX_SEA = 0
+              80                       integer, public, parameter :: INDEX_SEAICE = -1
+              81                     !!$  integer, public, parameter :: INDEX_MIXEDLAYER = -2
+              82                       !
+              83                       integer, private, parameter :: DIAG_MAX = 1
+              84                     
+              85                       integer,   public, save        :: I_PRECIP_TOT
+              86                       integer,   public, save        :: I_PRECIP_CP
+              87                       integer,   public, save        :: I_PRECIP_MP
+              88                       !
+              89                       integer,   public, save        :: I_OLR
+              90                       integer,   public, save        :: I_EVAP_SFC
+              91                       !
+              92                       integer,   public, save        :: I_PRE_SFC
+              93                       integer,   public, save        :: I_TEM_SFC
+              94                       integer,   public, save        :: I_TH_SFC
+              95                       integer,   public, save        :: I_RHO_SFC
+              96                     
+              97                       integer,   public, save        :: I_RCOSZ
+              98                       integer,   public, save        :: I_RFLUXS_SU
+              99                       integer,   public, save        :: I_RFLUXS_SD
+             100                       integer,   public, save        :: I_RFLUXS_LU
+             101                       integer,   public, save        :: I_RFLUXS_LD
+             102                     
+             103                       integer,   public, save        :: I_RFLUX_TOA_SU
+             104                       integer,   public, save        :: I_RFLUX_TOA_SD
+             105                       integer,   public, save        :: I_RFLUX_TOA_LU
+             106                       integer,   public, save        :: I_RFLUX_TOA_LD
+             107                       !
+             108                       integer,   public, save        :: I_RFLUX_TOA_SU_C
+             109                       integer,   public, save        :: I_RFLUX_TOA_SD_C
+             110                       integer,   public, save        :: I_RFLUX_TOA_LU_C
+             111                       integer,   public, save        :: I_RFLUX_TOA_LD_C
+             112                       !
+             113                       integer,   public, save        :: I_QV_SFC
+             114                       integer,   public, save        :: I_QC_SFC
+             115                       integer,   public, save        :: I_QR_SFC
+             116                     !!$  integer,   public, save        :: I_TKE_SFC ! 07/05/08 :H.Tomita
+             117                       !
+             118                       integer,   public, save        :: I_SH_FLUX_SFC
+             119                       integer,   public, save        :: I_LH_FLUX_SFC
+             120                       integer,   public, save        :: I_TAUX_SFC
+             121                       integer,   public, save        :: I_TAUY_SFC
+             122                       integer,   public, save        :: I_TAUZ_SFC
+             123                     
+             124                       integer,   public, save        :: I_VX10
+             125                       integer,   public, save        :: I_VY10
+             126                       integer,   public, save        :: I_VZ10
+             127                       integer,   public, save        :: I_T2
+             128                       integer,   public, save        :: I_Q2
+             129                       !
+             130                       integer,   public, save        :: I_CEV  ! 07/07/23 K.Suzuki add for SPRINTARS
+             131                       !
+             132                       ! 05/10/21 M.Satoh set default value: zero
+             133                       integer,   public, save        :: I_CUMFRC = 0
+             134                       !
+             135                       ! 04/11/19 M.Satoh
+             136                       !integer,   public, save        :: I_INDEX_SFC
+             137                     
+             138                       ! 04/11/30 M.Satoh
+             139                       integer,   public, save        :: I_ALBEDO_SFC
+             140                     
+             141                       integer,   public, save        :: I_PRECIP
+             142                       !
+             143                       integer,   public, save        :: I_PRECIP_ENERGY
+             144                       integer,   public, save        :: I_PRECIP_ENERGY_CP
+             145                       integer,   public, save        :: I_PRECIP_ENERGY_MP
+             146                       integer,   public, save        :: I_PRECIP_EIN
+             147                       integer,   public, save        :: I_PRECIP_EIN_CP
+             148                       integer,   public, save        :: I_PRECIP_EIN_MP
+             149                       integer,   public, save        :: I_PRECIP_LH
+             150                       integer,   public, save        :: I_PRECIP_LH_CP
+             151                       integer,   public, save        :: I_PRECIP_LH_MP
+             152                       integer,   public, save        :: I_PRECIP_PHI
+             153                       integer,   public, save        :: I_PRECIP_PHI_CP
+             154                       integer,   public, save        :: I_PRECIP_PHI_MP
+             155                       integer,   public, save        :: I_PRECIP_KIN
+             156                       integer,   public, save        :: I_PRECIP_KIN_CP
+             157                       integer,   public, save        :: I_PRECIP_KIN_MP
+             158                       !
+             159                       integer,   public, save        :: I_EVAP_ENERGY
+             160                       integer,   public, save        :: I_EVAP_EIN
+             161                       integer,   public, save        :: I_EVAP_LH
+             162                       integer,   public, save        :: I_EVAP_PHI
+             163                       integer,   public, save        :: I_EVAP_KIN
+             164                       !
+             165                       integer,   public, save        :: I_SFCRAD_ENERGY
+             166                       integer,   public, save        :: I_TOARAD_ENERGY
+             167                       integer,   public, save        :: I_VFRICTION ! [Add] 12/03/28 T.Seiki
+             168                       integer, allocatable, private,  save :: NVAR(:)
+             169                       !
+             170                       !--- total number of diagnostic variables
+             171                       ! 04/11/19 M.Satoh
+             172                       integer,   private, save        :: I_ALL
+             173                     ! integer,   private, save        :: NVAR_ALL ! 05/10/28 M.Satoh not used
+             174                     
+             175                     ! integer,   private, save        :: VMISS = -999.0d30 ! 10/05/17 M.Satoh
+             176                       real(8),   private, save        :: VMISS = -999.0d30 ! 10/05/27 A.T.Noda
+             177                     
+             178                       !--- precipatation flux
+             179                     
+             180                     !!$  integer, allocatable, public,  save :: index_sfc(:,:,:)
+             181                     !!$  integer, allocatable, public,  save :: index_sfc_pl(:,:,:)
+             182                       !
+             183                       !-----------------------------------------------------------------------------
+             184                       !
+             185                       !++ Private variables
+             186                       !
+             187                       real(8), allocatable, private,  save :: sfcvar(:,:,:,:)
+             188                       real(8), allocatable, private,  save :: sfcvar_pl(:,:,:,:)
+             189                       integer, allocatable, private,  save :: KMAX(:)
+             190                       integer, allocatable, private,  save :: KSTR(:)
+             191                       integer, allocatable, private,  save :: KEND(:)
+             192                       integer, private,  save :: KSUM
+             193                       !
+             194                       integer :: i
+             195                       !
+             196                       !-----------------------------------------------------------------------------
+             197                     contains
+             198                       !-----------------------------------------------------------------------------
+             199                       subroutine sfcvar_setup
+             200                         !
+             201                         use mod_adm, only :     &
+             202                              ADM_LOG_FID,       &
+             203                              ADM_GALL_PL,       &
+             204                              ADM_LALL_PL,       &
+             205                              ADM_KNONE,         &
+             206                              ADM_gall,          &
+             207                              ADM_gmin,          &
+             208                              ADM_gmax,          &
+             209                              ADM_lall,          &
+             210                              ADM_gall_1d
+             211                         use mod_runconf, only : &
+             212                              RAIN_TYPE,         &
+             213                              CP_TYPE,           & ! 10/06/15 A.T.Noda
+             214                              AE_TYPE,           & ! 12/03/28 T.Seiki
+             215                              NRBND,             &
+             216                              NRDIR
+             217                         !
+             218                         implicit none
+             219                     
+             220                         integer :: i
+             221                         !
+             222                         I_PRECIP_TOT         = 1   !--- total precip
+             223                         I_PRECIP_CP          = 2   !--- convective precip ( rain, snow )
+             224                         I_PRECIP_MP          = 3   !--- dynamical precip  ( rain, snow )
+             225                         I_PRECIP             = 4   !--- total precip      ( rain, snow )
+             226                         ! 06.04.18 add T.Mitsui
+             227                         I_PRECIP_ENERGY_CP   = 5
+             228                         I_PRECIP_ENERGY_MP   = 6
+             229                         I_PRECIP_ENERGY      = 7
+             230                         ! 09.07.03 add H.Tomita
+             231                         I_PRECIP_EIN         = 8
+             232                         I_PRECIP_EIN_CP      = 9
+             233                         I_PRECIP_EIN_MP      = 10
+             234                         I_PRECIP_LH          = 11
+             235                         I_PRECIP_LH_CP       = 12
+             236                         I_PRECIP_LH_MP       = 13
+             237                         I_PRECIP_PHI         = 14
+             238                         I_PRECIP_KIN         = 15
+             239                         I_PRECIP_PHI_CP      = 16
+             240                         I_PRECIP_PHI_MP      = 17
+             241                         I_PRECIP_KIN_CP      = 18
+             242                         I_PRECIP_KIN_MP      = 19
+             243                         !
+             244                         I_EVAP_ENERGY        = 20
+             245                         I_EVAP_EIN           = 21
+             246                         I_EVAP_LH            = 22
+             247                         I_EVAP_PHI           = 23
+             248                         I_EVAP_KIN           = 24
+             249                         !
+             250                         I_SFCRAD_ENERGY      = 25
+             251                         I_TOARAD_ENERGY      = 26
+             252                         !
+             253                         I_OLR                = 27
+             254                         I_EVAP_SFC           = 28
+             255                         !
+             256                         I_PRE_SFC            = 29
+             257                         I_TEM_SFC            = 30
+             258                         I_TH_SFC             = 31
+             259                         I_RHO_SFC            = 32
+             260                         !
+             261                         I_RCOSZ              = 33
+             262                         I_RFLUXS_SU          = 34
+             263                         I_RFLUXS_SD          = 35
+             264                         I_RFLUXS_LU          = 36
+             265                         I_RFLUXS_LD          = 37
+             266                         !
+             267                         I_RFLUX_TOA_SU       = 38
+             268                         I_RFLUX_TOA_SD       = 39
+             269                         I_RFLUX_TOA_LU       = 40
+             270                         I_RFLUX_TOA_LD       = 41
+             271                         !
+             272                         I_RFLUX_TOA_SU_C     = 42
+             273                         I_RFLUX_TOA_SD_C     = 43
+             274                         I_RFLUX_TOA_LU_C     = 44
+             275                         I_RFLUX_TOA_LD_C     = 45
+             276                         !
+             277                         I_SH_FLUX_SFC        = 46
+             278                         I_LH_FLUX_SFC        = 47
+             279                         I_TAUX_SFC           = 48
+             280                         I_TAUY_SFC           = 49
+             281                         I_TAUZ_SFC           = 50
+             282                         !
+             283                         I_VX10               = 51
+             284                         I_VY10               = 52
+             285                         I_VZ10               = 53
+             286                         I_T2                 = 54
+             287                         I_Q2                 = 55
+             288                         !
+             289                         I_CEV                = 56  !  07/07/23 K.Suzuki added for SPRINTARS
+             290                         !
+             291                     !   if(RAIN_TYPE=='CLOUD_PARAM') then
+             292     1                   if(CP_TYPE/='NONE') then  ! 10/06/15 A.T.Noda
+             293     1                      I_CUMFRC          = 57
+             294     1                      I_ALL             = 57
+             295     1                   else
+             296     1                      I_ALL             = 56
+             297     1                   end if
+             298                         !  [Add] 12/03/28 T.Seiki
+             299     1                   if(AE_TYPE /= 'NONE' )then
+             300     1                      I_ALL       = I_ALL+1
+             301     1                      I_VFRICTION = I_ALL
+             302     1                   end if
+             303                         !
+             304                         ! 04/11/30 M.Satoh
+             305                         I_ALL = I_ALL + 1
+             306                         I_ALBEDO_SFC = I_ALL
+             307                         !
+             308                         allocate(KMAX(I_ALL))
+             309                         allocate(KSTR(I_ALL))
+             310                         allocate(KEND(I_ALL))
+             311                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             312        pp    s          KMAX(:) = ADM_KNONE
+             313                         KMAX(I_PRECIP) = 2
+             314                         KMAX(I_PRECIP_CP) = 2
+             315                         KMAX(I_PRECIP_MP) = 2
+             316                         KMAX(I_ALBEDO_SFC) = NRDIR * NRBND
+             317                         !
+             318                         KSUM = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             319     1   s   8s          do i = 1, I_ALL
+             320     1   s   8s             KSTR(i) = KSUM + 1
+             321     1   s   8s             KSUM = KSUM + KMAX(i)
+             322     1   s   8s             KEND(i) = KSUM
+             323     1   s   8s          end do
+             324                         !
+             325                         allocate(sfcvar(    &
+             326                              ADM_gall,      &
+             327                              KSUM,          &
+             328                              ADM_lall,      &
+             329                              DIAG_MAX))
+             330                         allocate(sfcvar_pl( &
+             331                              ADM_GALL_PL,   &
+             332                              KSUM,          &
+             333                              ADM_lall_pl,   &
+             334                              DIAG_MAX))
+             335                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             336        pp    v          sfcvar(:,:,:,:)=0.0D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             337        pp    v          sfcvar_pl(:,:,:,:)=0.0D0
+             338                     !    ! 2010.5.17. M.Satoh
+             339                     !    sfcvar(:,:,:,:)=VMISS
+             340                     !    sfcvar_pl(:,:,:,:)=VMISS
+             341                         !
+             342                         return
+             343                         !
+             344                       end subroutine sfcvar_setup
+             345                       !-----------------------------------------------------------------------------
+             346                       subroutine sfcvar_get( &
+             347                            sv, sv_pl,        &  !--- OUT : surface variable
+             348                            vid               &  !--- IN  : variable ID
+             349                            )
+             350                         !------
+             351                         !------ get prognostic variables from diag[num].
+             352                         !------
+             353                         use mod_adm, only :     &
+             354                              ADM_LOG_FID,       &
+             355                              ADM_GALL_PL,       &
+             356                              ADM_LALL_PL,       &
+             357                              ADM_prc_me,        &
+             358                              ADM_prc_pl,        &
+             359                              ADM_KNONE,         &
+             360                              ADM_gall,          &
+             361                              ADM_lall,          &
+             362                              ADM_gall_1d
+             363                         !
+             364                         implicit none
+             365                         real(8), intent(out) :: sv(ADM_gall,ADM_KNONE,ADM_lall)
+             366                         real(8), intent(out) :: sv_pl(ADM_GALL_PL,ADM_KNONE,ADM_LALL_PL)
+             367                         integer, intent(in)  :: vid
+             368                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             369        pp   8v          sv(1:ADM_gall,ADM_KNONE,1:ADM_lall) &
+             370                              = sfcvar(1:ADM_gall,KSTR(vid),1:ADM_lall,1)
+             371                     
+             372     1                   if(ADM_prc_me==ADM_prc_pl) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             373     1  pp   8v             sv_pl(1:ADM_gall_pl,ADM_KNONE,1:ADM_lall_pl) &
+             374     1                           = sfcvar_pl(1:ADM_gall_pl,KSTR(vid),1:ADM_lall_pl,1)
+             375     1                   end if
+             376                         !
+             377                         return
+             378                         !
+             379                       end subroutine sfcvar_get
+             380                       !-----------------------------------------------------------------------------
+             381                       subroutine sfcvar_get1( &
+             382                            sv, sv_pl,        &  !--- OUT : surface variable
+             383                            vid,              &  !--- IN  : variable ID
+             384                            mdim              &  !--- IN  : dimension
+             385                            )
+             386                         !------
+             387                         !------ get prognostic variables from diag[num].
+             388                         !------
+             389                         use mod_adm, only :     &
+             390                              ADM_LOG_FID,       &
+             391                              ADM_GALL_PL,       &
+             392                              ADM_LALL_PL,       &
+             393                              ADM_prc_me,        &
+             394                              ADM_prc_pl,        &
+             395                              ADM_KNONE,         &
+             396                              ADM_gall,          &
+             397                              ADM_lall,          &
+             398                              ADM_gall_1d
+             399                         use mod_comm, only :    &
+             400                              COMM_data_transfer
+             401                         !
+             402                         implicit none
+             403                         integer, intent(in) :: mdim
+             404                         real(8), intent(out) :: sv(ADM_gall,ADM_KNONE,ADM_lall,mdim)
+             405                         real(8), intent(out) :: sv_pl(ADM_GALL_PL,ADM_KNONE,ADM_LALL_PL,mdim)
+             406                         integer, intent(in)  :: vid
+             407                         !
+             408                         integer :: m,l,n
+             409                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 2)
+                                   <<< Loop-information  End >>>
+             410     1  pp               do m=1, mdim
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 1)
+                                   <<< Loop-information  End >>>
+             411     2  pp                  do l=1,ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 196
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             412     3  pp   8v                do n=1,ADM_gall
+             413     3   p   8v                   sv(n,ADM_KNONE,l,m) = sfcvar(n,KSTR(vid)+m-1,l,1)
+             414     3   p   8v                end do
+             415     2   p                  end do
+             416     1   p               end do
+             417                     
+             418     1                   if(ADM_prc_me==ADM_prc_pl) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 2)
+                                   <<< Loop-information  End >>>
+             419     2  pp                  do m=1, mdim
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 1)
+                                   <<< Loop-information  End >>>
+             420     3  pp                     do l=1,ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 196
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             421     4  pp   8v                   do n=1,ADM_gall_pl
+             422     4   p   8v                      sv_pl(n,ADM_KNONE,l,m) = sfcvar_pl(n,KSTR(vid)+m-1,l,1)
+             423     4   p   8v                   end do
+             424     3   p                     end do
+             425     2   p                  end do
+             426     1                   end if
+             427                         !
+             428                         return
+             429                         !
+             430                       end subroutine sfcvar_get1
+             431                       !-----------------------------------------------------------------------------
+             432                       subroutine sfcvar_get2(  &
+             433                            sv, sv_pl,          &  !--- OUT : surface variable
+             434                            vid,                &  !--- IN : variable ID
+             435                            mdim1, mdim2        &  !--- IN
+             436                            )
+             437                         !------
+             438                         !------ get diagnostic variables
+             439                         !------
+             440                         use mod_adm, only :     &
+             441                              ADM_LOG_FID,       &
+             442                              ADM_KNONE,         &
+             443                              ADM_lall,          &
+             444                              ADM_gall,          &
+             445                              ADM_gall_pl,       &
+             446                              ADM_lall_pl,       &
+             447                              ADM_prc_pl,        &
+             448                              ADM_prc_me
+             449                     
+             450                         !
+             451                         implicit none
+             452                         integer, intent(in) :: mdim1, mdim2
+             453                         real(8), intent(out) :: sv(ADM_gall,ADM_KNONE,ADM_lall,mdim1,mdim2)
+             454                         real(8), intent(out) :: sv_pl(ADM_GALL_PL,ADM_KNONE,ADM_LALL_PL,mdim1,mdim2)
+             455                         integer, intent(in) :: vid
+             456                         !
+             457                         integer :: l,n
+             458                         integer :: m1,m2, k
+             459                         !
+             460                         ! assume: vid == I_ALBEDO_SFC
+             461                         ! assume: NVAR(I_ALBEDO_SFC) = NRDIR * NRBND
+             462                         k = 0
+             463                         ! modify T.Mitsui 06.04.18
+             464                     !!$    do m1 = 1, mdim1
+             465                     !!$       do m2 = 1, mdim2
+             466     1   s               do m2 = 1, mdim2
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             467     2  pp                  do m1 = 1, mdim1
+             468     2   p                     k = k + 1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             469     3  pp                     do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             470     4   p   8v                   do n=1, ADM_gall
+             471     4   p   8v                      sv(n,ADM_KNONE,l,m1,m2) = sfcvar(n,KSTR(vid)+k-1,l,1)
+             472     4   p   8v                   end do
+             473     3   p                     end do
+             474     2   p                  end do
+             475     1   p               end do
+             476                         !
+             477     1                   if(ADM_prc_me==ADM_prc_pl) then
+             478     1                      k = 0
+             479     1                      ! modify T.Mitsui 06.04.18
+             480     1               !!$       do m1 = 1, mdim1
+             481     1               !!$          do m2 = 1, mdim2
+             482     2   s                  do m2 = 1, mdim2
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             483     3  pp                     do m1 = 1, mdim1
+             484     3   p                        k = k + 1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             485     4  pp                        do l=1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             486     5   p   8v                      do n=1, ADM_gall_pl
+             487     5   p   8v                         sv_pl(n,ADM_KNONE,l,m1,m2) = sfcvar_pl(n,KSTR(vid)+k-1,l,1)
+             488     5   p   8v                      end do
+             489     4   p                        end do
+             490     3   p                     end do
+             491     2   p                  end do
+             492     1                   end if
+             493                         !
+             494                         return
+             495                         !
+             496                       end subroutine sfcvar_get2
+             497                       !-----------------------------------------------------------------------------
+             498                       subroutine sfcvar_set(   &
+             499                            sv, sv_pl,          &  !--- IN : surface variable
+             500                            vid                 &  !--- IN : variable ID
+             501                            )
+             502                         !------
+             503                         !------ set diagnostic variables
+             504                         !------ and COMMUNICATION.
+             505                         !------
+             506                         use mod_adm, only :     &
+             507                              ADM_LOG_FID,       &
+             508                              ADM_GALL_PL,       &
+             509                              ADM_LALL_PL,       &
+             510                              ADM_prc_me,        &
+             511                              ADM_prc_pl,        &
+             512                              ADM_KNONE,         &
+             513                              ADM_gall,          &
+             514                              ADM_gmin,          &
+             515                              ADM_gmax,          &
+             516                              ADM_lall,          &
+             517                              ADM_gall_1d
+             518                         !
+             519                         implicit none
+             520                         real(8), intent(in) :: sv(ADM_gall,ADM_KNONE,ADM_lall)
+             521                         real(8), intent(in) :: sv_pl(ADM_GALL_PL,ADM_KNONE,ADM_LALL_PL)
+             522                         integer, intent(in) :: vid
+             523                         !
+             524                         integer :: i,j,suf
+             525                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             526                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             527        pp   8v          sfcvar(1:ADM_gall,KSTR(vid),1:ADM_lall,1) &
+             528                              = sv(1:ADM_gall,ADM_KNONE,1:ADM_lall)
+             529     1                   if(ADM_prc_me==ADM_prc_pl) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             530     1  pp   8v             sfcvar_pl(1:ADM_gall_pl,KSTR(vid),1:ADM_lall_pl,1) &
+             531     1                           = sv_pl(1:ADM_gall_pl,ADM_KNONE,1:ADM_lall_pl)
+             532     1                   end if
+             533                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 667
+                                   <<< Loop-information  End >>>
+             534        pp   6s          sfcvar(suf(ADM_gall_1d,1),KSTR(vid),:,1) &
+             535                              = sfcvar(suf(ADM_gmax+1,ADM_gmin),KSTR(vid),:,1)
+             536         p   6s          sfcvar(suf(1,ADM_gall_1d),KSTR(vid),:,1) &
+             537                              = sfcvar(suf(ADM_gmin,ADM_gmax+1),KSTR(vid),:,1)
+             538                         !
+             539                         return
+             540                         !
+             541                       end subroutine sfcvar_set
+             542                       !-----------------------------------------------------------------------------
+             543                       subroutine sfcvar_get_in(&
+             544                            sv,                 &  !--- OUT : surface variable
+             545                            vid                 &  !--- IN : variable ID
+             546                            )
+             547                         !------
+             548                         !------ get diagnostic variables
+             549                         !------
+             550                         use mod_adm, only :     &
+             551                              ADM_LOG_FID,       &
+             552                              ADM_KNONE,         &
+             553                              ADM_lall,          &
+             554                              ADM_IopJop_nmax,   &
+             555                              ADM_IopJop,        &
+             556                              ADM_GIoJo
+             557                         !
+             558                         implicit none
+             559                         real(8), intent(out) :: sv(ADM_IopJop_nmax,ADM_KNONE,ADM_lall)
+             560                         integer, intent(in) :: vid
+             561                         !
+             562                         integer :: l,n,nn
+             563                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             564     1  pp               do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 165
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             565     2  pp   4v             do n=1, ADM_IopJop_nmax
+             566     2   p   4v                nn = ADM_IopJop(n,ADM_GIoJo)
+             567     2   p   4v                sv(n,ADM_KNONE,l)  = sfcvar(nn,KSTR(vid),l,1)
+             568     2   p   4v             end do
+             569     1   p               end do
+             570                         !
+             571                         return
+             572                         !
+             573                       end subroutine sfcvar_get_in
+             574                       !-----------------------------------------------------------------------------
+             575                       subroutine sfcvar_set_in( &
+             576                            sv,                  &  !--- IN : surface variable
+             577                            vid                  &  !--- IN : variable ID
+             578                            )
+             579                         !------
+             580                         !------ set prognostic variables to diag[num]
+             581                         !------ and COMMUNICATION.
+             582                         !------
+             583                         use mod_adm, only :     &
+             584                              ADM_LOG_FID,       &
+             585                              ADM_KNONE,         &
+             586                              ADM_gmin,          &
+             587                              ADM_gmax,          &
+             588                              ADM_lall,          &
+             589                              ADM_gall_1d,       &
+             590                              ADM_IopJop_nmax,   &
+             591                              ADM_IopJop,        &
+             592                              ADM_GIoJo
+             593                         !
+             594                         implicit none
+             595                         real(8), intent(in) :: sv(ADM_IopJop_nmax,ADM_KNONE,ADM_lall)
+             596                         integer, intent(in) :: vid
+             597                         !
+             598                         integer :: l,n,nn
+             599                         !
+             600                         integer :: i,j,suf
+             601                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             602                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             603     1  pp               do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             604     2   p   4v             do n=1, ADM_IopJop_nmax
+             605     2   p   4v                nn = ADM_IopJop(n,ADM_GIoJo)
+             606     2   p   4v                sfcvar(nn,KSTR(vid),l,1) = sv(n,ADM_KNONE,l)
+             607     2   p   4v             end do
+             608     1   p               end do
+             609                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 667
+                                   <<< Loop-information  End >>>
+             610        pp   6s          sfcvar(suf(ADM_gall_1d,1),KSTR(vid),:,1) &
+             611                              = sfcvar(suf(ADM_gmax+1,ADM_gmin),KSTR(vid),:,1)
+             612         p   6s          sfcvar(suf(1,ADM_gall_1d),KSTR(vid),:,1) &
+             613                              = sfcvar(suf(ADM_gmin,ADM_gmax+1),KSTR(vid),:,1)
+             614                         !
+             615                       end subroutine sfcvar_set_in
+             616                       !-----------------------------------------------------------------------------
+             617                       subroutine sfcvar_get1_in(&
+             618                            sv,                 &  !--- OUT : surface variable
+             619                            vid,                &  !--- IN : variable ID
+             620                            mdim                &  !--- IN : dimension
+             621                            )
+             622                         !------
+             623                         !------ get diagnostic variables
+             624                         !------
+             625                         use mod_adm, only :     &
+             626                              ADM_LOG_FID,       &
+             627                              ADM_KNONE,         &
+             628                              ADM_lall,          &
+             629                              ADM_IopJop_nmax,   &
+             630                              ADM_IopJop,        &
+             631                              ADM_GIoJo
+             632                         !
+             633                         implicit none
+             634                         integer, intent(in) :: mdim
+             635                         real(8), intent(out) :: sv(ADM_IopJop_nmax,ADM_KNONE,ADM_lall,mdim)
+             636                         integer, intent(in) :: vid
+             637                         !
+             638                         integer :: l,n,nn
+             639                         integer :: m
+             640                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 2)
+                                   <<< Loop-information  End >>>
+             641     1  pp               do m=1, mdim
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 1)
+                                   <<< Loop-information  End >>>
+             642     2  pp                  do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 153
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             643     3  pp   4v                do n=1, ADM_IopJop_nmax
+             644     3   p   4v                   nn = ADM_IopJop(n,ADM_GIoJo)
+             645     3   p   4v                   sv(n,ADM_KNONE,l,m)  = sfcvar(nn,KSTR(vid)+m-1,l,1)
+             646     3   p   4v                end do
+             647     2   p                  end do
+             648     1   p               end do
+             649                         !
+             650                         return
+             651                         !
+             652                       end subroutine sfcvar_get1_in
+             653                       !
+             654                       subroutine sfcvar_set1(   &
+             655                            sv, sv_pl,           &  !--- IN : surface variable
+             656                            vid,                 &  !--- IN : variable ID
+             657                            mdim,                &  !--- IN : dimension
+             658                            comm_flag            &  !--- IN, optional
+             659                            )
+             660                         !------
+             661                         !------ set prognostic variables to diag[num]
+             662                         !------ and COMMUNICATION.
+             663                         !------
+             664                         use mod_adm, only :     &
+             665                              ADM_LOG_FID,       &
+             666                              ADM_KNONE,         &
+             667                              ADM_gmin,          &
+             668                              ADM_gmax,          &
+             669                              ADM_gall,          &
+             670                              ADM_lall,          &
+             671                              ADM_gall_pl,       &
+             672                              ADM_lall_pl,       &
+             673                              ADM_gall_1d,       &
+             674                              adm_prc_me,        &
+             675                              adm_prc_pl,        &
+             676                              ADM_comm_run_world
+             677                         use mod_comm, only :    &
+             678                              COMM_data_transfer
+             679                         !
+             680                         implicit none
+             681                         integer, intent(in) :: mdim
+             682                         real(8), intent(in) :: sv(ADM_gall,ADM_KNONE,ADM_lall,mdim)
+             683                         real(8), intent(in) :: sv_pl(ADM_gall_pl,ADM_KNONE,ADM_lall_pl,mdim)
+             684                         integer, intent(in) :: vid
+             685                         integer, optional, intent(in) :: comm_flag
+             686                         !
+             687                         integer :: l,n,nn
+             688                         integer :: m
+             689                         !
+             690                         integer :: i,j,suf
+             691                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             692                     
+             693                         integer :: ierr
+             694                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 2)
+                                   <<< Loop-information  End >>>
+             695     1   p               do m=1, mdim
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 1)
+                                   <<< Loop-information  End >>>
+             696     2  pp                  do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             697     3   p   8v                do n=1, ADM_gall
+             698     3   p   8v                   sfcvar(n,KSTR(vid)+m-1,l,1) = sv(n,ADM_KNONE,l,m)
+             699     3   p   8v                end do
+             700     2   p                  end do
+             701     1   p               end do
+             702     1                   if(ADM_prc_me==ADM_prc_pl) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 2)
+                                   <<< Loop-information  End >>>
+             703     2   p                  do m=1, mdim
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 1)
+                                   <<< Loop-information  End >>>
+             704     3  pp                     do l=1,ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             705     4   p   8v                   do n=1,ADM_gall_pl
+             706     4   p   8v                      sfcvar_pl(n,KSTR(vid)+m-1,l,1) = sv_pl(n,ADM_KNONE,l,m)
+             707     4   p   8v                   end do
+             708     3   p                     end do
+             709     2   p                  end do
+             710     1                   end if
+             711                     
+             712     1                   if ( present(comm_flag) ) then
+             713     2                      if(comm_flag==1) then
+             714     2                         call COMM_data_transfer(sfcvar(:,:,:,:),sfcvar_pl(:,:,:,:))
+             715     2                      endif
+             716     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             717     1  pp   6s             sfcvar(suf(ADM_gall_1d,1),:,:,:) = sfcvar(suf(ADM_gmax+1,ADM_gmin),:,:,:)
+             718     1   p   6s             sfcvar(suf(1,ADM_gall_1d),:,:,:) = sfcvar(suf(ADM_gmin,ADM_gmax+1),:,:,:)
+             719     1                   endif
+             720                     
+             721                         return
+             722                       end subroutine sfcvar_set1
+             723                       !-----------------------------------------------------------------------------
+             724                       subroutine sfcvar_set1_in( &
+             725                            sv,                  &  !--- IN : surface variable
+             726                            vid,                 &  !--- IN : variable ID
+             727                            mdim                 &  !--- IN : dimension
+             728                            )
+             729                         !------
+             730                         !------ set prognostic variables to diag[num]
+             731                         !------ and COMMUNICATION.
+             732                         !------
+             733                         use mod_adm, only :     &
+             734                              ADM_LOG_FID,       &
+             735                              ADM_KNONE,         &
+             736                              ADM_gmin,          &
+             737                              ADM_gmax,          &
+             738                              ADM_lall,          &
+             739                              ADM_gall_1d,       &
+             740                              ADM_IopJop_nmax,   &
+             741                              ADM_IopJop,        &
+             742                              ADM_GIoJo
+             743                         !
+             744                         implicit none
+             745                         integer, intent(in) :: mdim
+             746                         real(8), intent(in) :: sv(ADM_IopJop_nmax,ADM_KNONE,ADM_lall,mdim)
+             747                         integer, intent(in) :: vid
+             748                         !
+             749                         integer :: l,n,nn
+             750                         integer :: m
+             751                         !
+             752                         integer :: i,j,suf
+             753                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             754                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 2)
+                                   <<< Loop-information  End >>>
+             755     1   p               do m=1, mdim
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 1)
+                                   <<< Loop-information  End >>>
+             756     2  pp                  do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             757     3   p   4v                do n=1, ADM_IopJop_nmax
+             758     3   p   4v                   nn = ADM_IopJop(n,ADM_GIoJo)
+             759     3   p   4v                   sfcvar(nn,KSTR(vid)+m-1,l,1) = sv(n,ADM_KNONE,l,m)
+             760     3   p   4v                end do
+             761     2   p                  end do
+             762     1   p               end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             763        pp   8v          sfcvar(suf(ADM_gall_1d,1),KSTR(vid):KEND(vid),:,1) &
+             764                              = sfcvar(suf(ADM_gmax+1,ADM_gmin),KSTR(vid):KEND(vid),:,1)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             765        pp   8v          sfcvar(suf(1,ADM_gall_1d),KSTR(vid):KEND(vid),:,1) &
+             766                              = sfcvar(suf(ADM_gmin,ADM_gmax+1),KSTR(vid):KEND(vid),:,1)
+             767                         !
+             768                       end subroutine sfcvar_set1_in
+             769                       !-----------------------------------------------------------------------------
+             770                       subroutine sfcvar_get2_in(&
+             771                            sv,                 &  !--- OUT : surface variable
+             772                            vid,                &  !--- IN : variable ID
+             773                            mdim1, mdim2        &  !--- IN
+             774                            )
+             775                         !------
+             776                         !------ get diagnostic variables
+             777                         !------
+             778                         use mod_adm, only :     &
+             779                              ADM_LOG_FID,       &
+             780                              ADM_KNONE,         &
+             781                              ADM_lall,          &
+             782                              ADM_IopJop_nmax,   &
+             783                              ADM_IopJop,        &
+             784                              ADM_GIoJo
+             785                         !
+             786                         implicit none
+             787                         integer, intent(in) :: mdim1, mdim2
+             788                         real(8), intent(out) :: sv(ADM_IopJop_nmax,ADM_KNONE,ADM_lall,mdim1,mdim2)
+             789                         integer, intent(in) :: vid
+             790                         !
+             791                         integer :: l,n,nn
+             792                         integer :: m1,m2, k
+             793                         !
+             794                         ! assume: vid == I_ALBEDO_SFC
+             795                         ! assume: NVAR(I_ALBEDO_SFC) = NRDIR * NRBND
+             796                         k = 0
+             797                         ! modify T.Mitsui 06.04.18
+             798                     !!$    do m1 = 1, mdim1
+             799                     !!$       do m2 = 1, mdim2
+             800     1   s               do m2 = 1, mdim2
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             801     2  pp                  do m1 = 1, mdim1
+             802     2   p                     k = k + 1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             803     3  pp                     do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             804     4   p   4v                   do n=1, ADM_IopJop_nmax
+             805     4   p   4v                      nn = ADM_IopJop(n,ADM_GIoJo)
+             806     4   p   4v                      sv(n,ADM_KNONE,l,m1,m2) = sfcvar(nn,KSTR(vid)+k-1,l,1)
+             807     4   p   4v                   end do
+             808     3   p                     end do
+             809     2   p                  end do
+             810     1   p               end do
+             811                         !
+             812                         return
+             813                         !
+             814                       end subroutine sfcvar_get2_in
+             815                       !-----------------------------------------------------------------------------
+             816                       subroutine sfcvar_set2_in( &
+             817                            sv,                  &  !--- IN : surface variable
+             818                            vid,                 &  !--- IN : variable ID
+             819                            mdim1, mdim2        &  !--- IN
+             820                            )
+             821                         !------
+             822                         !------ set prognostic variables to diag[num]
+             823                         !------ and COMMUNICATION.
+             824                         !------
+             825                         use mod_adm, only :     &
+             826                              ADM_LOG_FID,       &
+             827                              ADM_KNONE,         &
+             828                              ADM_gmin,          &
+             829                              ADM_gmax,          &
+             830                              ADM_lall,          &
+             831                              ADM_gall_1d,       &
+             832                              ADM_IopJop_nmax,   &
+             833                              ADM_IopJop,        &
+             834                              ADM_GIoJo
+             835                         !
+             836                         implicit none
+             837                         integer, intent(in) :: mdim1, mdim2
+             838                         real(8), intent(in) :: sv(ADM_IopJop_nmax,ADM_KNONE,ADM_lall,mdim1,mdim2)
+             839                         integer, intent(in) :: vid
+             840                         !
+             841                         integer :: l,n,nn
+             842                         integer :: m1, m2, k
+             843                         !
+             844                         integer :: i,j,suf
+             845                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             846                         !
+             847                         ! assume: vid == I_ALBEDO_SFC
+             848                         ! assume: NVAR(I_ALBEDO_SFC) = NRDIR * NRBND
+             849                         !
+             850                         k = 0
+             851                         ! modify T.Mitsui 06.04.18
+             852                     !!$    do m1 = 1, mdim1
+             853                     !!$       do m2 = 1, mdim2
+             854     1                   do m2 = 1, mdim2
+             855     2                      do m1 = 1, mdim1
+             856     2                         k = k + 1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             857     3  pp                     do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             858     4   p   4v                   do n=1, ADM_IopJop_nmax
+             859     4   p   4v                      nn = ADM_IopJop(n,ADM_GIoJo)
+             860     4   p   4v                      sfcvar(nn,KSTR(vid)+k-1,l,1) = sv(n,ADM_KNONE,l,m1,m2)
+             861     4   p   4v                   end do
+             862     3   p                     end do
+             863     2                      end do
+             864     1                   end do
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             865        pp   8v          sfcvar(suf(ADM_gall_1d,1),KSTR(vid):KEND(vid),:,1) &
+             866                              = sfcvar(suf(ADM_gmax+1,ADM_gmin),KSTR(vid):KEND(vid),:,1)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             867        pp   8v          sfcvar(suf(1,ADM_gall_1d),KSTR(vid):KEND(vid),:,1) &
+             868                              = sfcvar(suf(ADM_gmin,ADM_gmax+1),KSTR(vid):KEND(vid),:,1)
+             869                         !
+             870                       end subroutine sfcvar_set2_in
+             871                       !-----------------------------------------------------------------------------
+             872                       ! ADD T.Mitsui 06.04.18
+             873                       subroutine sfcvar_set2( &
+             874                            sv,sv_pl,          &  !--- IN : surface variable
+             875                            vid,               &  !--- IN : variable ID
+             876                            mdim1, mdim2       &  !--- IN
+             877                            )
+             878                         use mod_adm, only :     &
+             879                              ADM_LOG_FID,       &
+             880                              ADM_KNONE,         &
+             881                              ADM_gall,          &
+             882                              ADM_gall_pl,       &
+             883                              ADM_lall,          &
+             884                              ADM_lall_pl,       &
+             885                              adm_prc_me,        &
+             886                              adm_prc_pl
+             887                         !
+             888                         implicit none
+             889                         integer, intent(in) :: mdim1, mdim2
+             890                         real(8), intent(in) :: sv   (ADM_gall   ,ADM_KNONE,ADM_lall   ,mdim1,mdim2)
+             891                         real(8), intent(in) :: sv_pl(ADM_gall_pl,ADM_KNONE,ADM_lall_pl,mdim1,mdim2)
+             892                         integer, intent(in) :: vid
+             893                         !
+             894                         integer :: l,ij
+             895                         integer :: m1, m2, k
+             896                         !
+             897                         ! assume: vid == I_ALBEDO_SFC
+             898                         ! assume: NVAR(I_ALBEDO_SFC) = NRDIR * NRBND
+             899                         !
+             900                         k = 0
+             901     1                   do m2 = 1, mdim2
+             902     2                      do m1 = 1, mdim1
+             903     2                         k = k + 1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             904     3  pp                     do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 182
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             905     4  pp   8v                   do ij=1, adm_gall
+             906     4   p   8v                      sfcvar(ij,KSTR(vid)+k-1,l,1) = sv(ij,ADM_KNONE,l,m1,m2)
+             907     4   p   8v                   end do
+             908     3   p                     end do
+             909     2                      end do
+             910     1                   end do
+             911                         !
+             912     1                   if(adm_prc_me == adm_prc_pl) then
+             913     1                      k=0
+             914     2                      do m2=1,mdim2
+             915     3                         do m1=1,mdim1
+             916     3                            k = k + 1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             917     4  pp                        do l=1, adm_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 182
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             918     5  pp   8v                      do ij=1,ADM_gall_pl
+             919     5   p   8v                         sfcvar_pl(ij,KSTR(vid)+k-1,l,1)=sv_pl(ij,ADM_KNONE,l,m1,m2)
+             920     5   p   8v                      end do
+             921     4   p                        end do
+             922     3                         end do
+             923     2                      end do
+             924     1                   end if
+             925                         !
+             926                         return
+             927                       end subroutine sfcvar_set2
+             928                     
+             929                       !-----------------------------------------------------------------------------
+             930                       subroutine sfcvar_comm( &
+             931                            comm_type          & !--- IN : communication type
+             932                            )
+             933                         !
+             934                         !--- comm_type : 1 ( region -> pole )
+             935                         !---           : 2 ( region -> pole -> regular communication )
+             936                         !---           : 3 ( regular communication only )
+             937                         use mod_adm, only : &
+             938                              ADM_comm_run_world
+             939                         use mod_comm, only :    &
+             940                              comm_var
+             941                         !
+             942                         implicit none
+             943                         integer, intent(in) :: comm_type
+             944                     
+             945                         integer :: ierr
+             946                     
+             947                         call comm_var(  &
+             948                              sfcvar,    & !--- INOUT : variables
+             949                              sfcvar_pl, & !--- INOUT : variables at poles
+             950                              KSUM,      & !--- IN : number of layers
+             951                              DIAG_MAX,  & !--- IN : number of variables
+             952                              comm_type, & !--- IN : communication type
+             953                              NSval_fix=.true. )
+             954                     
+             955                         return
+             956                       end subroutine sfcvar_comm
+             957                     
+             958                     end module mod_sfcvar
+             959                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_sfcvar)
+   jwd8220o-i  "nhm/share/mod_sfcvar.f90", line 6: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(sfcvar_get1)
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 412: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 413: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 421: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 422: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(sfcvar_get2)
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 470: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 471: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 486: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 487: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(sfcvar_get_in)
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 565: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 566: Invariant expression within loop is moved outside loop.
+  Module subprogram name(sfcvar_set_in)
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 604: Invariant expression within loop is moved outside loop.
+  Module subprogram name(sfcvar_get1_in)
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 643: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 644: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 645: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(sfcvar_set1)
+   jwd2006i-i  "nhm/share/mod_sfcvar.f90", line 687: 'nn' is declared but never referenced.
+   jwd2006i-i  "nhm/share/mod_sfcvar.f90", line 693: 'ierr' is declared but never referenced.
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 695: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 698: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 703: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 706: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(sfcvar_set1_in)
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 757: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 759: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(sfcvar_get2_in)
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 804: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 805: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 806: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(sfcvar_set2_in)
+   jwd8201o-i  "nhm/share/mod_sfcvar.f90", line 858: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 860: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(sfcvar_set2)
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 906: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_sfcvar.f90", line 919: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(sfcvar_comm)
+   jwd2006i-i  "nhm/share/mod_sfcvar.f90", line 945: 'ierr' is declared but never referenced.
+
+ Procedure information
+   Lines      : 959
+   Statements : 481
+   Stack(byte): 4368
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 959
+   Total statements : 481
+   Total stack(byte): 4368
+   Total prefetch num: 0
+

@@ -1,0 +1,151 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:45:56 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/dynamics/mod_tb_smg.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_tb_smg.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_tb_smg"
+  (inc)(line-no.)(nest)(optimize)
+               1                     ! To do list
+               2                     !
+               3                     ! - change Gamma (parameter) --> (variable)
+               4                     ! - change Pr(parameter) --> (variable)
+               5                     ! - Effect of stratos
+               6                     ! - Energy_tot ok?
+               7                     ! - potem_l    ok?
+               8                     !
+               9                     !-------------------------------------------------------------------------------
+              10                     !
+              11                     !+  Smagorinsky turbulent diffusion module
+              12                     !
+              13                     !-------------------------------------------------------------------------------
+              14                     module mod_tb_smg
+              15                       !-----------------------------------------------------------------------------
+              16                       !
+              17                       !++ Description:
+              18                       !       This module contains subroutines for Smagorinsky-type turbulent diffusion
+              19                       !
+              20                       !
+              21                       !++ Current Corresponding Authors : S.Iga and A.Noda
+              22                       !
+              23                       !++ History:
+              24                       !      Version   Date       Comment
+              25                       !      -----------------------------------------------------------------------
+              26                       !      0.00      11-xx-xx   generated
+              27                       !                10-12-03   Iga modified
+              28                       !                10-12-27   Iga modified
+              29                       !                11-11-28   Y.Yamada: Merge Terai-san code into
+              30                       !                                                         the original code.
+              31                       !      -----------------------------------------------------------------------
+              32                       !
+              33                       !-----------------------------------------------------------------------------
+              34                       !
+              35                       !++ Used modules
+              36                       !
+              37                       use mod_adm, only :  &
+              38                            ADM_log_fid, &
+              39                            ADM_prc_me, &
+              40                            ADM_prc_pl, &
+              41                            ADM_gall, &
+              42                            ADM_kall, &
+              43                            ADM_lall, &
+              44                            ADM_gall_pl, &
+              45                            ADM_lall_pl, &
+              46                            ADM_knone,        &
+              47                            ADM_kmin,         &
+              48                            ADM_kmax, &
+              49                            ADM_NSYS
+              50                         use mod_vmtr,only:&
+              51                              VMTR_GSGAM2,&
+              52                              VMTR_RGAM2,&
+              53                              VMTR_RGAM2H,&
+              54                              VMTR_RGSGAM2,&
+              55                              VMTR_RGSGAM2H,&
+              56                              VMTR_GAM2,&
+              57                              VMTR_GAM2H,&
+              58                              VMTR_GSGAM2H,   &
+              59                              VMTR_GZX,&
+              60                              VMTR_GZXH,&
+              61                              VMTR_GZY,&
+              62                              VMTR_GZZ,&
+              63                              VMTR_GZYH,&
+              64                              VMTR_GZZH,&
+              65                              VMTR_RGSH,&
+              66                              VMTR_RGAM,&
+              67                              VMTR_GAM2_PL,&
+              68                              VMTR_GAM2H_PL,&
+              69                              VMTR_GSGAM2H_pl,&
+              70                              VMTR_GSGAM2_PL,&
+              71                              VMTR_RGAM2_PL,&
+              72                              VMTR_RGAM2H_PL,&
+              73                              VMTR_RGSGAM2_PL,&
+              74                              VMTR_RGSGAM2H_PL,&
+              75                              VMTR_GZX_PL,&
+              76                              VMTR_GZY_PL,&
+              77                              VMTR_GZXH_PL,&
+              78                              VMTR_GZYH_PL,&
+              79                              VMTR_GZZ_PL,&
+              80                              VMTR_GZZH_PL,&
+              81                              VMTR_RGSH_PL,&
+              82                              VMTR_RGAM_PL
+              83                         use mod_history
+              84                       !-----------------------------------------------------------------------------
+              85                     !cx
+              86                     !cx Deleted the procedure blocks
+              87                     !cx Deleted the private variables
+              88                     !cx
+              89                     
+              90                     end module mod_tb_smg
+              91                     !-------------------------------------------------------------------------------
+
+ Procedure information
+   Lines      : 91
+   Statements : 5
+   Stack(byte): 0
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 91
+   Total statements : 5
+   Total stack(byte): 0
+   Total prefetch num: 0
+

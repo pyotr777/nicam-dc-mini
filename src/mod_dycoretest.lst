@@ -1,0 +1,1758 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:09:18 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/share/mod_dycoretest.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_dycoretest.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_dycoretest"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  Module of Dynamical Core Test initial condition
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     module mod_dycoretest
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This module is for the Dyn Core Test Initialization.
+              11                       !
+              12                       !
+              13                       !++ Current Corresponding Author : R.Yoshida
+              14                       !
+              15                       !++ History:
+              16                       !      Version   Date       Comment
+              17                       !      -----------------------------------------------------------------------
+              18                       !      0.00      12-10-19   Imported from mod_restart.f90 of NICAM
+              19                       !      0.01      13-06-12   Test cases in DCMIP2012 were imported
+              20                       !
+              21                       !      -----------------------------------------------------------------------
+              22                       !
+              23                       !-----------------------------------------------------------------------------
+              24                       !
+              25                       !++ Used modules
+              26                       !
+              27                       use mod_adm, only: &
+              28                          ADM_LOG_FID,  &
+              29                          ADM_NSYS
+              30                       use mod_dcmip, only: &
+              31                          test1_advection_deformation,  &
+              32                          test1_advection_hadley,       &
+              33                          test2_steady_state_mountain,  &
+              34                          test2_schaer_mountain,        &
+              35                          test3_gravity_wave
+              36                       use mod_cnst, only: &
+              37                          Rd    => CNST_RAIR,    &  ! ideal gas constant of dry air
+              38                          Cp    => CNST_CP,      &  ! heat capacity of const. pressure
+              39                          g     => CNST_EGRAV,   &  ! gravity accelaration [ms^-2]
+              40                          a     => CNST_ERADIUS, &  ! mean radis of the earth [m]
+              41                          omega => CNST_EOHM,    &  ! rotation of the earth [s^-1]
+              42                          pi    => CNST_PI
+              43                       !
+              44                       !-----------------------------------------------------------------------------
+              45                       implicit none
+              46                       private
+              47                       !-----------------------------------------------------------------------------
+              48                       !
+              49                       !++ Public parameters
+              50                       !
+              51                       ! physical parameters configurations
+              52                       real(8), private, save :: kai                    ! temporal value
+              53                       real(8), private, save :: d2r                    ! Degree to Radian
+              54                       real(8), private, save :: r2d                    ! Radian to Degree
+              55                       real(8), private, save :: eps = 1.D-14           ! minimum value
+              56                       real(8), private, save :: zero = 0.D0            ! zero
+              57                     
+              58                       ! test configurations
+              59                       integer, private, parameter :: PRCS_D = 8
+              60                       ! for Held and Suarez
+              61                       real(8), private, save :: deltaT = 60.D0
+              62                       real(8), private, save :: deltaTh = 10.D0
+              63                       ! for Jablonowski
+              64                       real(8), private, save :: clat = 40.D0              ! perturbation center: latitude [deg]
+              65                       real(8), private, save :: clon = 20.D0              ! perturbation center: longitude [deg]
+              66                       real(8), private, save :: etaS = 1.D0               ! surface eta level
+              67                       real(8), private, save :: etaT = 0.2d0              ! threashold of vertical profile
+              68                       real(8), private, save :: eta0 = 0.252d0            ! threashold of vertical profile
+              69                       real(8), private, save :: t0 = 288.D0               ! [K]
+              70                       real(8), private, save :: delT = 4.8d+5             ! [K]
+              71                       real(8), private, save :: ganma = 0.005d0           ! [K m^-1]
+              72                       real(8), private, save :: u0 = 35.D0                ! [m s^-1]
+              73                       real(8), private, save :: uP = 1.D0                 ! [m s^-1]
+              74                       real(8), private, save :: p0 = 1.D+5                ! [Pa]
+              75                       real(8), private, save :: ps = 1.D+5                ! [Pa]
+              76                       logical, private, parameter :: message = .false.
+              77                       integer, private, parameter :: itrmax = 100       ! # of iteration maximum
+              78                     
+              79                       !-----------------------------------------------------------------------------
+              80                       !
+              81                       !++ Public procedure
+              82                       !
+              83                       public :: dycore_input
+              84                       !
+              85                       !-----------------------------------------------------------------------------
+              86                       !
+              87                       !++ Private parameters
+              88                       !
+              89                       !-----------------------------------------------------------------------------
+              90                       !
+              91                       !++ Private variables
+              92                       !
+              93                       !-----------------------------------------------------------------------------
+              94                       !
+              95                       !++ Private procedures
+              96                       !
+              97                       private :: hs_init
+              98                       private :: jbw_init
+              99                       private :: tracer_init
+             100                       private :: mountwave_init
+             101                       private :: gravwave_init
+             102                       private :: sphere_xyz_to_lon
+             103                       private :: sphere_xyz_to_lat
+             104                       private :: eta_vert_coord_NW
+             105                       private :: steady_state
+             106                       private :: geo2prs
+             107                       private :: geost_rebalance
+             108                       private :: perturbation
+             109                       private :: conv_vxvyvz
+             110                       private :: Sp_Unit_East
+             111                       private :: Sp_Unit_North
+             112                       !
+             113                       !-----------------------------------------------------------------------------
+             114                     contains
+             115                       !-----------------------------------------------------------------------------
+             116                       subroutine dycore_input( DIAG_var )
+             117                         use mod_adm, only: &
+             118                            ADM_CTL_FID,   &
+             119                            ADM_proc_stop, &
+             120                            ADM_gall,      &
+             121                            ADM_kall,      &
+             122                            ADM_lall
+             123                         use mod_runconf, only: &
+             124                            TRC_vmax
+             125                         implicit none
+             126                     
+             127                         real(8), intent(out) :: DIAG_var(ADM_gall,ADM_kall,ADM_lall,6+TRC_VMAX)
+             128                     
+             129                         character(len=ADM_NSYS) :: init_type
+             130                         character(len=ADM_NSYS) :: test_case
+             131                     
+             132                         namelist / DYCORETESTPARAM / &
+             133                            init_type, &
+             134                            test_case
+             135                     
+             136                         integer :: ierr
+             137                         !---------------------------------------------------------------------------
+             138                     
+             139                         kai = Rd / Cp
+             140                         d2r = pi/180.D0
+             141                         r2d = 180.D0/pi
+             142                     
+             143                         !--- read parameters
+             144                         write(ADM_LOG_FID,*)
+             145                         write(ADM_LOG_FID,*) '+++ Module[dycoretest]/Category[nhm share]'
+             146                         rewind(ADM_CTL_FID)
+             147                         read(ADM_CTL_FID,nml=DYCORETESTPARAM,iostat=ierr)
+             148     1                   if ( ierr < 0 ) then
+             149     1                      write(ADM_LOG_FID,*) '*** DYCORETESTPARAM is not specified. use default.'
+             150     1                   elseif( ierr > 0 ) then
+             151     1                      write(*,          *) 'xxx Not appropriate names in namelist DYCORETESTPARAM. STOP.'
+             152     1                      write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist DYCORETESTPARAM. STOP.'
+             153     1                      call ADM_proc_stop
+             154     1                   endif
+             155                         write(ADM_LOG_FID,DYCORETESTPARAM)
+             156                     
+             157                         write(ADM_LOG_FID,*) '*** type: ', trim(init_type)
+             158                     
+             159     1                   if (      init_type == "Jablonowski"     &
+             160     1                        .OR. init_type == "Traceradvection" &
+             161     1                        .OR. init_type == "Mountainwave"    ) then
+             162     1               
+             163     1                      write(ADM_LOG_FID,*) '*** test case: ', trim(test_case)
+             164     1               
+             165     1                   endif
+             166                     
+             167     1                   if ( init_type == "Heldsuarez" ) then
+             168     1               
+             169     1                      call hs_init ( ADM_gall, ADM_kall, ADM_lall, DIAG_var(:,:,:,:) )
+             170     1               
+             171     1                   elseif( init_type == "Jablonowski" ) then
+             172     1               
+             173     1                      call jbw_init( ADM_gall, ADM_kall, ADM_lall, test_case, DIAG_var(:,:,:,:) )
+             174     1               
+             175     1                   elseif( init_type == "Traceradvection" ) then
+             176     1               
+             177     1                      call tracer_init( ADM_gall, ADM_kall, ADM_lall, test_case, DIAG_var(:,:,:,:) )
+             178     1               
+             179     1                   elseif( init_type == "Mountainwave" ) then
+             180     1               
+             181     1                      call mountwave_init( ADM_gall, ADM_kall, ADM_lall, test_case, DIAG_var(:,:,:,:) )
+             182     1               
+             183     1                   elseif( init_type == "Gravitywave" ) then
+             184     1               
+             185     1                      call gravwave_init( ADM_gall, ADM_kall, ADM_lall, DIAG_var(:,:,:,:) )
+             186     1               
+             187     1                   else
+             188     1                      write(ADM_LOG_FID,*) 'xxx Invalid input_io_mode. STOP.'
+             189     1                      call ADM_proc_stop
+             190     1                   endif
+             191                     
+             192                         return
+             193                       end subroutine dycore_input
+             194                     
+             195                       !-----------------------------------------------------------------------------
+             196                       subroutine hs_init( &
+             197                            ijdim,   &
+             198                            kdim,    &
+             199                            lall,    &
+             200                            DIAG_var )
+             201                         use mod_misc, only: &
+             202                            MISC_get_latlon
+             203                         use mod_adm, only: &
+             204                            ADM_KNONE, &
+             205                            ADM_kmin,  &
+             206                            ADM_kmax
+             207                         use mod_cnst, only: &
+             208                            GRAV  => CNST_EGRAV, &
+             209                            RAIR  => CNST_RAIR,  &
+             210                            KAPPA => CNST_KAPPA, &
+             211                            PRE00 => CNST_PRE00
+             212                         use mod_grd, only: &
+             213                            GRD_XDIR, &
+             214                            GRD_YDIR, &
+             215                            GRD_ZDIR, &
+             216                            GRD_Z,    &
+             217                            GRD_x,    &
+             218                            GRD_vz
+             219                         use mod_runconf, only: &
+             220                            TRC_vmax
+             221                         implicit none
+             222                     
+             223                         integer, intent(in)    :: ijdim
+             224                         integer, intent(in)    :: kdim
+             225                         integer, intent(in)    :: lall
+             226                         real(8), intent(inout) :: DIAG_var(ijdim,kdim,lall,6+TRC_VMAX)
+             227                     
+             228                         real(8) :: pre(kdim), tem(kdim), dz(kdim)
+             229                         real(8) :: pre_sfc, tem_sfc
+             230                         real(8) :: pre_save
+             231                     
+             232                         real(8) :: dT, f, df
+             233                         real(8) :: lat, lon
+             234                     
+             235                         integer :: n, k, l, itr
+             236                         !---------------------------------------------------------------------------
+             237                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 9
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             238        pp    v          DIAG_var(:,:,:,:) = 0.D0
+             239                     
+             240     1                   do l = 1, lall
+             241     2                   do n = 1, ijdim
+             242     2               
+             243     2                      dz(ADM_kmin) = GRD_vz(n,ADM_kmin,l,GRD_Z)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 889
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             244     3  pp   6v             do k = ADM_kmin+1, ADM_kmax+1
+             245     3   p   6v                dz(k) = GRD_vz(n,k,l,GRD_Z) - GRD_vz(n,k-1,l,GRD_Z)
+             246     3   p   6v             enddo
+             247     2               
+             248     2                      call MISC_get_latlon( lat, lon,                      &
+             249     2                                            GRD_x(n,ADM_KNONE,l,GRD_XDIR), &
+             250     2                                            GRD_x(n,ADM_KNONE,l,GRD_YDIR), &
+             251     2                                            GRD_x(n,ADM_KNONE,l,GRD_ZDIR)  )
+             252     2               
+             253     2                      pre_sfc = PRE00
+             254     2               !       tem_sfc = 300.D0
+             255     2                      tem_sfc = 315.D0 - deltaT*sin(lat)**2
+             256     2               
+             257     2                      !---< from ground surface to lowermost atmosphere >---
+             258     2                      k = ADM_kmin
+             259     2                      ! first guess
+             260     2                      pre(k) = pre_sfc
+             261     2                      tem(k) = tem_sfc
+             262     2               
+             263     2                      ! Newton-Lapson
+             264     3                      do itr = 1, itrmax
+             265     3                         pre_save = pre(k) ! save
+             266     3               
+             267     3                         f  = log(pre(k)/pre_sfc) / dz(k) + GRAV / ( RAIR * 0.5D0 * (tem(k)+tem_sfc) )
+             268     3                         df = 1.D0 / (pre(k)*dz(k))
+             269     3               
+             270     3                         pre(k) = pre(k) - f / df
+             271     3               !          tem(k) = 300.D0 * ( pre(k)/PRE00 )**KAPPA
+             272     3                         tem(k) = ( 315.D0 - deltaT*sin(lat)**2 - deltaTh*log(pre(k)/PRE00)*cos(lat)**2 ) &
+             273     3                                * ( pre(k)/PRE00 )**KAPPA
+             274     3                         tem(k) = max( 200.D0, tem(k) )
+             275     3               
+             276     3                         if( abs(pre_save-pre(k)) <= eps ) exit
+             277     3                      enddo
+             278     2               
+             279     3                      if ( itr > itrmax ) then
+             280     3                         write(ADM_LOG_FID,*) 'xxx iteration not converged!', k, pre_save-pre(k), pre(k), pre_sfc, tem(k), tem_sfc
+             281     3                         write(*,          *) 'xxx iteration not converged!', k, pre_save-pre(k), pre(k), pre_sfc, tem(k), tem_sfc
+             282     3                         stop
+             283     3                      endif
+             284     2               
+             285     2                      !---< from lowermost to uppermost atmosphere >---
+             286     3                      do k = ADM_kmin+1, ADM_kmax+1
+             287     3               
+             288     3                         ! first guess
+             289     3                         pre(k) = pre(k-1)
+             290     3                         tem(k) = 300.D0 * ( pre(k)/PRE00 )**KAPPA
+             291     3                         tem(k) = max( 200.D0, tem(k) )
+             292     3               
+             293     3                         ! Newton-Lapson
+             294     4                         do itr = 1, itrmax
+             295     4                            pre_save = pre(k) ! save
+             296     4               
+             297     4                            f  = log(pre(k)/pre(k-1)) / dz(k) + GRAV / ( RAIR * 0.5D0 * (tem(k)+tem(k-1)) )
+             298     4                            df = 1.D0 / (pre(k)*dz(k))
+             299     4               
+             300     4                            pre(k) = pre(k) - f / df
+             301     4               !             tem(k) = 300.D0 * ( pre(k)/PRE00 )**KAPPA
+             302     4                            tem(k) = ( 315.D0 - deltaT*sin(lat)**2 - deltaTh*log(pre(k)/PRE00)*cos(lat)**2 ) &
+             303     4                                   * ( pre(k)/PRE00 )**KAPPA
+             304     4                            tem(k) = max( 200.D0, tem(k) )
+             305     4               
+             306     4                            if( abs(pre_save-pre(k)) <= eps ) exit
+             307     4               
+             308     4                         enddo
+             309     3               
+             310     4                         if ( itr > itrmax ) then
+             311     4                            write(ADM_LOG_FID,*) 'xxx iteration not converged!', k, pre_save-pre(k), pre(k), pre(k-1), tem(k), tem(k-1)
+             312     4                            write(*,          *) 'xxx iteration not converged!', k, pre_save-pre(k), pre(k), pre(k-1), tem(k), tem(k-1)
+             313     4                            stop
+             314     4                         endif
+             315     3                      enddo
+             316     2               
+             317     2                      DIAG_var(n,ADM_kmin-1,l,1) = pre_sfc ! tentative
+             318     2                      DIAG_var(n,ADM_kmin-1,l,2) = tem_sfc ! tentative
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 800
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             319     3  pp   6v             do k = ADM_kmin, ADM_kmax+1
+             320     3   p   6v                DIAG_var(n,k,l,1) = pre(k)
+             321     3   p   6v                DIAG_var(n,k,l,2) = tem(k)
+             322     3   p   6v             enddo
+             323     2               
+             324     2                   enddo
+             325     1                   enddo
+             326                     
+             327                         return
+             328                       end subroutine hs_init
+             329                     
+             330                       !-----------------------------------------------------------------------------
+             331                       subroutine jbw_init( &
+             332                            ijdim,      &
+             333                            kdim,       &
+             334                            lall,       &
+             335                            test_case,  &
+             336                            DIAG_var    )
+             337                         use mod_misc, only: &
+             338                            MISC_get_latlon
+             339                         use mod_adm, only: &
+             340                            ADM_KNONE,      &
+             341                            ADM_NSYS
+             342                         use mod_grd, only: &
+             343                            GRD_vz,         &
+             344                            GRD_x,          &
+             345                            GRD_x_pl,       &
+             346                            GRD_XDIR,       &
+             347                            GRD_YDIR,       &
+             348                            GRD_ZDIR,       &
+             349                            GRD_Z,          &
+             350                            GRD_ZH
+             351                         use mod_runconf, only: &
+             352                            TRC_vmax
+             353                         implicit none
+             354                     
+             355                         integer, intent(in)  :: ijdim
+             356                         integer, intent(in)  :: kdim
+             357                         integer, intent(in)  :: lall
+             358                         character(len=ADM_NSYS), intent(in) :: test_case
+             359                         real(8), intent(out) :: DIAG_var(ijdim,kdim,lall,6+TRC_VMAX)
+             360                     
+             361                         ! work paramters
+             362                         real(PRCS_D) :: lat, lon                 ! latitude, longitude on Icosahedral grid
+             363                         real(PRCS_D) :: eta(kdim,2), geo(kdim)   ! eta & geopotential in ICO-grid field
+             364                         real(PRCS_D) :: prs(kdim),   tmp(kdim)   ! pressure & temperature in ICO-grid field
+             365                         real(PRCS_D) :: wix(kdim),   wiy(kdim)   ! zonal/meridional wind components in ICO-grid field
+             366                     
+             367                         real(8) :: z_local (kdim)
+             368                         real(8) :: vx_local(kdim)
+             369                         real(8) :: vy_local(kdim)
+             370                         real(8) :: vz_local(kdim)
+             371                     
+             372                         logical :: signal ! if ture, continue iteration
+             373                         logical :: pertb  ! if ture, with perturbation
+             374                         logical :: rebalance ! if ture, with geostophic wind rebalance
+             375                         integer :: n, l, k, itr, K0
+             376                         !---------------------------------------------------------------------------
+             377                     
+             378                         K0 = ADM_KNONE
+             379                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 9
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             380        pp    v          DIAG_var(:,:,:,:) = 0.D0
+             381                     
+             382     1                   select case( trim(test_case) )
+             383     1                   case ('1', '4-1')  ! with perturbation
+             384     1                      write(ADM_LOG_FID,*) "Jablonowski Initialize - case 1: with perturbation (no rebalance)"
+             385     1                      pertb = .true.
+             386     1                      rebalance = .false.
+             387     1                   case ('2', '4-2')  ! without perturbation
+             388     1                      write(ADM_LOG_FID,*) "Jablonowski Initialize - case 2: without perturbation (no rebalance)"
+             389     1                      pertb = .false.
+             390     1                      rebalance = .false.
+             391     1                   case ('3')  ! with perturbation & with rebalance
+             392     1                      write(ADM_LOG_FID,*) "Jablonowski Initialize - case 3: with perturbation (with rebalance)"
+             393     1                      pertb = .true.
+             394     1                      rebalance = .true.
+             395     1                   case ('4')  ! without perturbation & with rebalance
+             396     1                      write(ADM_LOG_FID,*) "Jablonowski Initialize - case 4: without perturbation (with rebalance)"
+             397     1                      pertb = .false.
+             398     1                      rebalance = .true.
+             399     1                   case default
+             400     1                      write(ADM_LOG_FID,*) "Unknown test_case: '"//trim(test_case)//"' specified."
+             401     1                      write(ADM_LOG_FID,*) "Force changed to case 1 (with perturbation)"
+             402     1                      pertb = .true.
+             403     1                   end select
+             404                     
+             405     1                   do l = 1, lall
+             406     2                   do n = 1, ijdim
+             407     2                      z_local(1) = GRD_vz(n,2,l,GRD_ZH)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             408     3  pp   8v             do k = 2, kdim
+             409     3   p   8v                z_local(k) = GRD_vz(n,k,l,GRD_Z)
+             410     3   p   8v             enddo
+             411     2               
+             412     2                      call MISC_get_latlon( lat, lon,               &
+             413     2                                            GRD_x(n,K0,l,GRD_XDIR), &
+             414     2                                            GRD_x(n,K0,l,GRD_YDIR), &
+             415     2                                            GRD_x(n,K0,l,GRD_ZDIR)  )
+             416     2               
+             417     2                      signal = .true.
+             418     2                      ! iteration -----
+             419     3                      do itr = 1, itrmax
+             420     3               
+             421     4                         if( itr == 1 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             422     4  pp    v                   eta(:,:) = 1.D-7 ! This initial value is recommended by Jablonowsky.
+             423     4                         else
+             424     4                            call eta_vert_coord_NW( kdim, itr, z_local, tmp, geo, eta, signal )
+             425     4                         endif
+             426     3               
+             427     3                         call steady_state( kdim, lat, eta, wix, wiy, tmp, geo )
+             428     3               
+             429     3                         if( .NOT. signal ) exit
+             430     3                      enddo
+             431     2               
+             432     3                      if ( itr > itrmax ) then
+             433     3                         write(ADM_LOG_FID,*) 'ETA ITERATION ERROR: NOT CONVERGED', n, l
+             434     3                         stop
+             435     3                      endif
+             436     2               
+             437     2                      call geo2prs     ( kdim, tmp, geo, prs )
+             438     2                      call conv_vxvyvz ( kdim, lat, lon, wix, wiy, vx_local, vy_local, vz_local )
+             439     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 422
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             440     3  pp   2v             do k=1, kdim
+             441     3   p   2v                DIAG_var(n,k,l,1) = prs(k)
+             442     3   p   2v                DIAG_var(n,k,l,2) = tmp(k)
+             443     3   p   2v                DIAG_var(n,k,l,3) = vx_local(k)
+             444     3   p   2v                DIAG_var(n,k,l,4) = vy_local(k)
+             445     3   p   2v                DIAG_var(n,k,l,5) = vz_local(k)
+             446     3   p   2v             enddo
+             447     2               
+             448     2                   enddo
+             449     1                   enddo
+             450                     
+             451                         if(rebalance) call geost_rebalance( ijdim, kdim, lall, 5, DIAG_var(:,:,:,1:5) )
+             452                         if(pertb) call perturbation( ijdim, kdim, lall, 5, DIAG_var(:,:,:,1:5) )
+             453                     
+             454                         return
+             455                       end subroutine jbw_init
+             456                       !-----------------------------------------------------------------------------
+             457                       !
+             458                       !-----------------------------------------------------------------------------
+             459                       subroutine tracer_init( &
+             460                          ijdim,      &
+             461                          kdim,       &
+             462                          lall,       &
+             463                          test_case,  &
+             464                          DIAG_var    )
+             465                         use mod_misc, only: &
+             466                            MISC_get_latlon, &
+             467                            MISC_get_distance
+             468                         use mod_adm, only: &
+             469                            ADM_KNONE,      &
+             470                            ADM_NSYS,       &
+             471                            ADM_proc_stop
+             472                         use mod_cnst, only: &
+             473                            CNST_PI, &
+             474                            CNST_ERADIUS
+             475                         use mod_grd, only: &
+             476                            GRD_vz,         &
+             477                            GRD_x,          &
+             478                            GRD_x_pl,       &
+             479                            GRD_XDIR,       &
+             480                            GRD_YDIR,       &
+             481                            GRD_ZDIR,       &
+             482                            GRD_Z,          &
+             483                            GRD_ZH
+             484                         use mod_gmtr, only: &
+             485                            GMTR_lon, &
+             486                            GMTR_lat
+             487                         use mod_runconf, only: &
+             488                            TRC_vmax, &
+             489                            NCHEM_STR
+             490                         use mod_chemvar, only: &
+             491                            chemvar_getid
+             492                         implicit none
+             493                     
+             494                         integer, intent(in)    :: ijdim
+             495                         integer, intent(in)    :: kdim
+             496                         integer, intent(in)    :: lall
+             497                         character(len=ADM_NSYS), intent(in) :: test_case
+             498                         real(8), intent(inout) :: DIAG_var(ijdim,kdim,lall,6+TRC_VMAX)
+             499                     
+             500                         ! work paramters
+             501                         real(8) :: lat, lon                  ! latitude, longitude on Icosahedral grid
+             502                         real(8) :: prs(kdim),   tmp(kdim)    ! pressure & temperature in ICO-grid field
+             503                         real(8) :: wix(kdim),   wiy(kdim)    ! zonal/meridional wind components in ICO-grid field
+             504                         real(8) :: wiz(kdim)                 ! vertical wind components in ICO-grid field
+             505                         real(8) :: q(kdim),     rho(kdim)    ! Qvapor and rho in ICO-grid field
+             506                         real(8) :: q1(kdim), q2(kdim)        ! passive tracer in ICO-grid field
+             507                         real(8) :: q3(kdim), q4(kdim)        ! passive tracer in ICO-grid field
+             508                     
+             509                         real(8) :: z_local (kdim)
+             510                         real(8) :: vx_local(kdim)
+             511                         real(8) :: vy_local(kdim)
+             512                         real(8) :: vz_local(kdim)
+             513                     
+             514                         integer :: I_passive1, I_passive2
+             515                         integer :: I_passive3, I_passive4
+             516                         integer :: n, l, k, K0
+             517                     
+             518                         logical :: fault = .true.
+             519                         logical :: hybrid_eta = .false.
+             520                         real(8) :: hyam, hybm, phis, ps
+             521                         integer, parameter :: zcoords = 1
+             522                         !---------------------------------------------------------------------------
+             523                     
+             524                         hyam = 0.0d0
+             525                         hybm = 0.0d0
+             526                         fault = .false.
+             527                         hybrid_eta = .false.
+             528                     
+             529                         K0 = ADM_KNONE
+             530                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 9
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             531        pp    v          DIAG_var(:,:,:,:) = 0.D0
+             532                     
+             533                         I_passive1 = 6 + chemvar_getid( "passive1" ) + NCHEM_STR - 1
+             534                         I_passive2 = 6 + chemvar_getid( "passive2" ) + NCHEM_STR - 1
+             535                         I_passive3 = 6 + chemvar_getid( "passive3" ) + NCHEM_STR - 1
+             536                         I_passive4 = 6 + chemvar_getid( "passive4" ) + NCHEM_STR - 1
+             537                     
+             538     1                   do l = 1, lall
+             539     2                   do n = 1, ijdim
+             540     2                      z_local(1) = GRD_vz(n,2,l,GRD_ZH)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             541     3  pp   8v             do k = 2, kdim
+             542     3   p   8v                z_local(k) = GRD_vz(n,k,l,GRD_Z)
+             543     3   p   8v             enddo
+             544     2               
+             545     2                      call MISC_get_latlon( lat, lon,               &
+             546     2                                            GRD_x(n,K0,l,GRD_XDIR), &
+             547     2                                            GRD_x(n,K0,l,GRD_YDIR), &
+             548     2                                            GRD_x(n,K0,l,GRD_ZDIR)  )
+             549     2               
+             550     3                      select case( trim(test_case) )
+             551     3                      ! DCMIP: TEST CASE 11 - Pure Advection - 3D deformational flow
+             552     3                      case ('1', '1-1')
+             553     4   s    s                do k=1, kdim
+             554     4   s    s                   call test1_advection_deformation (lon, lat, prs(k), z_local(k), zcoords,    &
+             555     4                                                               wix(k), wiy(k), wiz(k), tmp(k), phis, ps, &
+             556     4                                                               rho(k), q(k), q1(k), q2(k), q3(k), q4(k)  )
+             557     4   s    s                enddo
+             558     3                      ! DCMIP: TEST CASE 12 - Pure Advection - 3D HADLEY-like flow
+             559     3                      case ('2', '1-2')
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 4
+                                   <<<      q3: 2, q2: 2
+                                   <<< Loop-information  End >>>
+             560     4   s   6s                do k=1, kdim
+             561     4   m   6m                   call test1_advection_hadley (lon, lat, prs(k), z_local(k), zcoords,    &
+             562     4                                                          wix(k), wiy(k), wiz(k), tmp(k), phis, ps, &
+             563     4                                                          rho(k), q(k), q1(k)  )
+             564     4   p   6v                   q2(k) = 0.0d0
+             565     4   p   6v                   q3(k) = 0.0d0
+             566     4   p   6v                   q4(k) = 0.0d0
+             567     4   p   6v                enddo
+             568     3                      case default
+             569     3                         write(ADM_LOG_FID,*) "Unknown test_case: '"//trim(test_case)//"' specified."
+             570     3                         call ADM_proc_stop
+             571     3                      end select
+             572     2               
+             573     2                      call conv_vxvyvz ( kdim, lat, lon, wix, wiy, vx_local, vy_local, vz_local )
+             574     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 223
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             575     3  pp    v             do k=1, kdim
+             576     3   p    v                DIAG_var(n,k,l,1) = prs(k)
+             577     3   p    v                DIAG_var(n,k,l,2) = tmp(k)
+             578     3   p    v                DIAG_var(n,k,l,3) = vx_local(k)
+             579     3   p    v                DIAG_var(n,k,l,4) = vy_local(k)
+             580     3   p    v                DIAG_var(n,k,l,5) = vz_local(k)
+             581     3   p    v                DIAG_var(n,k,l,6) = wiz(k)
+             582     3                         !DIAG_var(n,k,l,XXXXXXXXX) = q(k)  ! this has not prepared yet (20130612)
+             583     3   p    v                DIAG_var(n,k,l,I_passive1) = q1(k)
+             584     3   p    v                DIAG_var(n,k,l,I_passive2) = q2(k)
+             585     3   p    v                DIAG_var(n,k,l,I_passive3) = q3(k)
+             586     3   p    v                DIAG_var(n,k,l,I_passive4) = q4(k)
+             587     3   p    v             enddo
+             588     2                   enddo
+             589     1                   enddo
+             590                     
+             591                         return
+             592                       end subroutine tracer_init
+             593                       !-----------------------------------------------------------------------------
+             594                       !
+             595                       !-----------------------------------------------------------------------------
+             596                       subroutine mountwave_init( &
+             597                          ijdim,      &
+             598                          kdim,       &
+             599                          lall,       &
+             600                          test_case,  &
+             601                          DIAG_var    )
+             602                         use mod_misc, only: &
+             603                            MISC_get_latlon, &
+             604                            MISC_get_distance
+             605                         use mod_adm, only: &
+             606                            ADM_KNONE,      &
+             607                            ADM_NSYS,       &
+             608                            ADM_proc_stop
+             609                         use mod_cnst, only: &
+             610                            CNST_PI, &
+             611                            CNST_ERADIUS
+             612                         use mod_grd, only: &
+             613                            GRD_vz,         &
+             614                            GRD_x,          &
+             615                            GRD_x_pl,       &
+             616                            GRD_XDIR,       &
+             617                            GRD_YDIR,       &
+             618                            GRD_ZDIR,       &
+             619                            GRD_Z,          &
+             620                            GRD_ZH
+             621                         use mod_gmtr, only: &
+             622                            GMTR_lon, &
+             623                            GMTR_lat
+             624                         use mod_runconf, only: &
+             625                            TRC_vmax, &
+             626                            NCHEM_STR
+             627                         use mod_chemvar, only: &
+             628                            chemvar_getid
+             629                         implicit none
+             630                     
+             631                         integer, intent(in)    :: ijdim
+             632                         integer, intent(in)    :: kdim
+             633                         integer, intent(in)    :: lall
+             634                         character(len=ADM_NSYS), intent(in) :: test_case
+             635                         real(8), intent(inout) :: DIAG_var(ijdim,kdim,lall,6+TRC_VMAX)
+             636                     
+             637                         ! work paramters
+             638                         real(8) :: lat, lon                 ! latitude, longitude on Icosahedral grid
+             639                         real(8) :: prs(kdim),   tmp(kdim)   ! pressure & temperature in ICO-grid field
+             640                         real(8) :: wix(kdim),   wiy(kdim)   ! zonal/meridional wind components in ICO-grid field
+             641                         real(8) :: wiz(kdim)                ! vertical wind components in ICO-grid field
+             642                         real(8) :: q(kdim),     rho(kdim)   ! tracer and rho in ICO-grid field
+             643                     
+             644                         real(8) :: z_local (kdim)
+             645                         real(8) :: vx_local(kdim)
+             646                         real(8) :: vy_local(kdim)
+             647                         real(8) :: vz_local(kdim)
+             648                     
+             649                         integer :: I_passive1
+             650                         integer :: n, l, k, K0
+             651                     
+             652                         integer :: shear
+             653                         logical :: fault = .true.
+             654                         logical :: hybrid_eta = .false.
+             655                         real(8) :: hyam, hybm, phis, ps
+             656                         integer, parameter :: zcoords = 1
+             657                         !---------------------------------------------------------------------------
+             658                     
+             659                         hyam = 0.0d0
+             660                         hybm = 0.0d0
+             661                         fault = .false.
+             662                         hybrid_eta = .false.
+             663                     
+             664                         K0 = ADM_KNONE
+             665                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 9
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             666        pp    v          DIAG_var(:,:,:,:) = 0.D0
+             667                     
+             668                         I_passive1 = 6 + chemvar_getid( "passive1" ) + NCHEM_STR - 1
+             669                     
+             670     1                   do l = 1, lall
+             671     2                   do n = 1, ijdim
+             672     2                      z_local(1) = GRD_vz(n,2,l,GRD_ZH)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             673     3  pp   8v             do k = 2, kdim
+             674     3   p   8v                z_local(k) = GRD_vz(n,k,l,GRD_Z)
+             675     3   p   8v             enddo
+             676     2               
+             677     2                      call MISC_get_latlon( lat, lon,               &
+             678     2                                            GRD_x(n,K0,l,GRD_XDIR), &
+             679     2                                            GRD_x(n,K0,l,GRD_YDIR), &
+             680     2                                            GRD_x(n,K0,l,GRD_ZDIR)  )
+             681     2               
+             682     3                      select case( trim(test_case) )
+             683     3                      ! DCMIP: TEST CASE 2-0 - Steady-State Atmosphere at Rest in the Presence of Orography
+             684     3                      case ('0', '2-0')
+             685     4   s    s                do k=1, kdim
+             686     4   s    s                   call test2_steady_state_mountain (lon, lat, prs(k), z_local(k), zcoords, &
+             687     4                                     hybrid_eta, hyam, hybm, wix(k), wiy(k), wiz(k), tmp(k), phis, &
+             688     4                                     ps, rho(k), q(k) )
+             689     4   s    s                enddo
+             690     3                      ! DCMIP: TEST CASE 2-1 - Non-hydrostatic Mountain Waves over a Schaer-type Mountain
+             691     3                      case ('1', '2-1')
+             692     3                         shear = 0   ! test case: 2-1 (constant u)
+             693     4   s    s                do k=1, kdim
+             694     4   s    s                   call test2_schaer_mountain (lon, lat, prs(k), z_local(k), zcoords, &
+             695     4                                     hybrid_eta, hyam, hybm, shear, wix(k), wiy(k), wiz(k), tmp(k), phis, &
+             696     4                                     ps, rho(k), q(k) )
+             697     4   s    s                enddo
+             698     3                      ! DCMIP: TEST CASE 2-2 - Non-hydrostatic Mountain Waves over a Schaer-type Mountain
+             699     3                      case ('2', '2-2')
+             700     3                         shear = 1   ! test case: 2-2 (sheared u)
+             701     4   s    s                do k=1, kdim
+             702     4   s    s                   call test2_schaer_mountain (lon, lat, prs(k), z_local(k), zcoords, &
+             703     4                                     hybrid_eta, hyam, hybm, shear, wix(k), wiy(k), wiz(k), tmp(k), phis, &
+             704     4                                     ps, rho(k), q(k) )
+             705     4   s    s                enddo
+             706     3                      case default
+             707     3                         write(ADM_LOG_FID,*) "Unknown test_case: '"//trim(test_case)//"' specified."
+             708     3                         call ADM_proc_stop
+             709     3                      end select
+             710     2               
+             711     2                      call conv_vxvyvz ( kdim, lat, lon, wix, wiy, vx_local, vy_local, vz_local )
+             712     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 314
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             713     3  pp   2v             do k=1, kdim
+             714     3   p   2v                DIAG_var(n,k,l,1) = prs(k)
+             715     3   p   2v                DIAG_var(n,k,l,2) = tmp(k)
+             716     3   p   2v                DIAG_var(n,k,l,3) = vx_local(k)
+             717     3   p   2v                DIAG_var(n,k,l,4) = vy_local(k)
+             718     3   p   2v                DIAG_var(n,k,l,5) = vz_local(k)
+             719     3   p   2v                DIAG_var(n,k,l,6) = wiz(k)
+             720     3   p   2v                DIAG_var(n,k,l,I_passive1) = q(k)
+             721     3   p   2v             enddo
+             722     2                   enddo
+             723     1                   enddo
+             724                     
+             725                         return
+             726                       end subroutine mountwave_init
+             727                       !-----------------------------------------------------------------------------
+             728                       !
+             729                       !-----------------------------------------------------------------------------
+             730                       subroutine gravwave_init( &
+             731                          ijdim,   &
+             732                          kdim,    &
+             733                          lall,    &
+             734                          DIAG_var )
+             735                         use mod_misc, only: &
+             736                            MISC_get_latlon, &
+             737                            MISC_get_distance
+             738                         use mod_adm, only: &
+             739                            ADM_KNONE
+             740                         use mod_cnst, only: &
+             741                            CNST_PI, &
+             742                            CNST_ERADIUS
+             743                         use mod_grd, only: &
+             744                            GRD_vz,         &
+             745                            GRD_x,          &
+             746                            GRD_x_pl,       &
+             747                            GRD_XDIR,       &
+             748                            GRD_YDIR,       &
+             749                            GRD_ZDIR,       &
+             750                            GRD_Z,          &
+             751                            GRD_ZH
+             752                         use mod_gmtr, only: &
+             753                            GMTR_lon, &
+             754                            GMTR_lat
+             755                         use mod_runconf, only: &
+             756                            TRC_vmax, &
+             757                            NCHEM_STR
+             758                         use mod_chemvar, only: &
+             759                            chemvar_getid
+             760                         implicit none
+             761                     
+             762                         integer, intent(in)    :: ijdim
+             763                         integer, intent(in)    :: kdim
+             764                         integer, intent(in)    :: lall
+             765                         real(8), intent(inout) :: DIAG_var(ijdim,kdim,lall,6+TRC_VMAX)
+             766                     
+             767                         ! work paramters
+             768                         real(8) :: lat, lon                 ! latitude, longitude on Icosahedral grid
+             769                         real(8) :: prs(kdim),   tmp(kdim)   ! pressure & temperature in ICO-grid field
+             770                         real(8) :: wix(kdim),   wiy(kdim)   ! zonal/meridional wind components in ICO-grid field
+             771                         real(8) :: wiz(kdim)                ! vertical wind components in ICO-grid field
+             772                         real(8) :: q(kdim),     rho(kdim)   ! tracer and rho in ICO-grid field
+             773                     
+             774                         real(8) :: z_local (kdim)
+             775                         real(8) :: vx_local(kdim)
+             776                         real(8) :: vy_local(kdim)
+             777                         real(8) :: vz_local(kdim)
+             778                     
+             779                         integer :: I_passive1
+             780                         integer :: n, l, k, K0
+             781                     
+             782                         logical :: fault = .true.
+             783                         logical :: hybrid_eta = .false.
+             784                         real(8) :: hyam, hybm, phis, ps
+             785                         integer, parameter :: zcoords = 1
+             786                         !---------------------------------------------------------------------------
+             787                     
+             788                         hyam = 0.0d0
+             789                         hybm = 0.0d0
+             790                         fault = .false.
+             791                         hybrid_eta = .false.
+             792                     
+             793                         K0 = ADM_KNONE
+             794                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 9
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             795        pp    v          DIAG_var(:,:,:,:) = 0.D0
+             796                     
+             797                         I_passive1 = 6 + chemvar_getid( "passive1" ) + NCHEM_STR - 1
+             798                     
+             799     1                   do l = 1, lall
+             800     2                   do n = 1, ijdim
+             801     2                      z_local(1) = GRD_vz(n,2,l,GRD_ZH)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             802     3  pp   8v             do k = 2, kdim
+             803     3   p   8v                z_local(k) = GRD_vz(n,k,l,GRD_Z)
+             804     3   p   8v             enddo
+             805     2               
+             806     2                      call MISC_get_latlon( lat, lon,               &
+             807     2                                            GRD_x(n,K0,l,GRD_XDIR), &
+             808     2                                            GRD_x(n,K0,l,GRD_YDIR), &
+             809     2                                            GRD_x(n,K0,l,GRD_ZDIR)  )
+             810     2               
+             811     3   s    s             do k=1, kdim
+             812     3   s    s                call test3_gravity_wave (lon, lat, prs(k), z_local(k), zcoords, &
+             813     3                                  wix(k), wiy(k), wiz(k), tmp(k), phis, &
+             814     3                                  ps, rho(k), q(k) )
+             815     3   s    s             enddo
+             816     2               
+             817     2                      call conv_vxvyvz ( kdim, lat, lon, wix, wiy, vx_local, vy_local, vz_local )
+             818     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 314
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             819     3  pp   2v             do k=1, kdim
+             820     3   p   2v                DIAG_var(n,k,l,1) = prs(k)
+             821     3   p   2v                DIAG_var(n,k,l,2) = tmp(k)
+             822     3   p   2v                DIAG_var(n,k,l,3) = vx_local(k)
+             823     3   p   2v                DIAG_var(n,k,l,4) = vy_local(k)
+             824     3   p   2v                DIAG_var(n,k,l,5) = vz_local(k)
+             825     3   p   2v                DIAG_var(n,k,l,6) = wiz(k)
+             826     3   p   2v                DIAG_var(n,k,l,I_passive1) = q(k)
+             827     3   p   2v             enddo
+             828     2                   enddo
+             829     1                   enddo
+             830                     
+             831                         return
+             832                       end subroutine gravwave_init
+             833                       !-----------------------------------------------------------------------------
+             834                       !
+             835                       !-----------------------------------------------------------------------------
+             836                       ! eta vertical coordinate by Newton Method
+             837                       subroutine eta_vert_coord_NW( &
+             838                           kdim,   &  !--- IN : # of z dimension
+             839                           itr,    &  !--- IN : iteration number
+             840                           z,      &  !--- IN : z-height vertical coordinate
+             841                           tmp,    &  !--- IN : guessed temperature
+             842                           geo,    &  !--- IN : guessed geopotential
+             843                           eta,    &  !--- INOUT : eta level vertical coordinate
+             844                           signal  )  !--- INOUT : iteration signal
+             845                         !
+             846                         implicit none
+             847                         integer, intent(in) :: itr
+             848                         integer, intent(in) :: kdim
+             849                         real(PRCS_D), intent(in) :: z(kdim)
+             850                         real(PRCS_D), intent(in) :: geo(kdim), tmp(kdim)
+             851                         real(PRCS_D), intent(inout) :: eta(kdim,2)
+             852                         logical, intent(inout) :: signal
+             853                         integer :: k
+             854                         real(PRCS_D) :: diffmax, diff(kdim)
+             855                         real(PRCS_D) :: F(kdim), Feta(kdim)
+             856                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 239
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 4
+                                   <<<      eta: 4
+                                   <<< Loop-information  End >>>
+             857     1  pp   2s          do k=1, kdim
+             858     1   p   2v             F(k) = -g*z(k) + geo(k)
+             859     1   p   2v             Feta(k) = -1.D0 * ( Rd/eta(k,1) ) * tmp(k)
+             860     1   p   2v             eta(k,2) = eta(k,1) - ( F(k)/Feta(k) )
+             861     1   p   2s             if(eta(k,2) > 1.D0) eta(k,2) = 1.D0     ! not allow over 1.0 for eta
+             862     1   p   2m             if(eta(k,2) < 0.D0) eta(k,2) = 1.D-20
+             863     1   p   2v             diff(k) = abs( eta(k,2) - eta(k,1) )
+             864     1   p   2v          enddo
+             865                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 843
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             866        pp   6v          eta(:,1) = eta(:,2)
+             867         p   6v          diffmax = maxval(diff)
+             868                         if (message) write (*, '("| Eta  ",I4,": -- MAX: ",F23.20,3X,"MIN: ",F23.20)') itr, maxval(eta(:,1)), minval(eta(:,1))
+             869                         if (message) write (*, '("| Diff ",I4,": -- MAX: ",F23.20,3X,"MIN: ",F23.20)') itr, diffmax, minval(diff)
+             870                         !
+             871     1                   if(diffmax < eps) then
+             872     1                      signal = .false.
+             873     1                   else
+             874     1                      if (message) write (ADM_LOG_FID,*) "| ----- Iterating ", itr
+             875     1                   endif
+             876                         !
+             877                         return
+             878                       end subroutine eta_vert_coord_NW
+             879                       !-----------------------------------------------------------------------------
+             880                       !
+             881                       !-----------------------------------------------------------------------------
+             882                       ! calculation of steady state
+             883                       subroutine steady_state( &
+             884                           kdim,   &  !--- IN : # of z dimension
+             885                           lat,  &  !--- IN : latitude information
+             886                           eta,  &  !--- IN : eta level vertical coordinate
+             887                           wix,  &  !--- INOUT : zonal wind component
+             888                           wiy,  &  !--- INOUT : meridional wind component
+             889                           tmp,  &  !--- INOUT : mean temperature
+             890                           geo   )  !--- INOUT : mean geopotential height
+             891                         !
+             892                         implicit none
+             893                         integer :: k
+             894                         integer, intent(in) :: kdim
+             895                         real(PRCS_D), intent(in) :: lat
+             896                         real(PRCS_D), intent(in) :: eta(kdim,2)
+             897                         real(PRCS_D), intent(inout) :: wix(kdim)
+             898                         real(PRCS_D), intent(inout) :: wiy(kdim)
+             899                         real(PRCS_D), intent(inout) :: tmp(kdim)
+             900                         real(PRCS_D), intent(inout) :: geo(kdim)
+             901                         real(PRCS_D) :: eta_v
+             902                         real(PRCS_D) :: work1, work2
+             903                         !
+             904                         ! ---------- horizontal mean
+             905                         work1 = pi/2.D0
+             906                         work2 = Rd*ganma/g
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 6
+                                   <<<      tmp: 4, geo: 2
+                                   <<< Loop-information  End >>>
+             907     1                   do k=1, kdim
+             908     1                      eta_v = (eta(k,1) - eta0)*(work1)
+             909     1                      wix(k) = u0 * (cos(eta_v))**1.5d0 * (sin(2.D0*lat))**2.D0
+             910     1                      !
+             911     1                     !if( etaS >= eta(k,1) .and. eta(k,1) >= etaT ) then  ! not allow over 1.0 for eta
+             912     2                       if( eta(k,1) >= etaT ) then
+             913     2                          tmp(k) = t0 * eta(k,1)**work2
+             914     2                          geo(k) = t0*g/ganma * ( 1.D0 - eta(k,1)**work2 )
+             915     2                       elseif( eta(k,1) < etaT ) then
+             916     2                          tmp(k) = t0 * eta(k,1)**work2 + delT*(etaT - eta(k,1))**5.D0
+             917     2                          !
+             918     2                          geo(k) = t0*g/ganma * ( 1.D0 - eta(k,1)**work2 ) - Rd * delT *                              &
+             919     2                                  ( ( log(eta(k,1)/etaT) + 137.D0/60.D0 )*etaT**5.D0 - 5.D0*(etaT**4.D0)*eta(k,1)     &
+             920     2                                    + 5.D0*(etaT**3.D0)*(eta(k,1)**2.D0) - (10.D0/3.D0)*(etaT**2.D0)*(eta(k,1)**3.D0) &
+             921     2                                    + (5.D0/4.D0)*etaT*(eta(k,1)**4.D0) - (1.D0/5.D0)*(eta(k,1)**5.D0)                &
+             922     2                                  )
+             923     2                       else
+             924     2                          write (ADM_LOG_FID,'(A)') "|-- ETA BOUNDARY ERROR: [steady state calc.]"
+             925     2                          write (ADM_LOG_FID,'("|-- (",I3,")  eta: ",F10.4)') k, eta(k,1)
+             926     2                          stop
+             927     2                       endif
+             928     1                     !else
+             929     1                     !   write (ADM_LOG_FID,'(A)') "|-- OVER 1.0 for eta: [steady state calc.]"
+             930     1                     !   stop
+             931     1                     !endif
+             932     1                      !
+             933     1                   enddo
+             934                         !
+             935                         ! ---------- meridional distribution for temeperature and geopotential
+             936                         work1 = pi/2.D0
+             937                         work2 = 3.D0/4.D0 * ( pi*u0 / Rd )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 22
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             938     1  pp    v          do k=1, kdim
+             939     1   p    v             eta_v = (eta(k,1) - eta0)*(work1)
+             940     1   p    v             tmp(k) = tmp(k)                                           &
+             941     1                                   + work2*eta(k,1) * sin(eta_v) * (cos(eta_v))**0.5d0  &
+             942     1                                   * ( ( -2.D0 * (sin(lat))**6.D0 * (cos(lat)**2.D0 + 1.D0/3.D0) + 10.D0/63.D0 )   &
+             943     1                                        * 2.D0*u0*(cos(eta_v))**1.5d0                   &
+             944     1                                       + ( 8.D0/5.D0 * (cos(lat))**3.D0 * ((sin(lat))**2.D0 + 2.D0/3.D0) - pi/4.D0 ) &
+             945     1                                        * a*omega                                       &
+             946     1                                     )
+             947     1   p    v             geo(k) = geo(k)                                           &
+             948     1                                   + u0*(cos(eta_v))**1.5d0  &
+             949     1                                   * ( ( -2.D0 * (sin(lat))**6.D0 * (cos(lat)**2.D0 + 1.D0/3.D0) + 10.D0/63.D0 )   &
+             950     1                                        * u0*(cos(eta_v))**1.5d0                        &
+             951     1                                       + ( 8.D0/5.D0 * (cos(lat))**3.D0 * ((sin(lat))**2.D0 + 2.D0/3.D0) - pi/4.D0 ) &
+             952     1                                        * a*omega                                       &
+             953     1                                     )
+             954     1   p    v          enddo
+             955                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             956        pp    v          wiy(:) = 0.D0
+             957                         !
+             958                         return
+             959                       end subroutine steady_state
+             960                       !-----------------------------------------------------------------------------
+             961                       !
+             962                       !-----------------------------------------------------------------------------
+             963                       ! convert geopotential height to pressure
+             964                       subroutine geo2prs( &
+             965                           kdim,   &  !--- IN : # of z dimension
+             966                           tmp,  &  !--- IN : temperature
+             967                           geo,  &  !--- IN : geopotential height at full height
+             968                           prs   )  !--- INOUT : pressure
+             969                         !
+             970                         implicit none
+             971                         integer :: k
+             972                         integer, intent(in) :: kdim
+             973                         real(PRCS_D), intent(in) :: tmp(kdim)
+             974                         real(PRCS_D), intent(in) :: geo(kdim)
+             975                         real(PRCS_D), intent(inout) :: prs(kdim)
+             976                         real(PRCS_D) :: dZ, dT, e
+             977                     
+             978                         e = exp(1.D0)
+             979                         prs(1) = p0
+             980                         ! guess pressure field upper k=0
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             981     1   s   2s          do k=2, kdim
+             982     1   p   2v             dZ = ( geo(k) - geo(k-1) )/g
+             983     1   p   2v             dT = ( tmp(k) + tmp(k-1) )/2.D0
+             984     1   m   2m             prs(k) = prs(k-1) * e**( -1.D0 * dZ * (g/(Rd*dT)) )
+             985     1   p   2v          enddo
+             986                         !
+             987     1                   if (message) then
+             988     1                      write (*,'(A)') "| ----- Pressure (Final Guess) -----"
+             989     2                      do k=1, kdim
+             990     2                         write(ADM_LOG_FID, '("| K(",I3,") -- ",F20.13)') k, prs(k)
+             991     2                      enddo
+             992     1                   endif
+             993                         !
+             994                         return
+             995                       end subroutine geo2prs
+             996                       !-----------------------------------------------------------------------------
+             997                       !
+             998                       !-----------------------------------------------------------------------------
+             999                       ! Reproduce zonal wind by geostophic wind balance
+            1000                       subroutine geost_rebalance( &
+            1001                           ijdim,    &  !--- IN : # of ij dimension
+            1002                           kdim,     &  !--- IN : # of z dimension
+            1003                           lall,     &  !--- IN : # of region
+            1004                           vmax,     &  !--- IN : # of variables
+            1005                           DIAG_var  )  !--- INOUT : variables container
+            1006                         use mod_adm, only: &
+            1007                            ADM_prc_me,  &
+            1008                            ADM_prc_pl,  &
+            1009                            K0       => ADM_KNONE,   &
+            1010                            ijdim_pl => ADM_gall_pl, &
+            1011                            lall_pl  => ADM_lall_pl
+            1012                         use mod_comm, only: &
+            1013                            COMM_var,           &
+            1014                            COMM_data_transfer, &
+            1015                            COMM_Stat_max
+            1016                         use mod_grd, only: &
+            1017                            GRD_x,      &
+            1018                            GRD_x_pl,   &
+            1019                            GRD_XDIR,   &
+            1020                            GRD_YDIR,   &
+            1021                            GRD_ZDIR
+            1022                         use mod_misc, only: &
+            1023                            MISC_get_latlon
+            1024                         use mod_vmtr, only: &
+            1025                            VMTR_GSGAM2,     &
+            1026                            VMTR_GSGAM2_pl
+            1027                         use mod_src, only: &
+            1028                            src_gradient,              &
+            1029                            I_SRC_default,             &
+            1030                            I_SRC_horizontal
+            1031                         !
+            1032                         implicit none
+            1033                         integer, intent(in) :: ijdim, kdim, lall, vmax
+            1034                         real(8), intent(inout) :: DIAG_var(ijdim,kdim,lall,vmax)
+            1035                     
+            1036                         integer, parameter :: ID_prs = 1
+            1037                         integer, parameter :: ID_tmp = 2
+            1038                         integer, parameter :: ID_vx  = 3
+            1039                         integer, parameter :: ID_vy  = 4
+            1040                         integer, parameter :: ID_vz  = 5
+            1041                         integer :: n, k, l
+            1042                         real(8) :: lat, lon
+            1043                         real(8) :: f, rho
+            1044                         real(8) :: ws, max_ws, global_max_ws, fit_fact
+            1045                         real(8) :: pre_bs, pre_bs_pl
+            1046                         real(8) :: unit_east(3)
+            1047                         real(8), parameter :: thres_f = 1.0d-12
+            1048                         real(8), allocatable :: DIAG_var_pl(:,:,:,:)
+            1049                         real(8), allocatable :: pregd(:,:,:), pregd_pl(:,:,:)
+            1050                         real(8), allocatable :: pgf(:,:,:,:), pgf_pl(:,:,:,:)
+            1051                         real(8), allocatable :: pgfz(:,:,:), pgfz_pl(:,:,:)
+            1052                         !-----
+            1053                         allocate( DIAG_var_pl(ijdim_pl,kdim,lall_pl,vmax) )
+            1054                         allocate( pregd(ijdim,kdim,lall) )
+            1055                         allocate( pregd_pl(ijdim_pl,kdim,lall_pl) )
+            1056                         allocate( pgf(ijdim,kdim,lall,3) )
+            1057                         allocate( pgf_pl(ijdim_pl,kdim,lall_pl,3) )
+            1058                         allocate( pgfz(ijdim,kdim,lall) )
+            1059                         allocate( pgfz_pl(ijdim_pl,kdim,lall_pl) )
+            1060                     
+            1061                         pre_bs    = 0.0d0
+            1062                         pre_bs_pl = 0.0d0
+            1063                     
+            1064                         write (ADM_LOG_FID,*) " Re-Balance Geostophic Wind ---[ original ]---"
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1065             8v          write (ADM_LOG_FID,*) "  vx - max:",maxval(DIAG_var(:,:,:,ID_vx)), "  min:",minval(DIAG_var(:,:,:,ID_vx))
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1066             8v          write (ADM_LOG_FID,*) "  vy - max:",maxval(DIAG_var(:,:,:,ID_vx)), "  min:",minval(DIAG_var(:,:,:,ID_vx))
+            1067                     
+            1068                         !--- fill HALO (to make DIAG_var_pl)
+            1069                         call comm_var( DIAG_var, DIAG_var_pl, kdim, vmax, comm_type=2, NSval_fix=.true. )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1070        pp   8v          pregd(:,:,:)    = ( DIAG_var(:,:,:,ID_prs)    - pre_bs )    * VMTR_GSGAM2(:,:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1071        pp   8v          pregd_pl(:,:,:) = ( DIAG_var_pl(:,:,:,ID_prs) - pre_bs_pl ) * VMTR_GSGAM2_pl(:,:,:)
+            1072                     
+            1073                         !--- take pressure gradient force
+            1074                         call src_gradient( pregd,        pregd_pl,         & !--- [IN]
+            1075                                            pgf(:,:,:,1),  pgf_pl(:,:,:,1),  & !--- [OUT]
+            1076                                            pgf(:,:,:,2),  pgf_pl(:,:,:,2),  & !--- [OUT]
+            1077                                            pgf(:,:,:,3),  pgf_pl(:,:,:,3),  & !--- [OUT]
+            1078                                            pgfz(:,:,:),   pgfz_pl(:,:,:),   & !--- [OUT]
+            1079                                            I_SRC_horizontal                 ) !--- [IN]
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1080             8v          write (ADM_LOG_FID,*) "  pgf (x) - max:",maxval(pgf(:,:,:,1)), "  min:",minval(pgf(:,:,:,1))
+            1081                     
+            1082                         !--- geostophic wind
+            1083     1                   do l = 1, lall
+            1084     2                   do n = 1, ijdim
+            1085     2                      call MISC_get_latlon( lat, lon,              &
+            1086     2                                            GRD_x(n,K0,l,GRD_XDIR), &
+            1087     2                                            GRD_x(n,K0,l,GRD_YDIR), &
+            1088     2                                            GRD_x(n,K0,l,GRD_ZDIR)  )
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+            1089     2       f              unit_east  = Sp_Unit_East(lon)
+            1090     2                      f = 2.0d0 * omega * sin(lat)
+            1091     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 297
+                                   <<<  [OPTIMIZATION]
+                                   <<<    UNSWITCHING
+                                   <<< Loop-information  End >>>
+            1092     3  pp   2s             do k = 2, kdim
+            1093     3   p   2s                rho = DIAG_var(n,k,l,ID_prs) / ( Rd*DIAG_var(n,k,l,ID_tmp) )
+            1094     3               
+            1095     3                         ! x-direction
+            1096     4   p   2s                if(abs(f) > thres_f) then
+            1097     4   p   2                    DIAG_var(n,k,l,ID_vx) = (-1.0d0/f) * (1.0d0/rho) * (  pgf(n,k,l,3)*unit_east(1) &
+            1098     4                                                                                + pgf(n,k,l,2)*sign(1.0d0,lat) )
+            1099     4   p   2s                else
+            1100     4   p   2s                   DIAG_var(n,k,l,ID_vx) = 0.0d0
+            1101     4   p   2s                endif
+            1102     3               
+            1103     3                         ! y-direction
+            1104     4   p   2s                if(abs(f) > thres_f) then
+            1105     4   p   2                    DIAG_var(n,k,l,ID_vy) = (-1.0d0/f) * (1.0d0/rho) * (  pgf(n,k,l,3)*unit_east(2) &
+            1106     4                                                                                + pgf(n,k,l,1)*sign(1.0d0,lat*(-1)) )
+            1107     4   p   2s                else
+            1108     4   p   2s                   DIAG_var(n,k,l,ID_vy) = 0.0d0
+            1109     4   p   2s                endif
+            1110     3   p   2s             enddo
+            1111     2                   enddo
+            1112     1                   enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1113        pp   8v          DIAG_var(:,1,:,ID_vx) = DIAG_var(:,2,:,ID_vx)
+            1114         p   8v          DIAG_var(:,1,:,ID_vy) = DIAG_var(:,2,:,ID_vy)
+            1115                     
+            1116     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+            1117     2                      do l = 1, lall_pl
+            1118     3                      do n = 1, ijdim_pl
+            1119     3                         call MISC_get_latlon( lat, lon,               &
+            1120     3                                               GRD_x_pl(n,K0,l,GRD_XDIR), &
+            1121     3                                               GRD_x_pl(n,K0,l,GRD_YDIR), &
+            1122     3                                               GRD_x_pl(n,K0,l,GRD_ZDIR)  )
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+            1123     3       f                 unit_east  = Sp_Unit_East(lon)
+            1124     3                         f = 2.0d0 * omega * sin(lat)
+            1125     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 297
+                                   <<<  [OPTIMIZATION]
+                                   <<<    UNSWITCHING
+                                   <<< Loop-information  End >>>
+            1126     4  pp   2s                do k = 2, kdim
+            1127     4   p   2s                   rho = DIAG_var_pl(n,k,l,ID_prs) / ( Rd*DIAG_var_pl(n,k,l,ID_tmp) )
+            1128     4               
+            1129     4                            ! x-direction
+            1130     5   p   2s                   if(abs(f) > thres_f) then
+            1131     5   p   2                       DIAG_var_pl(n,k,l,ID_vx) = (-1.0d0/f) * (1.0d0/rho) * (  pgf_pl(n,k,l,3)*unit_east(1) &
+            1132     5                                                                                      + pgf_pl(n,k,l,2)*sign(1.0d0,lat) )
+            1133     5   p   2s                   else
+            1134     5   p   2s                      DIAG_var_pl(n,k,l,ID_vx) = 0.0d0
+            1135     5   p   2s                   endif
+            1136     4               
+            1137     4                            ! y-direction
+            1138     5   p   2s                   if(abs(f) > thres_f) then
+            1139     5   p   2                       DIAG_var_pl(n,k,l,ID_vy) = (-1.0d0/f) * (1.0d0/rho) * (  pgf_pl(n,k,l,3)*unit_east(2) &
+            1140     5                                                                                      + pgf_pl(n,k,l,1)*sign(1.0d0,lat*(-1)) )
+            1141     5   p   2s                   else
+            1142     5   p   2s                      DIAG_var_pl(n,k,l,ID_vy) = 0.0d0
+            1143     5   p   2s                   endif
+            1144     4   p   2s                enddo
+            1145     3                      enddo
+            1146     2                      enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1147     1  pp   8v             DIAG_var_pl(:,1,:,ID_vx) = DIAG_var_pl(:,2,:,ID_vx)
+            1148     1   p   8v             DIAG_var_pl(:,1,:,ID_vy) = DIAG_var_pl(:,2,:,ID_vy)
+            1149     1                   endif
+            1150                     
+            1151                         !--- fill HALO
+            1152                         call COMM_data_transfer( DIAG_var, DIAG_var_pl )
+            1153                     
+            1154                         write (ADM_LOG_FID,*) " Re-Balance Geostophic Wind ---[ calc ]---"
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1155             8v          write (ADM_LOG_FID,*) "  vx - max:",maxval(DIAG_var(:,:,:,ID_vx)), "  min:",minval(DIAG_var(:,:,:,ID_vx))
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1156             8v          write (ADM_LOG_FID,*) "  vy - max:",maxval(DIAG_var(:,:,:,ID_vx)), "  min:",minval(DIAG_var(:,:,:,ID_vx))
+            1157                     
+            1158                         !--- evaluate max windspeed setting
+            1159                         max_ws = 1.0d-14
+            1160     1   s               do l = 1, lall
+            1161     2   s               do n = 1, ijdim
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 44
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1162     3  pp   6s          do k = 1, kdim
+            1163     3   p   6s              ws = sqrt(DIAG_var(n,k,l,ID_vx)**2 + DIAG_var(n,k,l,ID_vy)**2)
+            1164     3   p   6s              if( max_ws < ws ) max_ws = ws
+            1165     3   p   6v          enddo
+            1166     2   p               enddo
+            1167     1   p               enddo
+            1168                         call COMM_Stat_max( max_ws, global_max_ws )
+            1169                         fit_fact = abs( u0 / global_max_ws )
+            1170                         write (ADM_LOG_FID,*) "  JBW Re-Balance: Fitting - max windspeed:",global_max_ws
+            1171                         write (ADM_LOG_FID,*) "  JBW Re-Balance: Fitting - fitting factor:",fit_fact
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 800
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1172        pp   8v          DIAG_var(:,:,:,ID_vx) = DIAG_var(:,:,:,ID_vx) * fit_fact
+            1173         p   8v          DIAG_var(:,:,:,ID_vy) = DIAG_var(:,:,:,ID_vy) * fit_fact
+            1174     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+            1175     1  pp   8v             DIAG_var_pl(:,:,:,ID_vx) = DIAG_var_pl(:,:,:,ID_vx) * fit_fact
+            1176     1   p   8v             DIAG_var_pl(:,:,:,ID_vy) = DIAG_var_pl(:,:,:,ID_vy) * fit_fact
+            1177     1                   endif
+            1178                     
+            1179                         write (ADM_LOG_FID,*) " Re-Balance Geostophic Wind ---[ fitted ]---"
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1180             8v          write (ADM_LOG_FID,*) "  vx - max:",maxval(DIAG_var(:,:,:,ID_vx)), "  min:",minval(DIAG_var(:,:,:,ID_vx))
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1181             8v          write (ADM_LOG_FID,*) "  vy - max:",maxval(DIAG_var(:,:,:,ID_vx)), "  min:",minval(DIAG_var(:,:,:,ID_vx))
+            1182                         write (ADM_LOG_FID,*) "  vz - force to zero"
+            1183                     
+            1184                         deallocate( DIAG_var_pl, pregd, pregd_pl )
+            1185                         deallocate( pgf, pgf_pl, pgfz, pgfz_pl )
+            1186                         return
+            1187                       end subroutine geost_rebalance
+            1188                       !-----------------------------------------------------------------------------
+            1189                       !
+            1190                       !-----------------------------------------------------------------------------
+            1191                       ! setting perturbation
+            1192                       subroutine perturbation( &
+            1193                           ijdim,     &  !--- IN : # of ij dimension
+            1194                           kdim,      &  !--- IN : # of z dimension
+            1195                           lall,      &  !--- IN : # of region
+            1196                           vmax,      &  !--- IN : # of variables
+            1197                           DIAG_var   )  !--- INOUT : variables container
+            1198                         use mod_grd, only: &
+            1199                            GRD_x,      &
+            1200                            GRD_x_pl,   &
+            1201                            GRD_XDIR,   &
+            1202                            GRD_YDIR,   &
+            1203                            GRD_ZDIR
+            1204                         use mod_misc, only: &
+            1205                            MISC_get_latlon
+            1206                         use mod_adm, only: &
+            1207                            K0 => ADM_KNONE
+            1208                         implicit none
+            1209                         integer, intent(in) :: ijdim, kdim, lall, vmax
+            1210                         real(8), intent(inout) :: DIAG_var(ijdim,kdim,lall,vmax)
+            1211                     
+            1212                         integer, parameter :: ID_prs = 1
+            1213                         integer, parameter :: ID_tmp = 2
+            1214                         integer, parameter :: ID_vx  = 3
+            1215                         integer, parameter :: ID_vy  = 4
+            1216                         integer, parameter :: ID_vz  = 5
+            1217                         integer :: n, k, l
+            1218                         real(8) :: lat, lon
+            1219                         real(8) :: r, rr, rbyrr, cla, clo
+            1220                         real(8) :: ptb_wix(kdim), ptb_wiy(kdim)
+            1221                         real(8) :: ptb_vx(kdim), ptb_vy(kdim), ptb_vz(kdim)
+            1222                     
+            1223                         cla = clat * d2r
+            1224                         clo = clon * d2r
+            1225                     
+            1226     1                   do l = 1, lall
+            1227     2                   do n = 1, ijdim
+            1228     2                      call MISC_get_latlon( lat, lon,              &
+            1229     2                                            GRD_x(n,K0,l,GRD_XDIR), &
+            1230     2                                            GRD_x(n,K0,l,GRD_YDIR), &
+            1231     2                                            GRD_x(n,K0,l,GRD_ZDIR)  )
+            1232     2                      r = a * acos( sin(cla)*sin(lat) + cos(cla)*cos(lat)*cos(lon-clo) )
+            1233     2                      rr = a / 10.D0
+            1234     2                      rbyrr = r/rr
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+            1235     3  pp   8v             do k = 1, kdim
+            1236     3   p   8v                ptb_wix(k) = uP * exp( -1.D0*rbyrr**2.D0 )
+            1237     3   p   8v                ptb_wiy(k) = 0.0d0
+            1238     3   p   8v             enddo
+            1239     2               
+            1240     2                      call conv_vxvyvz( kdim, lat, lon, ptb_wix, ptb_wiy, ptb_vx, ptb_vy, ptb_vz )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 422
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1241     3  pp   2v             do k = 1, kdim
+            1242     3   p   2v                DIAG_var(n,k,l,ID_vx) = DIAG_var(n,k,l,ID_vx) + ptb_vx(k)
+            1243     3   p   2v                DIAG_var(n,k,l,ID_vy) = DIAG_var(n,k,l,ID_vy) + ptb_vy(k)
+            1244     3   p   2v                DIAG_var(n,k,l,ID_vz) = DIAG_var(n,k,l,ID_vz) + ptb_vz(k)
+            1245     3   p   2v             enddo
+            1246     2                   enddo
+            1247     1                   enddo
+            1248                         !
+            1249                         return
+            1250                       end subroutine perturbation
+            1251                       !-----------------------------------------------------------------------------
+            1252                       !
+            1253                       !-----------------------------------------------------------------------------
+            1254                       subroutine conv_vxvyvz( &
+            1255                           kdim, &  !--- IN : # of z dimension
+            1256                           lat,  &  !--- IN : latitude information
+            1257                           lon,  &  !--- IN : longitude information
+            1258                           wix,  &  !--- IN : zonal wind component on latlon
+            1259                           wiy,  &  !--- IN : meridional wind component on latlon
+            1260                           vx1d, &  !--- INOUT : horizontal-x component on absolute system for horizontal wind
+            1261                           vy1d, &  !--- INOUT : horizontal-y component on absolute system for horizontal wind
+            1262                           vz1d  )  !--- INOUT : vertical component on absolute system for horizontal wind
+            1263                         !
+            1264                         implicit none
+            1265                         integer, intent(in) :: kdim
+            1266                         real(PRCS_D), intent(in) :: lat, lon
+            1267                         real(PRCS_D), intent(in) :: wix(kdim)
+            1268                         real(PRCS_D), intent(in) :: wiy(kdim)
+            1269                         real(PRCS_D), intent(inout) :: vx1d(kdim)
+            1270                         real(PRCS_D), intent(inout) :: vy1d(kdim)
+            1271                         real(PRCS_D), intent(inout) :: vz1d(kdim)
+            1272                         !
+            1273                         integer :: k
+            1274                         real(PRCS_D) :: unit_east(3), unit_north(3)
+            1275                         !
+            1276                         ! imported from NICAM/nhm/mkinit/prg_mkinit_ncep.f90 (original written by H.Miura)
+            1277                         ! *** compute vx, vy, vz as 1-dimensional variables
+            1278     1                   do k=1, kdim
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+            1279     1       3              unit_east  = Sp_Unit_East( lon )
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+            1280     1       3              unit_north = Sp_Unit_North( lon, lat )
+            1281     1                      !
+            1282     1                      vx1d(k) = unit_east(1) * wix(k) + unit_north(1) * wiy(k)
+            1283     1                      vy1d(k) = unit_east(2) * wix(k) + unit_north(2) * wiy(k)
+            1284     1                      vz1d(k) = unit_east(3) * wix(k) + unit_north(3) * wiy(k)
+            1285     1                   enddo
+            1286                         !
+            1287                         return
+            1288                       end subroutine conv_vxvyvz
+            1289                       !-----------------------------------------------------------------------------
+            1290                       !
+            1291                       !-----------------------------------------------------------------------------
+            1292                       function sphere_xyz_to_lon (xyz) result (lon)  !(x,y,z) to longitude [-pi,pi].
+            1293                         real(PRCS_D),intent(in) :: xyz(3) !< (x,y,z)
+            1294                         real(PRCS_D) :: lon !< longitude [rad]
+            1295                         real(PRCS_D) :: proj
+            1296                         !
+            1297                         proj=sqrt (xyz(1)*xyz(1) + xyz(2)*xyz(2))
+            1298     1                   if (proj<eps) then
+            1299     1                      lon=0.0_PRCS_D       !# pole points
+            1300     1                   else
+            1301     1                      lon=atan2 (xyz(2),xyz(1))
+            1302     1                   end if
+            1303                         return
+            1304                       end function sphere_xyz_to_lon
+            1305                       !-----------------------------------------------------------------------------
+            1306                       !
+            1307                       !-----------------------------------------------------------------------------
+            1308                       function sphere_xyz_to_lat (xyz) result (lat)  !(x,y,z) to latitude [-pi/2,pi/2].
+            1309                         real(PRCS_D),intent(in) :: xyz(3) !< (x,y,z)
+            1310                         real(PRCS_D) :: lat !< latitude [rad]
+            1311                         real(PRCS_D) :: proj
+            1312                         !
+            1313                         proj=sqrt (xyz(1)*xyz(1) + xyz(2)*xyz(2))
+            1314     1                   if (proj<eps) then
+            1315     1                      lat=sign (0.5_PRCS_D*pi,xyz(3))       !# pole points
+            1316     1                   else
+            1317     1                      lat=atan (xyz(3)/proj)
+            1318     1                   end if
+            1319                         return
+            1320                       end function sphere_xyz_to_lat
+            1321                       !-----------------------------------------------------------------------------
+            1322                       !
+            1323                       !-----------------------------------------------------------------------------
+            1324                       function Sp_Unit_East( lon ) result( unit_east )
+            1325                         ! imported from prg_mkinit_ncep.f90 (original written by H.Miura)
+            1326                         ! ------
+            1327                         ! Compute local eastward unit vector (unit_east)
+            1328                         ! in the Cartesian coordinate system
+            1329                         ! given longitude (lon) of a position.
+            1330                         !
+            1331                         implicit none
+            1332                         real(PRCS_D), intent(in) :: lon  ! [ rad ]
+            1333                         real(PRCS_D) :: unit_east(3)
+            1334                         !
+            1335                         unit_east(1) = - sin( lon )    ! --- x-direction
+            1336                         unit_east(2) =   cos( lon )    ! --- y-direction
+            1337                         unit_east(3) = 0.0_PRCS_D      ! --- z-direction
+            1338                         return
+            1339                       end function Sp_Unit_East
+            1340                       !-----------------------------------------------------------------------------
+            1341                       !
+            1342                       !-----------------------------------------------------------------------------
+            1343                       function Sp_Unit_North( lon, lat ) result( unit_north )
+            1344                         ! imported from prg_mkinit_ncep.f90 (original written by H.Miura)
+            1345                         ! ------
+            1346                         ! Compute local northward unit vector (unit_north)
+            1347                         ! in the Cartesian coordinate system
+            1348                         ! given longitude (lon) and latitude (lat) of a position.
+            1349                         !
+            1350                         implicit none
+            1351                         real(PRCS_D), intent(in) :: lon, lat  ! [ rad ]
+            1352                         real(PRCS_D) :: unit_north(3)
+            1353                         !
+            1354                         unit_north(1) = - sin( lat ) * cos( lon )    ! --- x-direction
+            1355                         unit_north(2) = - sin( lat ) * sin( lon )    ! --- y-direction
+            1356                         unit_north(3) =   cos( lat )                 ! --- z-direction
+            1357                         return
+            1358                       end function Sp_Unit_North
+            1359                       !-----------------------------------------------------------------------------
+            1360                       !
+            1361                       !
+            1362                       !  "subroutine surface_height" was moved to share/mod_grd.f90
+            1363                       !-----------------------------------------------------------------------------
+            1364                       !
+            1365                     end module mod_dycoretest
+            1366                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_dycoretest)
+   jwd8220o-i  "nhm/share/mod_dycoretest.f90", line 6: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(dycore_input)
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 140: Division is changed to multiplication by reciprocal.
+  Module subprogram name(hs_init)
+   jwd2006i-i  "nhm/share/mod_dycoretest.f90", line 232: 'dT' is declared but never referenced.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 264: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 267: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 270: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 270: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 272: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 274: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 290: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 300: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 300: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 302: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 304: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(eta_vert_coord_NW)
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 858: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 859: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(steady_state)
+   jwd8213o-i  "nhm/share/mod_dycoretest.f90", line 909: Exponentiation method is changed.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 909: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "nhm/share/mod_dycoretest.f90", line 914: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 916: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 918: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "nhm/share/mod_dycoretest.f90", line 918: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 918: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 937: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 938: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8213o-i  "nhm/share/mod_dycoretest.f90", line 940: Exponentiation method is changed.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 940: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 947: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(geo2prs)
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 981: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 982: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 984: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(geost_rebalance)
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 1097: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 1097: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 1100: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 1105: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 1105: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 1108: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 1131: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 1131: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 1139: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 1139: Division is changed to multiplication by reciprocal.
+  Module subprogram name(perturbation)
+   jwd8201o-i  "nhm/share/mod_dycoretest.f90", line 1227: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "nhm/share/mod_dycoretest.f90", line 1233: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 1242: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 1243: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_dycoretest.f90", line 1244: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 1366
+   Statements : 777
+   Stack(byte): 23696
+   Prefetch num: 14
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1366
+   Total statements : 777
+   Total stack(byte): 23696
+   Total prefetch num: 14
+

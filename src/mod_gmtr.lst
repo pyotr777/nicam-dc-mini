@@ -1,0 +1,1318 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 16:50:54 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_gmtr.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_gmtr.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_gmtr"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! Geometrics module
+               4                     !!
+               5                     !! @par Description
+               6                     !!          In this module, the geometrics of the icosahedral grid such as
+               7                     !!          area are calculated.
+               8                     !!
+               9                     !! @author  H.Tomita
+              10                     !!
+              11                     !! @par History
+              12                     !! @li      2004-02-17 (H.Tomita)  Imported from igdc-4.33
+              13                     !! @li      2010-06-08 (S.Iga)     a new grid is implemented
+              14                     !! @li      2011-07-22 (T.Ohno)    a new grid is implemented
+              15                     !! @li      2011-08-18 (T.Ohno)    bugfix
+              16                     !!
+              17                     !<
+              18                     module mod_gmtr
+              19                       !-----------------------------------------------------------------------------
+              20                       !
+              21                       !++ Used modules
+              22                       !
+              23                       use mod_adm, only: &
+              24                          ADM_NSYS
+              25                       !-----------------------------------------------------------------------------
+              26                       implicit none
+              27                       private
+              28                       !-----------------------------------------------------------------------------
+              29                       !
+              30                       !++ Public procedure
+              31                       !
+              32                       public :: GMTR_setup
+              33                     
+              34                       !-----------------------------------------------------------------------------
+              35                       !
+              36                       !++ Public parameters & variables
+              37                       !
+              38                     
+              39                       integer, public, parameter :: GMTR_T_nmax_var = 7
+              40                     
+              41                       integer, public, parameter :: GMTR_T_AREA  = 1
+              42                       integer, public, parameter :: GMTR_T_RAREA = 2
+              43                       integer, public, parameter :: GMTR_T_W1    = 3
+              44                       integer, public, parameter :: GMTR_T_W2    = 4
+              45                       integer, public, parameter :: GMTR_T_W3    = 5
+              46                       integer, public, parameter :: GMTR_T_LAT   = 6
+              47                       integer, public, parameter :: GMTR_T_LON   = 7
+              48                     
+              49                       integer, public, parameter :: GMTR_P_nmax_var = 10
+              50                     
+              51                       integer, public, parameter :: GMTR_P_AREA  = 1
+              52                       integer, public, parameter :: GMTR_P_RAREA = 2
+              53                       integer, public, parameter :: GMTR_P_IX    = 3
+              54                       integer, public, parameter :: GMTR_P_IY    = 4
+              55                       integer, public, parameter :: GMTR_P_IZ    = 5
+              56                       integer, public, parameter :: GMTR_P_JX    = 6
+              57                       integer, public, parameter :: GMTR_P_JY    = 7
+              58                       integer, public, parameter :: GMTR_P_JZ    = 8
+              59                       integer, public, parameter :: GMTR_P_LAT   = 9
+              60                       integer, public, parameter :: GMTR_P_LON   = 10
+              61                     
+              62                       integer, public, parameter :: GMTR_A_nmax_var    = 12
+              63                       integer, public, parameter :: GMTR_A_nmax_var_pl = 18
+              64                     
+              65                       integer, public, parameter :: GMTR_A_HNX  = 1
+              66                       integer, public, parameter :: GMTR_A_HNY  = 2
+              67                       integer, public, parameter :: GMTR_A_HNZ  = 3
+              68                       integer, public, parameter :: GMTR_A_HTX  = 4
+              69                       integer, public, parameter :: GMTR_A_HTY  = 5
+              70                       integer, public, parameter :: GMTR_A_HTZ  = 6
+              71                       integer, public, parameter :: GMTR_A_TNX  = 7
+              72                       integer, public, parameter :: GMTR_A_TNY  = 8
+              73                       integer, public, parameter :: GMTR_A_TNZ  = 9
+              74                       integer, public, parameter :: GMTR_A_TTX  = 10
+              75                       integer, public, parameter :: GMTR_A_TTY  = 11
+              76                       integer, public, parameter :: GMTR_A_TTZ  = 12
+              77                     
+              78                       integer, public, parameter :: GMTR_A_TN2X = 13
+              79                       integer, public, parameter :: GMTR_A_TN2Y = 14
+              80                       integer, public, parameter :: GMTR_A_TN2Z = 15
+              81                       integer, public, parameter :: GMTR_A_TT2X = 16
+              82                       integer, public, parameter :: GMTR_A_TT2Y = 17
+              83                       integer, public, parameter :: GMTR_A_TT2Z = 18
+              84                     
+              85                       real(8), public, allocatable, save :: GMTR_P_var   (:,:,:,:)
+              86                       real(8), public, allocatable, save :: GMTR_P_var_pl(:,:,:,:)
+              87                     
+              88                       real(8), public, allocatable, save :: GMTR_T_var   (:,:,:,:,:)
+              89                       real(8), public, allocatable, save :: GMTR_T_var_pl(:,:,:,:)
+              90                     
+              91                       real(8), public, allocatable, save :: GMTR_A_var   (:,:,:,:,:)
+              92                       real(8), public, allocatable, save :: GMTR_A_var_pl(:,:,:,:)
+              93                     
+              94                       real(8), public, allocatable, save :: GMTR_area   (:,:)
+              95                       real(8), public, allocatable, save :: GMTR_area_pl(:,:)
+              96                       real(8), public, allocatable, save :: GMTR_lat    (:,:)
+              97                       real(8), public, allocatable, save :: GMTR_lat_pl (:,:)
+              98                       real(8), public, allocatable, save :: GMTR_lon    (:,:)
+              99                       real(8), public, allocatable, save :: GMTR_lon_pl (:,:)
+             100                     
+             101                       character(len=ADM_NSYS),  public, save :: GMTR_polygon_type = 'ON_SPHERE'
+             102                       !                                       ! 'ON_SPHERE' : triangle is fit to the sphere
+             103                       !                                       ! 'ON_PLANE'  : triangle is treated as 2D
+             104                     
+             105                       !-----------------------------------------------------------------------------
+             106                       !
+             107                       !++ Private procedure
+             108                       !
+             109                       private :: xcalc_gmtr_t
+             110                       private :: xcalc_gmtr_p
+             111                       private :: xcalc_gmtr_a
+             112                     
+             113                       !-----------------------------------------------------------------------------
+             114                       !
+             115                       !++ Private parameters & variables
+             116                       !
+             117                       !-----------------------------------------------------------------------------
+             118                     contains
+             119                     
+             120                       !-----------------------------------------------------------------------------
+             121                       !>
+             122                       !> Description of the subroutine GMTR_setup
+             123                       !>
+             124                       subroutine GMTR_setup
+             125                         use mod_adm, only: &
+             126                            ADM_CTL_FID,      &
+             127                            ADM_LOG_FID,      &
+             128                            ADM_proc_stop,    &
+             129                            ADM_TI,           &
+             130                            ADM_TJ,           &
+             131                            ADM_AI,           &
+             132                            ADM_AJ,           &
+             133                            ADM_gmin,         &
+             134                            ADM_gmax,         &
+             135                            ADM_gall,         &
+             136                            ADM_gall_1d,      &
+             137                            ADM_gall_pl,      &
+             138                            ADM_lall,         &
+             139                            ADM_lall_pl,      &
+             140                            ADM_KNONE
+             141                         use mod_comm, only: &
+             142                            COMM_data_transfer
+             143                         implicit none
+             144                     
+             145                         character(len=ADM_NSYS) :: polygon_type !--- polygon type
+             146                     
+             147                         namelist / GMTRPARAM / &
+             148                             polygon_type
+             149                     
+             150                         integer :: ierr
+             151                         integer :: K0
+             152                         integer :: i, j, suf
+             153                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             154                         !---------------------------------------------------------------------------
+             155                     
+             156                         polygon_type = GMTR_polygon_type
+             157                     
+             158                         !--- read parameters
+             159                         write(ADM_LOG_FID,*)
+             160                         write(ADM_LOG_FID,*) '+++ Module[gmtr]/Category[common share]'
+             161                         rewind(ADM_CTL_FID)
+             162                         read(ADM_CTL_FID,nml=GMTRPARAM,iostat=ierr)
+             163     1                   if ( ierr < 0 ) then
+             164     1                      write(ADM_LOG_FID,*) '*** GMTRPARAM is not specified. use default.'
+             165     1                   elseif( ierr > 0 ) then
+             166     1                      write(*,          *) 'xxx Not appropriate names in namelist GMTRPARAM. STOP.'
+             167     1                      write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist GMTRPARAM. STOP.'
+             168     1                      call ADM_proc_stop
+             169     1                   endif
+             170                         write(ADM_LOG_FID,GMTRPARAM)
+             171                     
+             172                         GMTR_polygon_type = polygon_type
+             173                     
+             174                         K0 = ADM_KNONE
+             175                     
+             176                         ! --- setup triangle data
+             177                         allocate( GMTR_T_var   (ADM_gall,   K0,ADM_lall,   ADM_TI:ADM_TJ,GMTR_T_nmax_var) )
+             178                         allocate( GMTR_T_var_pl(ADM_gall_pl,K0,ADM_lall_pl,              GMTR_T_nmax_var) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             179        pp    v          GMTR_T_var   (:,:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             180        pp    v          GMTR_T_var_pl(:,:,:,:)   = 0.D0
+             181                     
+             182                         call xcalc_gmtr_t
+             183                     
+             184                         !--- setup point data
+             185                         allocate( GMTR_P_var   (ADM_gall,   K0,ADM_lall,   GMTR_P_nmax_var) )
+             186                         allocate( GMTR_P_var_pl(ADM_gall_pl,K0,ADM_lall_pl,GMTR_P_nmax_var) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             187        pp    v          GMTR_P_var   (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             188        pp    v          GMTR_P_var_pl(:,:,:,:) = 0.D0
+             189                     
+             190                         call xcalc_gmtr_p
+             191                     
+             192                         !--- communication of point data
+             193                         call COMM_data_transfer( GMTR_P_var, GMTR_P_var_pl )
+             194                         ! fill unused grid (dummy)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             195        pp   6s          GMTR_P_var(suf(ADM_gall_1d,1),:,:,:) = GMTR_P_var(suf(ADM_gmax+1,ADM_gmin),:,:,:)
+             196         p   6s          GMTR_P_var(suf(1,ADM_gall_1d),:,:,:) = GMTR_P_var(suf(ADM_gmin,ADM_gmax+1),:,:,:)
+             197                     
+             198                         !--- for simple use
+             199                         allocate( GMTR_area   (ADM_gall,   ADM_lall   ) )
+             200                         allocate( GMTR_area_pl(ADM_gall_pl,ADM_lall_pl) )
+             201                         allocate( GMTR_lat    (ADM_gall,   ADM_lall   ) )
+             202                         allocate( GMTR_lat_pl (ADM_gall_pl,ADM_lall_pl) )
+             203                         allocate( GMTR_lon    (ADM_gall,   ADM_lall   ) )
+             204                         allocate( GMTR_lon_pl (ADM_gall_pl,ADM_lall_pl) )
+             205                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             206        pp   8v          GMTR_area   (:,:) = GMTR_P_var   (:,K0,:,GMTR_P_AREA)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             207        pp   8v          GMTR_area_pl(:,:) = GMTR_P_var_pl(:,K0,:,GMTR_P_AREA)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             208        pp   8v          GMTR_lat    (:,:) = GMTR_P_var   (:,K0,:,GMTR_P_LAT )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             209        pp   8v          GMTR_lat_pl (:,:) = GMTR_P_var_pl(:,K0,:,GMTR_P_LAT )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             210        pp   8v          GMTR_lon    (:,:) = GMTR_P_var   (:,K0,:,GMTR_P_LON )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             211        pp   8v          GMTR_lon_pl (:,:) = GMTR_P_var_pl(:,K0,:,GMTR_P_LON )
+             212                     
+             213                         !--- setup arc data
+             214                         allocate( GMTR_A_var   (ADM_gall,   K0,ADM_lall,   ADM_AI:ADM_AJ,GMTR_A_nmax_var   ) )
+             215                         allocate( GMTR_A_var_pl(ADM_gall_pl,K0,ADM_lall_pl,              GMTR_A_nmax_var_pl) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             216        pp    v          GMTR_A_var   (:,:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             217        pp    v          GMTR_A_var_pl(:,:,:,:)   = 0.D0
+             218                     
+             219                         call xcalc_gmtr_a
+             220                     
+             221                         return
+             222                       end subroutine GMTR_setup
+             223                     
+             224                       !-----------------------------------------------------------------------------
+             225                       !>
+             226                       !> Description of the subroutine xcalc_gmtr_t
+             227                       !>
+             228                       subroutine xcalc_gmtr_t
+             229                         use mod_misc, only: &
+             230                            MISC_triangle_area, &
+             231                            MISC_get_latlon
+             232                         use mod_adm, only: &
+             233                            ADM_prc_me,      &
+             234                            ADM_prc_pl,      &
+             235                            ADM_prc_tab,     &
+             236                            ADM_rgn_vnum,    &
+             237                            ADM_W,           &
+             238                            ADM_TI,          &
+             239                            ADM_TJ,          &
+             240                            ADM_gmin,        &
+             241                            ADM_gmax,        &
+             242                            ADM_gall,        &
+             243                            ADM_gall_1d,     &
+             244                            ADM_gall_pl,     &
+             245                            ADM_GSLF_PL,     &
+             246                            ADM_GMIN_PL,     &
+             247                            ADM_GMAX_PL,     &
+             248                            ADM_lall,        &
+             249                            ADM_lall_pl,     &
+             250                            ADM_KNONE,       &
+             251                            ADM_ImoJmo_nmax, &
+             252                            ADM_ImoJmo,      &
+             253                            ADM_GIoJo,       &
+             254                            ADM_GIpJo,       &
+             255                            ADM_GIpJp,       &
+             256                            ADM_GIoJp
+             257                         use mod_grd, only: &
+             258                            GRD_XDIR,      &
+             259                            GRD_YDIR,      &
+             260                            GRD_ZDIR,      &
+             261                            GRD_x,         &
+             262                            GRD_x_pl,      &
+             263                            GRD_xt,        &
+             264                            GRD_xt_pl,     &
+             265                            GRD_grid_type, & ! [add] T.Ohno 110722
+             266                            GRD_rscale
+             267                         implicit none
+             268                     
+             269                         real(8) :: v   (GRD_XDIR:GRD_ZDIR,0:3,ADM_gall,   ADM_TI:ADM_TJ)
+             270                         real(8) :: v_pl(GRD_XDIR:GRD_ZDIR,0:3,ADM_gall_pl)
+             271                     
+             272                         real(8) :: area, area1, area2, area3
+             273                         integer :: l, d, t, n
+             274                         integer :: rgnid, ij, K0
+             275                     
+             276                         integer :: suf,i,j
+             277                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             278                         !---------------------------------------------------------------------------
+             279                     
+             280                         K0 = ADM_KNONE
+             281                     
+             282     1                   do l = 1,ADM_lall
+             283     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             284     1               
+             285     2   s    s             do n = 1, ADM_ImoJmo_nmax
+             286     2   p    s                ij = ADM_ImoJmo(n,ADM_GIoJo)
+             287     2               
+             288     2   m    s                v(GRD_XDIR,0,ij,ADM_TI) = GRD_xt(ij,K0,l,ADM_TI,GRD_XDIR)
+             289     2   m    s                v(GRD_XDIR,1,ij,ADM_TI) = GRD_x(ADM_ImoJmo(n,ADM_GIoJo),K0,l,GRD_XDIR)
+             290     2   m    s                v(GRD_XDIR,2,ij,ADM_TI) = GRD_x(ADM_ImoJmo(n,ADM_GIpJo),K0,l,GRD_XDIR)
+             291     2   m    s                v(GRD_XDIR,3,ij,ADM_TI) = GRD_x(ADM_ImoJmo(n,ADM_GIpJp),K0,l,GRD_XDIR)
+             292     2               
+             293     2   s    s                v(GRD_XDIR,0,ij,ADM_TJ) = GRD_xt(ij,K0,l,ADM_TJ,GRD_XDIR)
+             294     2   m    s                v(GRD_XDIR,1,ij,ADM_TJ) = GRD_x(ADM_ImoJmo(n,ADM_GIoJo),K0,l,GRD_XDIR)
+             295     2   s    s                v(GRD_XDIR,2,ij,ADM_TJ) = GRD_x(ADM_ImoJmo(n,ADM_GIpJp),K0,l,GRD_XDIR)
+             296     2   m    s                v(GRD_XDIR,3,ij,ADM_TJ) = GRD_x(ADM_ImoJmo(n,ADM_GIoJp),K0,l,GRD_XDIR)
+             297     2               
+             298     2   s    s                v(GRD_YDIR,0,ij,ADM_TI) = GRD_xt(ij,K0,l,ADM_TI,GRD_YDIR)
+             299     2   m    s                v(GRD_YDIR,1,ij,ADM_TI) = GRD_x(ADM_ImoJmo(n,ADM_GIoJo),K0,l,GRD_YDIR)
+             300     2   m    s                v(GRD_YDIR,2,ij,ADM_TI) = GRD_x(ADM_ImoJmo(n,ADM_GIpJo),K0,l,GRD_YDIR)
+             301     2   m    s                v(GRD_YDIR,3,ij,ADM_TI) = GRD_x(ADM_ImoJmo(n,ADM_GIpJp),K0,l,GRD_YDIR)
+             302     2               
+             303     2   s    s                v(GRD_YDIR,0,ij,ADM_TJ) = GRD_xt(ij,K0,l,ADM_TJ,GRD_YDIR)
+             304     2   s    s                v(GRD_YDIR,1,ij,ADM_TJ) = GRD_x(ADM_ImoJmo(n,ADM_GIoJo),K0,l,GRD_YDIR)
+             305     2   s    s                v(GRD_YDIR,2,ij,ADM_TJ) = GRD_x(ADM_ImoJmo(n,ADM_GIpJp),K0,l,GRD_YDIR)
+             306     2   m    s                v(GRD_YDIR,3,ij,ADM_TJ) = GRD_x(ADM_ImoJmo(n,ADM_GIoJp),K0,l,GRD_YDIR)
+             307     2               
+             308     2   s    s                v(GRD_ZDIR,0,ij,ADM_TI) = GRD_xt(ij,K0,l,ADM_TI,GRD_ZDIR)
+             309     2   m    s                v(GRD_ZDIR,1,ij,ADM_TI) = GRD_x(ADM_ImoJmo(n,ADM_GIoJo),K0,l,GRD_ZDIR)
+             310     2   m    s                v(GRD_ZDIR,2,ij,ADM_TI) = GRD_x(ADM_ImoJmo(n,ADM_GIpJo),K0,l,GRD_ZDIR)
+             311     2   m    s                v(GRD_ZDIR,3,ij,ADM_TI) = GRD_x(ADM_ImoJmo(n,ADM_GIpJp),K0,l,GRD_ZDIR)
+             312     2               
+             313     2   s    s                v(GRD_ZDIR,0,ij,ADM_TJ) = GRD_xt(ij,K0,l,ADM_TJ,GRD_ZDIR)
+             314     2   s    s                v(GRD_ZDIR,1,ij,ADM_TJ) = GRD_x(ADM_ImoJmo(n,ADM_GIoJo),K0,l,GRD_ZDIR)
+             315     2   s    s                v(GRD_ZDIR,2,ij,ADM_TJ) = GRD_x(ADM_ImoJmo(n,ADM_GIpJp),K0,l,GRD_ZDIR)
+             316     2   m    s                v(GRD_ZDIR,3,ij,ADM_TJ) = GRD_x(ADM_ImoJmo(n,ADM_GIoJp),K0,l,GRD_ZDIR)
+             317     2   p    s             enddo
+             318     1               
+             319     1                      !--- treat unused point
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             320     1       f              v(:,:,suf(ADM_gmax,ADM_gmin-1),ADM_TI) = v(:,:,suf(ADM_gmax,ADM_gmin-1),ADM_TJ)
+             321     1       f              v(:,:,suf(ADM_gmin-1,ADM_gmax),ADM_TJ) = v(:,:,suf(ADM_gmin-1,ADM_gmax),ADM_TI)
+             322     1               
+             323     1                      !--- exception for the west
+             324     2                      if ( ADM_rgn_vnum(ADM_W,rgnid) == 3 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             325     2       f                 v(:,:,suf(ADM_gmin-1,ADM_gmin-1),ADM_TI) = v(:,:,suf(ADM_gmin,ADM_gmin-1),ADM_TJ)
+             326     2                      endif
+             327     1               
+             328     2                      do t = ADM_TI,ADM_TJ
+             329     3                      do n = 1, ADM_ImoJmo_nmax
+             330     3                         ij = ADM_ImoJmo(n,ADM_GIoJo)
+             331     3               
+             332     4                         if ( trim(GRD_grid_type) == 'ON_PLANE' ) then ! [add] T.Ohno 20110722
+             333     4                            area1 = get_triangle_are_on_plane( v(:,0,ij,t), v(:,2,ij,t), v(:,3,ij,t) )
+             334     4                            area2 = get_triangle_are_on_plane( v(:,0,ij,t), v(:,3,ij,t), v(:,1,ij,t) )
+             335     4                            area3 = get_triangle_are_on_plane( v(:,0,ij,t), v(:,1,ij,t), v(:,2,ij,t) )
+             336     4                         else
+             337     4                            area1 = MISC_triangle_area( v(:,0,ij,t), v(:,2,ij,t), v(:,3,ij,t), GMTR_polygon_type, GRD_rscale )
+             338     4                            area2 = MISC_triangle_area( v(:,0,ij,t), v(:,3,ij,t), v(:,1,ij,t), GMTR_polygon_type, GRD_rscale )
+             339     4                            area3 = MISC_triangle_area( v(:,0,ij,t), v(:,1,ij,t), v(:,2,ij,t), GMTR_polygon_type, GRD_rscale )
+             340     4                         endif
+             341     3               
+             342     3                         area = area1 + area2 + area3
+             343     3               
+             344     3                         GMTR_T_var(ij,K0,l,t,GMTR_T_AREA)  = area
+             345     3                         GMTR_T_var(ij,K0,l,t,GMTR_T_RAREA) = 1.D0 / area
+             346     3               
+             347     3                         GMTR_T_var(ij,K0,l,t,GMTR_T_W1)    = area1 / area
+             348     3                         GMTR_T_var(ij,K0,l,t,GMTR_T_W2)    = area2 / area
+             349     3                         GMTR_T_var(ij,K0,l,t,GMTR_T_W3)    = area3 / area
+             350     3               
+             351     3                         call MISC_get_latlon( GMTR_T_var(ij,K0,l,t,GMTR_T_LAT), &
+             352     3                                               GMTR_T_var(ij,K0,l,t,GMTR_T_LON), &
+             353     3                                               GRD_xt    (ij,K0,l,t,GRD_XDIR),   &
+             354     3                                               GRD_xt    (ij,K0,l,t,GRD_YDIR),   &
+             355     3                                               GRD_xt    (ij,K0,l,t,GRD_ZDIR)    )
+             356     3                      enddo
+             357     2                      enddo
+             358     1               
+             359     1                   enddo
+             360                     
+             361     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             362     2                      do l = 1,ADM_lall_pl
+             363     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 189
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             364     3  pp    v                do n = ADM_GMIN_PL, ADM_GMAX_PL-1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             365     4   p   f                    do d = GRD_XDIR, GRD_ZDIR
+             366     4   p   fv                      v_pl(d,0,n) = GRD_xt_pl(n,K0,l,d)
+             367     4   p   fv                      v_pl(d,1,n) = GRD_x_pl(ADM_GSLF_PL,K0,l,d)
+             368     4   p   fv                      v_pl(d,2,n) = GRD_x_pl(n  ,        K0,l,d)
+             369     4   p   fv                      v_pl(d,3,n) = GRD_x_pl(n+1,        K0,l,d)
+             370     4   p   fv                   enddo
+             371     3   p    v                enddo
+             372     2               
+             373     2                         n = ADM_GMAX_PL
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             374     3       f                 do d = GRD_XDIR, GRD_ZDIR
+             375     3       f                    v_pl(d,0,n) = GRD_xt_pl(n,K0,l,d)
+             376     3       f                    v_pl(d,1,n) = GRD_x_pl(ADM_GSLF_PL,K0,l,d)
+             377     3       f                    v_pl(d,2,n) = GRD_x_pl(n,          K0,l,d)
+             378     3       f                    v_pl(d,3,n) = GRD_x_pl(ADM_GMIN_PL,K0,l,d)
+             379     3       f                 enddo
+             380     2               
+             381     3                         do n = ADM_GMIN_PL, ADM_GMAX_PL
+             382     3                            area1 = MISC_triangle_area( v_pl(:,0,n), v_pl(:,2,n), v_pl(:,3,n), GMTR_polygon_type, GRD_rscale )
+             383     3                            area2 = MISC_triangle_area( v_pl(:,0,n), v_pl(:,3,n), v_pl(:,1,n), GMTR_polygon_type, GRD_rscale )
+             384     3                            area3 = MISC_triangle_area( v_pl(:,0,n), v_pl(:,1,n), v_pl(:,2,n), GMTR_polygon_type, GRD_rscale )
+             385     3               
+             386     3                            area = area1 + area2 + area3
+             387     3               
+             388     3                            GMTR_T_var_pl(n,K0,l,GMTR_T_AREA)  = area
+             389     3                            GMTR_T_var_pl(n,K0,l,GMTR_T_RAREA) = 1.D0 / area
+             390     3               
+             391     3                            GMTR_T_var_pl(n,K0,l,GMTR_T_W1)    = area1 / area
+             392     3                            GMTR_T_var_pl(n,K0,l,GMTR_T_W2)    = area2 / area
+             393     3                            GMTR_T_var_pl(n,K0,l,GMTR_T_W3)    = area3 / area
+             394     3               
+             395     3               
+             396     3                            call MISC_get_latlon( GMTR_T_var_pl(n,K0,l,GMTR_T_LAT), &
+             397     3                                                  GMTR_T_var_pl(n,K0,l,GMTR_T_LON), &
+             398     3                                                  GRD_xt_pl    (n,K0,l,GRD_XDIR),   &
+             399     3                                                  GRD_xt_pl    (n,K0,l,GRD_YDIR),   &
+             400     3                                                  GRD_xt_pl    (n,K0,l,GRD_ZDIR)    )
+             401     3                         enddo
+             402     2               
+             403     2                      enddo
+             404     1                   endif
+             405                     
+             406                         return
+             407                       end subroutine xcalc_gmtr_t
+             408                     
+             409                       !-----------------------------------------------------------------------------
+             410                       !>
+             411                       !> Description of the subroutine xcalc_gmtr_p
+             412                       !>
+             413                       subroutine xcalc_gmtr_p
+             414                         use mod_misc, only: &
+             415                            MISC_triangle_area, &
+             416                            MISC_get_latlon
+             417                         use mod_adm, only: &
+             418                            ADM_prc_me,      &
+             419                            ADM_prc_pl,      &
+             420                            ADM_prc_tab,     &
+             421                            ADM_rgn_vnum,    &
+             422                            ADM_W,           &
+             423                            ADM_TI,          &
+             424                            ADM_TJ,          &
+             425                            ADM_gmin,        &
+             426                            ADM_gall,        &
+             427                            ADM_gall_1d,     &
+             428                            ADM_GSLF_PL,     &
+             429                            ADM_GMIN_PL,     &
+             430                            ADM_lall,        &
+             431                            ADM_lall_pl,     &
+             432                            ADM_KNONE,       &
+             433                            ADM_IooJoo_nmax, &
+             434                            ADM_IooJoo,      &
+             435                            ADM_GIoJo,       &
+             436                            ADM_GIoJm,       &
+             437                            ADM_GImJo,       &
+             438                            ADM_GImJm,       &
+             439                            ADM_XTMS_K         ! S.Iga100608
+             440                         use mod_grd, only: &
+             441                            GRD_XDIR,      &
+             442                            GRD_YDIR,      &
+             443                            GRD_ZDIR,      &
+             444                            GRD_x,         &
+             445                            GRD_x_pl,      &
+             446                            GRD_xt,        &
+             447                            GRD_xt_pl,     &
+             448                            GRD_grid_type, & ! [add] T.Ohno 110722
+             449                            GRD_rscale
+             450                         implicit none
+             451                     
+             452                         real(8) :: v   (GRD_XDIR:GRD_ZDIR,0:7,ADM_gall)
+             453                         real(8) :: v_pl(GRD_XDIR:GRD_ZDIR,0:ADM_XTMS_K+1)
+             454                     
+             455                         real(8) :: area
+             456                         real(8) :: cos_lam, sin_lam
+             457                     
+             458                         integer :: l, n, m
+             459                         integer :: rgnid, ij, K0
+             460                     
+             461                         integer :: suf, i, j
+             462                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             463                         !---------------------------------------------------------------------------
+             464                     
+             465                         K0 = ADM_KNONE
+             466                     
+             467     1                   do l = 1, ADM_lall
+             468     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             469     1               
+             470     2   s    s             do n = 1, ADM_IooJoo_nmax
+             471     2   p    s                ij = ADM_IooJoo(n,ADM_GIoJo)
+             472     2               
+             473     2   m    s                v(GRD_XDIR,0,ij) = GRD_x(ij,K0,l,GRD_XDIR)
+             474     2   m    s                v(GRD_XDIR,1,ij) = GRD_xt(ADM_IooJoo(n,ADM_GIoJm),K0,l,ADM_TJ,GRD_XDIR)
+             475     2   m    s                v(GRD_XDIR,2,ij) = GRD_xt(ADM_IooJoo(n,ADM_GIoJo),K0,l,ADM_TI,GRD_XDIR)
+             476     2   m    s                v(GRD_XDIR,3,ij) = GRD_xt(ADM_IooJoo(n,ADM_GIoJo),K0,l,ADM_TJ,GRD_XDIR)
+             477     2   m    s                v(GRD_XDIR,4,ij) = GRD_xt(ADM_IooJoo(n,ADM_GImJo),K0,l,ADM_TI,GRD_XDIR)
+             478     2   m    s                v(GRD_XDIR,5,ij) = GRD_xt(ADM_IooJoo(n,ADM_GImJm),K0,l,ADM_TJ,GRD_XDIR)
+             479     2   m    s                v(GRD_XDIR,6,ij) = GRD_xt(ADM_IooJoo(n,ADM_GImJm),K0,l,ADM_TI,GRD_XDIR)
+             480     2   s    s                v(GRD_XDIR,7,ij) = v(GRD_XDIR,1,ij)
+             481     2               
+             482     2   s    s                v(GRD_YDIR,0,ij) = GRD_x(ij,K0,l,GRD_YDIR)
+             483     2   m    s                v(GRD_YDIR,1,ij) = GRD_xt(ADM_IooJoo(n,ADM_GIoJm),K0,l,ADM_TJ,GRD_YDIR)
+             484     2   m    s                v(GRD_YDIR,2,ij) = GRD_xt(ADM_IooJoo(n,ADM_GIoJo),K0,l,ADM_TI,GRD_YDIR)
+             485     2   m    s                v(GRD_YDIR,3,ij) = GRD_xt(ADM_IooJoo(n,ADM_GIoJo),K0,l,ADM_TJ,GRD_YDIR)
+             486     2   m    s                v(GRD_YDIR,4,ij) = GRD_xt(ADM_IooJoo(n,ADM_GImJo),K0,l,ADM_TI,GRD_YDIR)
+             487     2   m    s                v(GRD_YDIR,5,ij) = GRD_xt(ADM_IooJoo(n,ADM_GImJm),K0,l,ADM_TJ,GRD_YDIR)
+             488     2   m    s                v(GRD_YDIR,6,ij) = GRD_xt(ADM_IooJoo(n,ADM_GImJm),K0,l,ADM_TI,GRD_YDIR)
+             489     2   s    s                v(GRD_YDIR,7,ij) = v(GRD_YDIR,1,ij)
+             490     2               
+             491     2   s    s                v(GRD_ZDIR,0,ij) = GRD_x(ij,K0,l,GRD_ZDIR)
+             492     2   m    s                v(GRD_ZDIR,1,ij) = GRD_xt(ADM_IooJoo(n,ADM_GIoJm),K0,l,ADM_TJ,GRD_ZDIR)
+             493     2   m    s                v(GRD_ZDIR,2,ij) = GRD_xt(ADM_IooJoo(n,ADM_GIoJo),K0,l,ADM_TI,GRD_ZDIR)
+             494     2   m    s                v(GRD_ZDIR,3,ij) = GRD_xt(ADM_IooJoo(n,ADM_GIoJo),K0,l,ADM_TJ,GRD_ZDIR)
+             495     2   m    s                v(GRD_ZDIR,4,ij) = GRD_xt(ADM_IooJoo(n,ADM_GImJo),K0,l,ADM_TI,GRD_ZDIR)
+             496     2   m    s                v(GRD_ZDIR,5,ij) = GRD_xt(ADM_IooJoo(n,ADM_GImJm),K0,l,ADM_TJ,GRD_ZDIR)
+             497     2   m    s                v(GRD_ZDIR,6,ij) = GRD_xt(ADM_IooJoo(n,ADM_GImJm),K0,l,ADM_TI,GRD_ZDIR)
+             498     2   s    s                v(GRD_ZDIR,7,ij) = v(GRD_ZDIR,1,ij)
+             499     2   p    s             enddo
+             500     1               
+             501     2                      if ( ADM_rgn_vnum(ADM_W,rgnid) == 3 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             502     2       f                 v(:,6,suf(ADM_gmin,ADM_gmin)) = v(:,1,suf(ADM_gmin,ADM_gmin))
+             503     2       f                 v(:,7,suf(ADM_gmin,ADM_gmin)) = v(:,1,suf(ADM_gmin,ADM_gmin))
+             504     2                      endif
+             505     1               
+             506     2                      do n = 1, ADM_IooJoo_nmax
+             507     2                         ij = ADM_IooJoo(n,ADM_GIoJo)
+             508     2               
+             509     2                         area = 0.D0
+             510     3                         if ( trim(GRD_grid_type) == 'ON_PLANE' ) then ! [add] T.Ohno 20110722
+             511     4   s    s                   do m = 1, 6
+             512     4   m    m                      area = area + get_triangle_are_on_plane( v(:,0,ij), v(:,m,ij), v(:,m+1,ij) )
+             513     4   p    v                   enddo
+             514     3                         else
+             515     4        s                   do m = 1, 6
+             516     4        m                      area = area + MISC_triangle_area( v(:,0,ij), v(:,m,ij), v(:,m+1,ij), &
+             517     4                                                                 GMTR_polygon_type, GRD_rscale      )
+             518     4        v                   enddo
+             519     3                         endif
+             520     2               
+             521     2                         GMTR_P_var(ij,K0,l,GMTR_P_AREA)  = area
+             522     2                         GMTR_P_var(ij,K0,l,GMTR_P_RAREA) = 1.D0 / GMTR_P_var(ij,K0,l,GMTR_P_AREA)
+             523     2               
+             524     2                         call MISC_get_latlon( GMTR_P_var(ij,K0,l,GMTR_P_LAT), &
+             525     2                                               GMTR_P_var(ij,K0,l,GMTR_P_LON), &
+             526     2                                               GRD_x     (ij,K0,l,GRD_XDIR),   &
+             527     2                                               GRD_x     (ij,K0,l,GRD_YDIR),   &
+             528     2                                               GRD_x     (ij,K0,l,GRD_ZDIR)    )
+             529     2               
+             530     3                         if ( trim(GRD_grid_type) == 'ON_PLANE' ) then ! [add] T.Ohno 20110722
+             531     3               
+             532     3                            GMTR_P_var(ij,K0,l,GMTR_P_IX) = 1.D0
+             533     3                            GMTR_P_var(ij,K0,l,GMTR_P_IY) = 0.D0
+             534     3                            GMTR_P_var(ij,K0,l,GMTR_P_IZ) = 0.D0
+             535     3                            GMTR_P_var(ij,K0,l,GMTR_P_JX) = 0.D0
+             536     3                            GMTR_P_var(ij,K0,l,GMTR_P_JY) = 1.D0
+             537     3                            GMTR_P_var(ij,K0,l,GMTR_P_JZ) = 0.D0
+             538     3               
+             539     3                         else
+             540     3               
+             541     3                            sin_lam = sin( GMTR_P_var(ij,K0,l,GMTR_P_LON) )
+             542     3                            cos_lam = cos( GMTR_P_var(ij,K0,l,GMTR_P_LON) )
+             543     3               
+             544     3                            GMTR_P_var(ij,K0,l,GMTR_P_IX) = -sin_lam
+             545     3                            GMTR_P_var(ij,K0,l,GMTR_P_IY) =  cos_lam
+             546     3                            GMTR_P_var(ij,K0,l,GMTR_P_IZ) = 0.0D0
+             547     3                            GMTR_P_var(ij,K0,l,GMTR_P_JX) = -( GRD_x(ij,K0,l,GRD_ZDIR) * cos_lam ) / GRD_rscale
+             548     3                            GMTR_P_var(ij,K0,l,GMTR_P_JY) = -( GRD_x(ij,K0,l,GRD_ZDIR) * sin_lam ) / GRD_rscale
+             549     3                            GMTR_P_var(ij,K0,l,GMTR_P_JZ) =  ( GRD_x(ij,K0,l,GRD_XDIR) * cos_lam &
+             550     3                                                             + GRD_x(ij,K0,l,GRD_YDIR) * sin_lam ) / GRD_rscale
+             551     3                         endif
+             552     2               
+             553     2                      enddo ! ij loop
+             554     1                   enddo ! l loop
+             555                     
+             556     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             557     1                      n = ADM_GSLF_PL
+             558     1               
+             559     2                      do l = 1,ADM_lall_pl
+             560     2               
+             561     2                         v_pl(GRD_XDIR,0) = GRD_x_pl(n,K0,l,GRD_XDIR)
+             562     2                         v_pl(GRD_YDIR,0) = GRD_x_pl(n,K0,l,GRD_YDIR)
+             563     2                         v_pl(GRD_ZDIR,0) = GRD_x_pl(n,K0,l,GRD_ZDIR)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 552
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             564     3  pp   4v                do m = 1, ADM_XTMS_K ! (ICO=5)
+             565     3   p   4v                   v_pl(GRD_XDIR,m) = GRD_xt_pl(m+ADM_GMIN_PL-1,K0,l,GRD_XDIR)
+             566     3   p   4v                   v_pl(GRD_YDIR,m) = GRD_xt_pl(m+ADM_GMIN_PL-1,K0,l,GRD_YDIR)
+             567     3   p   4v                   v_pl(GRD_ZDIR,m) = GRD_xt_pl(m+ADM_GMIN_PL-1,K0,l,GRD_ZDIR)
+             568     3   p   4v                enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             569     2       f                 v_pl(:,ADM_XTMS_K+1) = v_pl(:,1)
+             570     2               
+             571     2                         area = 0.D0
+             572     3        s                do m = 1, ADM_XTMS_K ! (ICO=5)
+             573     3        m                   area = area + MISC_triangle_area( v_pl(:,0), v_pl(:,m), v_pl(:,m+1), &
+             574     3                                                              GMTR_polygon_type, GRD_rscale      )
+             575     3        v                enddo
+             576     2               
+             577     2                         GMTR_P_var_pl(n,K0,l,GMTR_P_AREA)  = area
+             578     2                         GMTR_P_var_pl(n,K0,l,GMTR_P_RAREA) = 1.D0 / GMTR_P_var_pl(n,K0,l,GMTR_P_AREA)
+             579     2               
+             580     2                         call MISC_get_latlon( GMTR_P_var_pl(n,K0,l,GMTR_P_LAT), &
+             581     2                                               GMTR_P_var_pl(n,K0,l,GMTR_P_LON), &
+             582     2                                               GRD_x_pl     (n,K0,l,GRD_XDIR),   &
+             583     2                                               GRD_x_pl     (n,K0,l,GRD_YDIR),   &
+             584     2                                               GRD_x_pl     (n,K0,l,GRD_ZDIR)    )
+             585     2               
+             586     2                         sin_lam = sin( GMTR_P_var_pl(n,K0,l,GMTR_P_LON) )
+             587     2                         cos_lam = cos( GMTR_P_var_pl(n,K0,l,GMTR_P_LON) )
+             588     2               
+             589     2                         GMTR_P_var_pl(n,K0,l,GMTR_P_IX) = -sin_lam
+             590     2                         GMTR_P_var_pl(n,K0,l,GMTR_P_IY) =  cos_lam
+             591     2                         GMTR_P_var_pl(n,K0,l,GMTR_P_IZ) = 0.0D0
+             592     2                         GMTR_P_var_pl(n,K0,l,GMTR_P_JX) = -( GRD_x_pl(n,K0,l,GRD_ZDIR) * cos_lam ) / GRD_rscale
+             593     2                         GMTR_P_var_pl(n,K0,l,GMTR_P_JY) = -( GRD_x_pl(n,K0,l,GRD_ZDIR) * sin_lam ) / GRD_rscale
+             594     2                         GMTR_P_var_pl(n,K0,l,GMTR_P_JZ) =  ( GRD_x_pl(n,K0,l,GRD_XDIR) * cos_lam &
+             595     2                                                            + GRD_x_pl(n,K0,l,GRD_YDIR) * sin_lam ) / GRD_rscale
+             596     2                      enddo ! l loop
+             597     1                   endif
+             598                     
+             599                         return
+             600                       end subroutine xcalc_gmtr_p
+             601                     
+             602                       !-----------------------------------------------------------------------------
+             603                       !>
+             604                       !> Description of the subroutine xcalc_gmtr_a
+             605                       !>
+             606                       subroutine xcalc_gmtr_a
+             607                         use mod_misc, only: &
+             608                            MISC_mk_gmtrvec
+             609                         use mod_adm, only: &
+             610                            ADM_prc_me,      &
+             611                            ADM_prc_pl,      &
+             612                            ADM_prc_tab,     &
+             613                            ADM_rgn_vnum,    &
+             614                            ADM_W,           &
+             615                            ADM_TI,          &
+             616                            ADM_TJ,          &
+             617                            ADM_AI,          &
+             618                            ADM_AIJ,         &
+             619                            ADM_AJ,          &
+             620                            ADM_gmin,        &
+             621                            ADM_gmax,        &
+             622                            ADM_gall,        &
+             623                            ADM_gall_1d,     &
+             624                            ADM_gall_pl,     &
+             625                            ADM_GSLF_PL,     &
+             626                            ADM_GMIN_PL,     &
+             627                            ADM_GMAX_PL,     &
+             628                            ADM_lall,        &
+             629                            ADM_lall_pl,     &
+             630                            ADM_KNONE,       &
+             631                            ADM_ImpJmo_nmax, &
+             632                            ADM_ImoJoo_nmax, &
+             633                            ADM_IooJmo_nmax, &
+             634                            ADM_ImoJmp_nmax, &
+             635                            ADM_ImoJmo_nmax, &
+             636                            ADM_ImpJmo,      &
+             637                            ADM_ImoJoo,      &
+             638                            ADM_IooJmo,      &
+             639                            ADM_ImoJmo,      &
+             640                            ADM_ImoJmp,      &
+             641                            ADM_GIoJo,       &
+             642                            ADM_GIpJo,       &
+             643                            ADM_GIpJp,       &
+             644                            ADM_GIoJp,       &
+             645                            ADM_GIoJm,       &
+             646                            ADM_GImJo
+             647                         use mod_grd, only: &
+             648                            GRD_XDIR,      &
+             649                            GRD_YDIR,      &
+             650                            GRD_ZDIR,      &
+             651                            GRD_x,         &
+             652                            GRD_x_pl,      &
+             653                            GRD_xt,        &
+             654                            GRD_xt_pl,     &
+             655                            GRD_grid_type, & ! [add] T.Ohno 110722
+             656                            GRD_rscale
+             657                         implicit none
+             658                     
+             659                         real(8) :: v   (GRD_XDIR:GRD_ZDIR,2,ADM_gall   )
+             660                         real(8) :: v_pl(GRD_XDIR:GRD_ZDIR,2,ADM_gall_pl)
+             661                     
+             662                         real(8) :: tvec(GRD_XDIR:GRD_ZDIR)
+             663                         real(8) :: nvec(GRD_XDIR:GRD_ZDIR)
+             664                     
+             665                         integer :: ij, K0, l, d
+             666                         integer :: rgnid
+             667                         integer :: n
+             668                     
+             669                         integer :: suf, i, j
+             670                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             671                         !---------------------------------------------------------------------------
+             672                     
+             673                         K0 = ADM_KNONE
+             674                     
+             675                         !--- Triangle
+             676     1                   do l = 1, ADM_lall
+             677     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             678     1               
+             679     1                      !--- AI
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             680     2   s    s             do n = 1, ADM_ImoJmp_nmax
+             681     2   p    s                ij = ADM_ImoJmp(n,ADM_GIoJo)
+             682     2               
+             683     2   m    s                v(GRD_XDIR,1,ij) = GRD_x(ADM_ImoJmp(n,ADM_GIoJo),K0,l,GRD_XDIR)
+             684     2   m    s                v(GRD_XDIR,2,ij) = GRD_x(ADM_ImoJmp(n,ADM_GIpJo),K0,l,GRD_XDIR)
+             685     2               
+             686     2   m    s                v(GRD_YDIR,1,ij) = GRD_x(ADM_ImoJmp(n,ADM_GIoJo),K0,l,GRD_YDIR)
+             687     2   m    s                v(GRD_YDIR,2,ij) = GRD_x(ADM_ImoJmp(n,ADM_GIpJo),K0,l,GRD_YDIR)
+             688     2               
+             689     2   m    s                v(GRD_ZDIR,1,ij) = GRD_x(ADM_ImoJmp(n,ADM_GIoJo),K0,l,GRD_ZDIR)
+             690     2   m    s                v(GRD_ZDIR,2,ij) = GRD_x(ADM_ImoJmp(n,ADM_GIpJo),K0,l,GRD_ZDIR)
+             691     2   p    s             enddo
+             692     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    UNSWITCHING
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             693     2   s   fv             do d = GRD_XDIR, GRD_ZDIR
+             694     2                         !--- execetion for the south.
+             695     2   p   fv                v(d,1,suf(ADM_gmax,ADM_gmin-1)) = GRD_x(suf(ADM_gmax,ADM_gmin-1),K0,l,d)
+             696     2   p   fv                v(d,2,suf(ADM_gmax,ADM_gmin-1)) = GRD_x(suf(ADM_gmax,ADM_gmin),  K0,l,d)
+             697     2               
+             698     2                         !--- execetion for the south.
+             699     2   p   fv                v(d,1,suf(ADM_gmin-1,ADM_gmax+1)) = GRD_x(suf(ADM_gmin,ADM_gmax+1),K0,l,d)
+             700     2   p   fv                v(d,2,suf(ADM_gmin-1,ADM_gmax+1)) = GRD_x(suf(ADM_gmin,ADM_gmax),  K0,l,d)
+             701     2               
+             702     2                         !--- exception for the west
+             703     3   p   fv                if ( ADM_rgn_vnum(ADM_W,rgnid) == 3 ) then
+             704     3   p   fv                   v(d,1,suf(ADM_gmin-1,ADM_gmin-1)) = GRD_x(suf(ADM_gmin,ADM_gmin-1),K0,l,d)
+             705     3   p   fv                   v(d,2,suf(ADM_gmin-1,ADM_gmin-1)) = GRD_x(suf(ADM_gmin+1,ADM_gmin),K0,l,d)
+             706     3   p   fv                endif
+             707     2   p   fv             enddo
+             708     1               
+             709     2                      do n = 1, ADM_ImoJmp_nmax
+             710     2                         ij = ADM_ImoJmp(n,ADM_GIoJo)
+             711     2               
+             712     3                         if ( trim(GRD_grid_type) == 'ON_PLANE' ) then ! [add] T.Ohno 20110722
+             713     3                            call mk_gmtrvec_on_plane( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:) )
+             714     3                         else
+             715     3                            call MISC_mk_gmtrvec( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:), GMTR_polygon_type, GRD_rscale )
+             716     3                         endif
+             717     2               
+             718     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_TTX) = tvec(1)
+             719     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_TTY) = tvec(2)
+             720     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_TTZ) = tvec(3)
+             721     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_TNX) = nvec(1)
+             722     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_TNY) = nvec(2)
+             723     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_TNZ) = nvec(3)
+             724     2                      enddo
+             725     1               
+             726     1                      !--- AIJ
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             727     2   s    s             do n = 1, ADM_ImoJmo_nmax
+             728     2   p    s                ij = ADM_ImoJmo(n,ADM_GIoJo)
+             729     2               
+             730     2   m    s                v(GRD_XDIR,1,ij) = GRD_x(ADM_ImoJmo(n,ADM_GIoJo),K0,l,GRD_XDIR)
+             731     2   m    s                v(GRD_XDIR,2,ij) = GRD_x(ADM_ImoJmo(n,ADM_GIpJp),K0,l,GRD_XDIR)
+             732     2               
+             733     2   m    s                v(GRD_YDIR,1,ij) = GRD_x(ADM_ImoJmo(n,ADM_GIoJo),K0,l,GRD_YDIR)
+             734     2   m    s                v(GRD_YDIR,2,ij) = GRD_x(ADM_ImoJmo(n,ADM_GIpJp),K0,l,GRD_YDIR)
+             735     2               
+             736     2   m    s                v(GRD_ZDIR,1,ij) = GRD_x(ADM_ImoJmo(n,ADM_GIoJo),K0,l,GRD_ZDIR)
+             737     2   m    s                v(GRD_ZDIR,2,ij) = GRD_x(ADM_ImoJmo(n,ADM_GIpJp),K0,l,GRD_ZDIR)
+             738     2   p    s             enddo
+             739     1               
+             740     2                      do n = 1, ADM_ImoJmo_nmax
+             741     2                         ij = ADM_ImoJmo(n,ADM_GIoJo)
+             742     2               
+             743     3                         if ( trim(GRD_grid_type) == 'ON_PLANE' ) then ! [add] T.Ohno 20110722
+             744     3                            call mk_gmtrvec_on_plane( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:) )
+             745     3                         else
+             746     3                            call MISC_mk_gmtrvec( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:), GMTR_polygon_type, GRD_rscale )
+             747     3                         endif
+             748     2               
+             749     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_TTX) = tvec(1)
+             750     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_TTY) = tvec(2)
+             751     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_TTZ) = tvec(3)
+             752     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_TNX) = nvec(1)
+             753     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_TNY) = nvec(2)
+             754     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_TNZ) = nvec(3)
+             755     2                      enddo
+             756     1               
+             757     1                      !--- AJ
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             758     2   s    s             do n = 1, ADM_ImpJmo_nmax
+             759     2   p    s                ij = ADM_ImpJmo(n,ADM_GIoJo)
+             760     2               
+             761     2   m    s                v(GRD_XDIR,1,ij) = GRD_x(ADM_ImpJmo(n,ADM_GIoJo),K0,l,GRD_XDIR)
+             762     2   m    s                v(GRD_XDIR,2,ij) = GRD_x(ADM_ImpJmo(n,ADM_GIoJp),K0,l,GRD_XDIR)
+             763     2               
+             764     2   m    s                v(GRD_YDIR,1,ij) = GRD_x(ADM_ImpJmo(n,ADM_GIoJo),K0,l,GRD_YDIR)
+             765     2   m    s                v(GRD_YDIR,2,ij) = GRD_x(ADM_ImpJmo(n,ADM_GIoJp),K0,l,GRD_YDIR)
+             766     2               
+             767     2   m    s                v(GRD_ZDIR,1,ij) = GRD_x(ADM_ImpJmo(n,ADM_GIoJo),K0,l,GRD_ZDIR)
+             768     2   m    s                v(GRD_ZDIR,2,ij) = GRD_x(ADM_ImpJmo(n,ADM_GIoJp),K0,l,GRD_ZDIR)
+             769     2   p    s             enddo
+             770     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             771     2       f              do d = GRD_XDIR, GRD_ZDIR
+             772     2                         !--- execetion for the south.
+             773     2       f                 v(d,1,suf(ADM_gmax+1,ADM_gmin-1)) = GRD_x(suf(ADM_gmax+1,ADM_gmin),K0,l,d)
+             774     2       f                 v(d,2,suf(ADM_gmax+1,ADM_gmin-1)) = GRD_x(suf(ADM_gmax,ADM_gmin),  K0,l,d)
+             775     2               
+             776     2                         !--- execetion for the north.
+             777     2       f                 v(d,1,suf(ADM_gmin-1,ADM_gmax)) = GRD_x(suf(ADM_gmin-1,ADM_gmax),K0,l,d)
+             778     2       f                 v(d,2,suf(ADM_gmin-1,ADM_gmax)) = GRD_x(suf(ADM_gmin,ADM_gmax),  K0,l,d)
+             779     2       f              enddo
+             780     1               
+             781     2                      do n = 1, ADM_ImpJmo_nmax
+             782     2                         ij = ADM_ImpJmo(n,ADM_GIoJo)
+             783     2               
+             784     3                         if ( trim(GRD_grid_type) == 'ON_PLANE' ) then ! [add] T.Ohno 20110722
+             785     3                            call mk_gmtrvec_on_plane( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:) )
+             786     3                         else
+             787     3                            call MISC_mk_gmtrvec( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:), GMTR_polygon_type, GRD_rscale )
+             788     3                         endif
+             789     2               
+             790     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_TTX) = tvec(1)
+             791     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_TTY) = tvec(2)
+             792     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_TTZ) = tvec(3)
+             793     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_TNX) = nvec(1)
+             794     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_TNY) = nvec(2)
+             795     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_TNZ) = nvec(3)
+             796     2                      enddo
+             797     1                   enddo
+             798                     
+             799                         !
+             800                         ! --- Hexagon
+             801                         !
+             802     1                   do l = 1, ADM_lall
+             803     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             804     1               
+             805     1                      !--- AI
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             806     2   s    s             do n = 1, ADM_ImoJoo_nmax
+             807     2   p    s                ij = ADM_ImoJoo(n,ADM_GIoJo)
+             808     2               
+             809     2   m    s                v(GRD_XDIR,1,ij) = GRD_xt(ADM_ImoJoo(n,ADM_GIoJo),K0,l,ADM_TI,GRD_XDIR)
+             810     2   m    s                v(GRD_XDIR,2,ij) = GRD_xt(ADM_ImoJoo(n,ADM_GIoJm),K0,l,ADM_TJ,GRD_XDIR)
+             811     2               
+             812     2   m    s                v(GRD_YDIR,1,ij) = GRD_xt(ADM_ImoJoo(n,ADM_GIoJo),K0,l,ADM_TI,GRD_YDIR)
+             813     2   m    s                v(GRD_YDIR,2,ij) = GRD_xt(ADM_ImoJoo(n,ADM_GIoJm),K0,l,ADM_TJ,GRD_YDIR)
+             814     2               
+             815     2   m    s                v(GRD_ZDIR,1,ij) = GRD_xt(ADM_ImoJoo(n,ADM_GIoJo),K0,l,ADM_TI,GRD_ZDIR)
+             816     2   m    s                v(GRD_ZDIR,2,ij) = GRD_xt(ADM_ImoJoo(n,ADM_GIoJm),K0,l,ADM_TJ,GRD_ZDIR)
+             817     2   p    s             enddo
+             818     1               
+             819     2                      do n = 1, ADM_ImoJoo_nmax
+             820     2                         ij = ADM_ImoJoo(n,ADM_GIoJo)
+             821     2               
+             822     3                         if ( trim(GRD_grid_type) == 'ON_PLANE' ) then ! [add] T.Ohno 20110722
+             823     3                            call mk_gmtrvec_on_plane( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:) )
+             824     3                         else
+             825     3                            call MISC_mk_gmtrvec( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:), GMTR_polygon_type, GRD_rscale )
+             826     3                         endif
+             827     2               
+             828     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_HTX) = tvec(1)
+             829     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_HTY) = tvec(2)
+             830     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_HTZ) = tvec(3)
+             831     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_HNX) = nvec(1)
+             832     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_HNY) = nvec(2)
+             833     2                         GMTR_A_var(ij,K0,l,ADM_AI,GMTR_A_HNZ) = nvec(3)
+             834     2                      enddo
+             835     1               
+             836     1                      !--- AIJ
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             837     2   s    s             do n = 1, ADM_ImoJmo_nmax
+             838     2   p    s                ij = ADM_ImoJmo(n,ADM_GIoJo)
+             839     2               
+             840     2   m    s                v(GRD_XDIR,1,ij) = GRD_xt(ADM_ImoJmo(n,ADM_GIoJo),K0,l,ADM_TJ,GRD_XDIR)
+             841     2   m    s                v(GRD_XDIR,2,ij) = GRD_xt(ADM_ImoJmo(n,ADM_GIoJo),K0,l,ADM_TI,GRD_XDIR)
+             842     2               
+             843     2   m    s                v(GRD_YDIR,1,ij) = GRD_xt(ADM_ImoJmo(n,ADM_GIoJo),K0,l,ADM_TJ,GRD_YDIR)
+             844     2   m    s                v(GRD_YDIR,2,ij) = GRD_xt(ADM_ImoJmo(n,ADM_GIoJo),K0,l,ADM_TI,GRD_YDIR)
+             845     2               
+             846     2   m    s                v(GRD_ZDIR,1,ij) = GRD_xt(ADM_ImoJmo(n,ADM_GIoJo),K0,l,ADM_TJ,GRD_ZDIR)
+             847     2   m    s                v(GRD_ZDIR,2,ij) = GRD_xt(ADM_ImoJmo(n,ADM_GIoJo),K0,l,ADM_TI,GRD_ZDIR)
+             848     2   p    s             enddo
+             849     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             850     2       f              do d = GRD_XDIR, GRD_ZDIR
+             851     2                         !--- execetion for the south.
+             852     2       f                 v(d,1,suf(ADM_gmax,ADM_gmin-1)) = GRD_xt(suf(ADM_gmax,ADM_gmin-1),K0,l,ADM_TJ,d)
+             853     2       f                 v(d,2,suf(ADM_gmax,ADM_gmin-1)) = GRD_xt(suf(ADM_gmax,ADM_gmin),  K0,l,ADM_TI,d)
+             854     2               
+             855     2                         !--- execetion for the north.
+             856     2       f                 v(d,1,suf(ADM_gmin-1,ADM_gmax)) = GRD_xt(suf(ADM_gmin,ADM_gmax),  K0,l,ADM_TJ,d)
+             857     2       f                 v(d,2,suf(ADM_gmin-1,ADM_gmax)) = GRD_xt(suf(ADM_gmin-1,ADM_gmax),K0,l,ADM_TI,d)
+             858     2       f              enddo
+             859     1               
+             860     2                      do n = 1, ADM_ImoJmo_nmax
+             861     2                         ij = ADM_ImoJmo(n,ADM_GIoJo)
+             862     2               
+             863     3                         if ( trim(GRD_grid_type) == 'ON_PLANE' ) then ! [add] T.Ohno 20110722
+             864     3                            call mk_gmtrvec_on_plane( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:) )
+             865     3                         else
+             866     3                            call MISC_mk_gmtrvec( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:), GMTR_polygon_type, GRD_rscale )
+             867     3                         endif
+             868     2               
+             869     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_HTX) = tvec(1)
+             870     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_HTY) = tvec(2)
+             871     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_HTZ) = tvec(3)
+             872     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_HNX) = nvec(1)
+             873     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_HNY) = nvec(2)
+             874     2                         GMTR_A_var(ij,K0,l,ADM_AIJ,GMTR_A_HNZ) = nvec(3)
+             875     2                      enddo
+             876     1               
+             877     1                      !--- AJ
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             878     2   s    s             do n = 1, ADM_IooJmo_nmax
+             879     2   p    s                ij = ADM_IooJmo(n,ADM_GIoJo)
+             880     2               
+             881     2   m    s                v(GRD_XDIR,1,ij) = GRD_xt(ADM_IooJmo(n,ADM_GImJo),K0,l,ADM_TI,GRD_XDIR)
+             882     2   m    s                v(GRD_XDIR,2,ij) = GRD_xt(ADM_IooJmo(n,ADM_GIoJo),K0,l,ADM_TJ,GRD_XDIR)
+             883     2               
+             884     2   m    s                v(GRD_YDIR,1,ij) = GRD_xt(ADM_IooJmo(n,ADM_GImJo),K0,l,ADM_TI,GRD_YDIR)
+             885     2   m    s                v(GRD_YDIR,2,ij) = GRD_xt(ADM_IooJmo(n,ADM_GIoJo),K0,l,ADM_TJ,GRD_YDIR)
+             886     2               
+             887     2   m    s                v(GRD_ZDIR,1,ij) = GRD_xt(ADM_IooJmo(n,ADM_GImJo),K0,l,ADM_TI,GRD_ZDIR)
+             888     2   m    s                v(GRD_ZDIR,2,ij) = GRD_xt(ADM_IooJmo(n,ADM_GIoJo),K0,l,ADM_TJ,GRD_ZDIR)
+             889     2   p    s             enddo
+             890     1               
+             891     1                      !--- exception for the west
+             892     2                      if ( ADM_rgn_vnum(ADM_W,rgnid) == 3 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             893     3       f                 do d = GRD_XDIR, GRD_ZDIR
+             894     3       f                    v(d,1,suf(ADM_gmin,ADM_gmin-1)) = GRD_xt(suf(ADM_gmin,ADM_gmin),  K0,l,ADM_TI,d)
+             895     3       f                    v(d,2,suf(ADM_gmin,ADM_gmin-1)) = GRD_xt(suf(ADM_gmin,ADM_gmin-1),K0,l,ADM_TJ,d)
+             896     3       f                 enddo
+             897     2                      endif
+             898     1               
+             899     2                      do n = 1, ADM_IooJmo_nmax
+             900     2                         ij = ADM_IooJmo(n,ADM_GIoJo)
+             901     2               
+             902     3                         if ( trim(GRD_grid_type) == 'ON_PLANE' ) then ! [add] T.Ohno 20110722
+             903     3                            call mk_gmtrvec_on_plane( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:) )
+             904     3                         else
+             905     3                            call MISC_mk_gmtrvec( v(:,1,ij), v(:,2,ij), tvec(:), nvec(:), GMTR_polygon_type, GRD_rscale )
+             906     3                         endif
+             907     2               
+             908     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_HTX) = tvec(1)
+             909     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_HTY) = tvec(2)
+             910     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_HTZ) = tvec(3)
+             911     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_HNX) = nvec(1)
+             912     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_HNY) = nvec(2)
+             913     2                         GMTR_A_var(ij,K0,l,ADM_AJ,GMTR_A_HNZ) = nvec(3)
+             914     2                      enddo
+             915     1               
+             916     1                   enddo ! l loop
+             917                     
+             918     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             919     2                      do l = 1, ADM_lall_pl
+             920     2               
+             921     3                         do ij = ADM_GMIN_PL, ADM_GMAX_PL
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             922     4       f                    do d = GRD_XDIR, GRD_ZDIR
+             923     4       f                       v_pl(d,1,ij) = GRD_x_pl(ADM_GSLF_PL,K0,l,d)
+             924     4       f                       v_pl(d,2,ij) = GRD_x_pl(ij         ,K0,l,d)
+             925     4       f                    enddo
+             926     3               
+             927     3                            call MISC_mk_gmtrvec( v_pl(:,1,ij), v_pl(:,2,ij), tvec(:), nvec(:), &
+             928     3                                                  GMTR_polygon_type, GRD_rscale                 )
+             929     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             930     3       3                    GMTR_A_var_pl(ij,K0,l,GMTR_A_TTX:GMTR_A_TTZ) = tvec(1:3)
+             931     3       3                    GMTR_A_var_pl(ij,K0,l,GMTR_A_TNX:GMTR_A_TNZ) = nvec(1:3)
+             932     3                         enddo
+             933     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 314
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             934     3  pp   2v                do ij = ADM_GMIN_PL, ADM_GMAX_PL-1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             935     4   p   f                    do d = GRD_XDIR, GRD_ZDIR
+             936     4   p   fv                      v_pl(d,1,ij) = GRD_x_pl(ij,  K0,l,d)
+             937     4   p   fv                      v_pl(d,2,ij) = GRD_x_pl(ij+1,K0,l,d)
+             938     4   p   fv                   enddo
+             939     3   p   2v                enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             940     3       f                 do d = GRD_XDIR, GRD_ZDIR
+             941     3       f                    v_pl(d,1,ADM_GMAX_PL) = GRD_x_pl(ADM_GMAX_PL,K0,l,d)
+             942     3       f                    v_pl(d,2,ADM_GMAX_PL) = GRD_x_pl(ADM_GMIN_PL,K0,l,d)
+             943     3       f                 enddo
+             944     2               
+             945     3                         do ij = ADM_GMIN_PL, ADM_GMAX_PL
+             946     3                            call MISC_mk_gmtrvec( v_pl(:,1,ij), v_pl(:,2,ij), tvec(:), nvec(:), &
+             947     3                                                  GMTR_polygon_type, GRD_rscale                 )
+             948     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             949     3       3                    GMTR_A_var_pl(ij,K0,l,GMTR_A_TT2X:GMTR_A_TT2Z) = tvec(1:3)
+             950     3       3                    GMTR_A_var_pl(ij,K0,l,GMTR_A_TN2X:GMTR_A_TN2Z) = nvec(1:3)
+             951     3                         enddo
+             952     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             953     3       f                 do d = GRD_XDIR, GRD_ZDIR
+             954     3       f                    v_pl(d,1,ADM_GMIN_PL) = GRD_xt_pl(ADM_GMAX_PL,K0,l,d)
+             955     3       f                    v_pl(d,2,ADM_GMIN_PL) = GRD_xt_pl(ADM_GMIN_PL,K0,l,d)
+             956     3       f                 enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 314
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             957     3  pp   2v                do ij = ADM_GMIN_PL+1, ADM_GMAX_PL
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             958     4   p   f                    do d = GRD_XDIR, GRD_ZDIR
+             959     4   p   fv                      v_pl(d,1,ij) = GRD_xt_pl(ij-1,K0,l,d)
+             960     4   p   fv                      v_pl(d,2,ij) = GRD_xt_pl(ij,  K0,l,d)
+             961     4   p   fv                   enddo
+             962     3   p   2v                enddo
+             963     2               
+             964     3                         do ij = ADM_GMIN_PL, ADM_GMAX_PL
+             965     3                            call MISC_mk_gmtrvec( v_pl(:,1,ij), v_pl(:,2,ij), tvec(:), nvec(:), &
+             966     3                                                  GMTR_polygon_type, GRD_rscale                 )
+             967     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             968     3       3                    GMTR_A_var_pl(ij,K0,l,GMTR_A_HTX:GMTR_A_HTZ) = tvec(1:3)
+             969     3       3                    GMTR_A_var_pl(ij,K0,l,GMTR_A_HNX:GMTR_A_HNZ) = nvec(1:3)
+             970     3                         enddo
+             971     2               
+             972     2                      enddo
+             973     1                   endif
+             974                     
+             975                         return
+             976                       end subroutine xcalc_gmtr_a
+             977                     
+             978                       !-----------------------------------------------------------------------------
+             979                       !>
+             980                       !> Description of the subroutine mk_gmtrvec_on_plane
+             981                       !>
+             982                       subroutine mk_gmtrvec_on_plane( vFrom, vTo, vT, vN )
+             983                         implicit none
+             984                     
+             985                         real(8), intent(in)  :: vFrom(3), vTo(3)
+             986                         real(8), intent(out) :: vT(3),    vN(3)
+             987                         !---------------------------------------------------------------------------
+             988                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             989             f           vT(:) = vTo(:) - vFrom(:)
+             990                     
+             991                         vN(1) = -vT(2)
+             992                         vN(2) =  vT(1)
+             993                         vN(3) =   0.D0
+             994                     
+             995                         return
+             996                       end subroutine mk_gmtrvec_on_plane
+             997                     
+             998                       !-----------------------------------------------------------------------------
+             999                       !>
+            1000                       !> Description of the function %NAME
+            1001                       !> @return area
+            1002                       !>
+            1003                       function get_triangle_are_on_plane( a, b, c ) result(area)
+            1004                         implicit none
+            1005                     
+            1006                         real(8), intent(in) :: a(3), b(3), c(3)
+            1007                         real(8)             :: area
+            1008                         !
+            1009                         real(8) :: a2b(3), a2c(3)
+            1010                         real(8) :: len_a2b, len_a2c
+            1011                         real(8) :: prd
+            1012                         !---------------------------------------------------------------------------
+            1013                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+            1014             f           a2b(:)  = b(:) - a(:)
+            1015             f           a2c(:)  = c(:) - a(:)
+            1016                         len_a2b = a2b(1)*a2b(1) + a2b(3)*a2b(3) + a2b(3)*a2b(3) ! |a->b|**2
+            1017                         len_a2c = a2c(1)*a2c(1) + a2c(3)*a2c(3) + a2c(3)*a2c(3) ! |a->c|**2
+            1018                         prd     = a2b(1)*a2c(1) + a2b(2)*a2c(2) + a2b(3)*a2c(3) ! (a->b)*(a->c)
+            1019                     
+            1020                         area    = 0.5D0 * sqrt( len_a2b * len_a2c - prd*prd )
+            1021                     
+            1022                       end function get_triangle_are_on_plane
+            1023                     
+            1024                     end module mod_gmtr
+            1025                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_gmtr)
+   jwd8220o-i  "share/mod_gmtr.f90", line 18: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(xcalc_gmtr_t)
+   jwd8209o-i  "share/mod_gmtr.f90", line 299: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_gmtr.f90", line 345: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "share/mod_gmtr.f90", line 347: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "share/mod_gmtr.f90", line 348: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "share/mod_gmtr.f90", line 349: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "share/mod_gmtr.f90", line 389: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "share/mod_gmtr.f90", line 391: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "share/mod_gmtr.f90", line 392: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "share/mod_gmtr.f90", line 393: Division is changed to multiplication by reciprocal.
+  Module subprogram name(xcalc_gmtr_p)
+   jwd8209o-i  "share/mod_gmtr.f90", line 474: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(xcalc_gmtr_a)
+   jwd8201o-i  "share/mod_gmtr.f90", line 703: Invariant expression within loop is moved outside loop.
+
+ Procedure information
+   Lines      : 1025
+   Statements : 589
+   Stack(byte): 5456
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1025
+   Total statements : 589
+   Total stack(byte): 5456
+   Total prefetch num: 0
+

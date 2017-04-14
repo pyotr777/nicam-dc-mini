@@ -1,0 +1,638 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:02:31 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_oprt3d.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_oprt3d.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_oprt3d"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! 3D Operator module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module contains the subroutines for differential oeprators using vertical metrics.
+               7                     !!
+               8                     !! @author  H.Tomita
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2004-02-17 (H.Tomita)    Imported from igdc-4.33
+              12                     !! @li      2011-09-27 (T.Seiki)     merge optimization by RIST and M.Terai
+              13                     !!
+              14                     !<
+              15                     module mod_oprt3d
+              16                       !-----------------------------------------------------------------------------
+              17                       !
+              18                       !++ Used modules
+              19                       !
+              20                       use mod_debug
+              21                       !-----------------------------------------------------------------------------
+              22                       implicit none
+              23                       private
+              24                       !-----------------------------------------------------------------------------
+              25                       !
+              26                       !++ Public procedure
+              27                       !
+              28                       public :: OPRT3D_divdamp
+              29                     
+              30                       !-----------------------------------------------------------------------------
+              31                       !
+              32                       !++ Public parameters & variables
+              33                       !
+              34                       !-----------------------------------------------------------------------------
+              35                       !
+              36                       !++ Private procedures
+              37                       !
+              38                       !-----------------------------------------------------------------------------
+              39                       !
+              40                       !++ Private parameters & variables
+              41                       !
+              42                       !-----------------------------------------------------------------------------
+              43                     contains
+              44                       !-----------------------------------------------------------------------------
+              45                       subroutine OPRT3D_divdamp( &
+              46                            grdx,   grdx_pl,   &
+              47                            grdy,   grdy_pl,   &
+              48                            grdz,   grdz_pl,   &
+              49                            rhogvx, rhogvx_pl, &
+              50                            rhogvy, rhogvy_pl, &
+              51                            rhogvz, rhogvz_pl, &
+              52                            rhogw,  rhogw_pl   )
+              53                         use mod_adm, only: &
+              54                            ADM_W,        &
+              55                            ADM_TI,       &
+              56                            ADM_TJ,       &
+              57                            ADM_AI,       &
+              58                            ADM_AIJ,      &
+              59                            ADM_AJ,       &
+              60                            ADM_prc_tab,  &
+              61                            ADM_prc_me,   &
+              62                            ADM_prc_pl,   &
+              63                            ADM_rgn_vnum, &
+              64                            ADM_lall,     &
+              65                            ADM_lall_pl,  &
+              66                            ADM_gall,     &
+              67                            ADM_gall_pl,  &
+              68                            ADM_kall,     &
+              69                            ADM_gall_1d,  &
+              70                            ADM_gmin,     &
+              71                            ADM_gmax,     &
+              72                            ADM_gslf_pl,  &
+              73                            ADM_gmin_pl,  &
+              74                            ADM_gmax_pl,  &
+              75                            ADM_KNONE,    &
+              76                            ADM_kmin,     &
+              77                            ADM_kmax
+              78                         use mod_grd, only: &
+              79                            GRD_rdgz
+              80                         use mod_gmtr, only: &
+              81                            GMTR_P_RAREA,  &
+              82                            GMTR_T_RAREA,  &
+              83                            GMTR_A_HNX,    &
+              84                            GMTR_A_HNY,    &
+              85                            GMTR_A_HNZ,    &
+              86                            GMTR_A_TNX,    &
+              87                            GMTR_A_TNY,    &
+              88                            GMTR_A_TNZ,    &
+              89                            GMTR_A_TN2X,   &
+              90                            GMTR_A_TN2Y,   &
+              91                            GMTR_A_TN2Z,   &
+              92                            GMTR_P_var,    &
+              93                            GMTR_P_var_pl, &
+              94                            GMTR_T_var,    &
+              95                            GMTR_T_var_pl, &
+              96                            GMTR_A_var,    &
+              97                            GMTR_A_var_pl
+              98                         use mod_vmtr, only: &
+              99                            VMTR_RGAM,       &
+             100                            VMTR_RGAM_pl,    &
+             101                            VMTR_RGAMH,      &
+             102                            VMTR_RGAMH_pl,   &
+             103                            VMTR_RGSH,       &
+             104                            VMTR_RGSH_pl,    &
+             105                            VMTR_C2Wfact,    &
+             106                            VMTR_C2Wfact_pl
+             107                         implicit none
+             108                     
+             109                         real(8), intent(out) :: grdx    (ADM_gall,   ADM_kall,ADM_lall   )
+             110                         real(8), intent(out) :: grdx_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             111                         real(8), intent(out) :: grdy    (ADM_gall,   ADM_kall,ADM_lall   )
+             112                         real(8), intent(out) :: grdy_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             113                         real(8), intent(out) :: grdz    (ADM_gall,   ADM_kall,ADM_lall   )
+             114                         real(8), intent(out) :: grdz_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             115                         real(8), intent(in)  :: rhogvx   (ADM_gall,   ADM_kall,ADM_lall   )
+             116                         real(8), intent(in)  :: rhogvx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             117                         real(8), intent(in)  :: rhogvy   (ADM_gall,   ADM_kall,ADM_lall   )
+             118                         real(8), intent(in)  :: rhogvy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             119                         real(8), intent(in)  :: rhogvz   (ADM_gall,   ADM_kall,ADM_lall   )
+             120                         real(8), intent(in)  :: rhogvz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             121                         real(8), intent(in)  :: rhogw    (ADM_gall,   ADM_kall,ADM_lall   )
+             122                         real(8), intent(in)  :: rhogw_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             123                     
+             124                         real(8) :: sclt         (ADM_gall,   ADM_kall,ADM_TI:ADM_TJ)
+             125                         real(8) :: sclt_pl      (ADM_gall_pl,ADM_kall)
+             126                         real(8) :: sclt_rhogw   (ADM_gall,   ADM_kall,ADM_TI:ADM_TJ)
+             127                         real(8) :: sclt_rhogw_pl(ADM_gall_pl,ADM_kall)
+             128                     
+             129                         real(8) :: rhogvx_vm   (ADM_gall   )
+             130                         real(8) :: rhogvx_vm_pl(ADM_gall_pl)
+             131                         real(8) :: rhogvy_vm   (ADM_gall   )
+             132                         real(8) :: rhogvy_vm_pl(ADM_gall_pl)
+             133                         real(8) :: rhogvz_vm   (ADM_gall   )
+             134                         real(8) :: rhogvz_vm_pl(ADM_gall_pl)
+             135                         real(8) :: rhogw_vm    (ADM_gall,   ADM_kall)
+             136                         real(8) :: rhogw_vm_pl (ADM_gall_pl,ADM_kall)
+             137                     
+             138                         integer :: rgnid
+             139                         integer :: nstart, nend
+             140                     
+             141                         integer :: ij
+             142                         integer :: im1j, ijm1, im1jm1
+             143                         integer :: ip1j, ijp1, ip1jp1
+             144                     
+             145                         integer :: g, k, l, n, v, k0
+             146                     
+             147                         integer :: suf,i,j
+             148                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             149                     
+             150                         integer :: TI,TJ,AI,AIJ,AJ,TNX,TNY,TNZ,TN2X,TN2Y,TN2Z,HNX,HNY,HNZ
+             151                         !---------------------------------------------------------------------------
+             152                     
+             153                         call DEBUG_rapstart('++++OPRT3D_divdamp')
+             154                     
+             155                         k0   = ADM_KNONE
+             156                         TI   = ADM_TI
+             157                         TJ   = ADM_TJ
+             158                         AI   = ADM_AI
+             159                         AIJ  = ADM_AIJ
+             160                         AJ   = ADM_AJ
+             161                         TNX  = GMTR_A_TNX
+             162                         TNY  = GMTR_A_TNY
+             163                         TNZ  = GMTR_A_TNZ
+             164                         HNX  = GMTR_A_HNX
+             165                         HNY  = GMTR_A_HNY
+             166                         HNZ  = GMTR_A_HNZ
+             167                         TN2X = GMTR_A_TN2X
+             168                         TN2Y = GMTR_A_TN2Y
+             169                         TN2Z = GMTR_A_TN2Z
+             170                     
+             171                         ! boundary condition
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             172        pp   8v          rhogw_vm(:,ADM_kmin  ) = 0.D0
+             173         p   8v          rhogw_vm(:,ADM_kmax+1) = 0.D0
+             174                     
+             175     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             176     1  pp   8v             rhogw_vm_pl(:,ADM_kmin  ) = 0.D0
+             177     1   p   8v             rhogw_vm_pl(:,ADM_kmax+1) = 0.D0
+             178     1                   endif
+             179                     
+             180                     
+             181                     
+             182     1                   do l = 1, ADM_lall
+             183     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             184     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             185     2  pp                  do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 87
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             186     3  pp   2v                do g = 1, ADM_gall
+             187     3   p   2v                   rhogw_vm(g,k) = ( VMTR_C2Wfact(1,g,k,l) * rhogvx(g,k  ,l) &
+             188     3                                            + VMTR_C2Wfact(2,g,k,l) * rhogvx(g,k-1,l) &
+             189     3                                            + VMTR_C2Wfact(3,g,k,l) * rhogvy(g,k  ,l) &
+             190     3                                            + VMTR_C2Wfact(4,g,k,l) * rhogvy(g,k-1,l) &
+             191     3                                            + VMTR_C2Wfact(5,g,k,l) * rhogvz(g,k  ,l) &
+             192     3                                            + VMTR_C2Wfact(6,g,k,l) * rhogvz(g,k-1,l) &
+             193     3                                            ) * VMTR_RGAMH(g,k,l)                     & ! horizontal contribution
+             194     3                                          + rhogw(g,k,l) * VMTR_RGSH(g,k,l)             ! vertical   contribution
+             195     3   p   2v                enddo
+             196     2   p                  enddo
+             197     1               
+             198     1                      nstart = suf(ADM_gmin-1,ADM_gmin-1)
+             199     1                      nend   = suf(ADM_gmax,  ADM_gmax  )
+             200     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 4
+                                   <<<      GRD_rdgz: 4
+                                   <<< Loop-information  End >>>
+             201     2  pp                  do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 180
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             202     3  pp   4v                do n = nstart, nend
+             203     3   p   4v                   ij     = n
+             204     3   p   4v                   ip1j   = n + 1
+             205     3   p   4v                   ijp1   = n     + ADM_gall_1d
+             206     3   p   4v                   ip1jp1 = n + 1 + ADM_gall_1d
+             207     3               
+             208     3   p   4v                   sclt_rhogw(n,k,TI) = ( ( rhogw_vm(ij,k+1) + rhogw_vm(ip1j,k+1) + rhogw_vm(ip1jp1,k+1) ) &
+             209     3                                                 - ( rhogw_vm(ij,k  ) + rhogw_vm(ip1j,k  ) + rhogw_vm(ip1jp1,k  ) ) &
+             210     3                                                 ) / 3.D0 * GRD_rdgz(k)
+             211     3               
+             212     3   p   4v                   sclt_rhogw(n,k,TJ) = ( ( rhogw_vm(ij,k+1) + rhogw_vm(ijp1,k+1) + rhogw_vm(ip1jp1,k+1) ) &
+             213     3                                                 - ( rhogw_vm(ij,k  ) + rhogw_vm(ijp1,k  ) + rhogw_vm(ip1jp1,k  ) ) &
+             214     3                                                 ) / 3.D0 * GRD_rdgz(k)
+             215     3   p   4v                enddo
+             216     2   p                  enddo
+             217     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 68
+                                   <<<      GMTR_A_var: 36, rhogvx_vm: 4
+                                   <<<      rhogvy_vm: 4, rhogvz_vm: 4
+                                   <<<      sclt_rhogw: 8, GMTR_T_var: 4, sclt: 8
+                                   <<< Loop-information  End >>>
+             218     2                      do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 517
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             219     2  pp   6v                rhogvx_vm(:) = rhogvx(:,k,l) * VMTR_RGAM(:,k,l)
+             220     2   p   6v                rhogvy_vm(:) = rhogvy(:,k,l) * VMTR_RGAM(:,k,l)
+             221     2   p   6v                rhogvz_vm(:) = rhogvz(:,k,l) * VMTR_RGAM(:,k,l)
+             222     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 79
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    PREFETCH       : 34
+                                   <<<      GMTR_A_var: 18, sclt_rhogw: 4
+                                   <<<      GMTR_T_var: 2, rhogvy_vm: 2, sclt: 4
+                                   <<<      rhogvx_vm: 2, rhogvz_vm: 2
+                                   <<< Loop-information  End >>>
+             223     3  pp    v                do n = nstart, nend
+             224     3   p    v                   ij     = n
+             225     3   p    v                   ip1j   = n + 1
+             226     3   p    v                   ijp1   = n     + ADM_gall_1d
+             227     3   p    v                   ip1jp1 = n + 1 + ADM_gall_1d
+             228     3               
+             229     3   p    v                   sclt(n,k,ADM_TI) = ( - ( rhogvx_vm(ij    ) + rhogvx_vm(ip1j  ) ) * GMTR_A_var(ij,  k0,l,AI, TNX) &
+             230     3                                                 - ( rhogvy_vm(ij    ) + rhogvy_vm(ip1j  ) ) * GMTR_A_var(ij,  k0,l,AI, TNY) &
+             231     3                                                 - ( rhogvz_vm(ij    ) + rhogvz_vm(ip1j  ) ) * GMTR_A_var(ij,  k0,l,AI, TNZ) &
+             232     3                                                 - ( rhogvx_vm(ip1j  ) + rhogvx_vm(ip1jp1) ) * GMTR_A_var(ip1j,k0,l,AJ, TNX) &
+             233     3                                                 - ( rhogvy_vm(ip1j  ) + rhogvy_vm(ip1jp1) ) * GMTR_A_var(ip1j,k0,l,AJ, TNY) &
+             234     3                                                 - ( rhogvz_vm(ip1j  ) + rhogvz_vm(ip1jp1) ) * GMTR_A_var(ip1j,k0,l,AJ, TNZ) &
+             235     3                                                 + ( rhogvx_vm(ip1jp1) + rhogvx_vm(ij    ) ) * GMTR_A_var(ij,  k0,l,AIJ,TNX) &
+             236     3                                                 + ( rhogvy_vm(ip1jp1) + rhogvy_vm(ij    ) ) * GMTR_A_var(ij,  k0,l,AIJ,TNY) &
+             237     3                                                 + ( rhogvz_vm(ip1jp1) + rhogvz_vm(ij    ) ) * GMTR_A_var(ij,  k0,l,AIJ,TNZ) &
+             238     3                                               ) * 0.5D0 * GMTR_T_var(ij,k0,l,ADM_TI,GMTR_T_RAREA) &
+             239     3                                             + sclt_rhogw(n,k,TI)
+             240     3               
+             241     3   p    v                   sclt(n,k,ADM_TJ) = ( - ( rhogvx_vm(ij    ) + rhogvx_vm(ip1jp1) ) * GMTR_A_var(ij,  k0,l,AIJ,TNX) &
+             242     3                                                 - ( rhogvy_vm(ij    ) + rhogvy_vm(ip1jp1) ) * GMTR_A_var(ij,  k0,l,AIJ,TNY) &
+             243     3                                                 - ( rhogvz_vm(ij    ) + rhogvz_vm(ip1jp1) ) * GMTR_A_var(ij,  k0,l,AIJ,TNZ) &
+             244     3                                                 + ( rhogvx_vm(ip1jp1) + rhogvx_vm(ijp1  ) ) * GMTR_A_var(ijp1,k0,l,AI, TNX) &
+             245     3                                                 + ( rhogvy_vm(ip1jp1) + rhogvy_vm(ijp1  ) ) * GMTR_A_var(ijp1,k0,l,AI, TNY) &
+             246     3                                                 + ( rhogvz_vm(ip1jp1) + rhogvz_vm(ijp1  ) ) * GMTR_A_var(ijp1,k0,l,AI, TNZ) &
+             247     3                                                 + ( rhogvx_vm(ijp1  ) + rhogvx_vm(ij    ) ) * GMTR_A_var(ij,  k0,l,AJ, TNX) &
+             248     3                                                 + ( rhogvy_vm(ijp1  ) + rhogvy_vm(ij    ) ) * GMTR_A_var(ij,  k0,l,AJ, TNY) &
+             249     3                                                 + ( rhogvz_vm(ijp1  ) + rhogvz_vm(ij    ) ) * GMTR_A_var(ij,  k0,l,AJ, TNZ) &
+             250     3                                               ) * 0.5D0 * GMTR_T_var(ij,k0,l,ADM_TJ,GMTR_T_RAREA) &
+             251     3                                             + sclt_rhogw(n,k,TJ)
+             252     3   p    v                enddo
+             253     2                      enddo
+             254     1               
+             255     1                      nstart = suf(ADM_gmin,ADM_gmin)
+             256     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 432
+                                   <<<      GMTR_A_var: 360, grdy: 36, grdx: 36
+                                   <<< Loop-information  End >>>
+             257     2  pp                  do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 53
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    PREFETCH       : 72
+                                   <<<      GMTR_A_var: 60, grdy: 6, grdx: 6
+                                   <<< Loop-information  End >>>
+             258     3  pp   2v                do n = nstart, nend
+             259     3   p   2v                   ij     = n
+             260     3   p   2v                   im1j   = n - 1
+             261     3   p   2v                   im1jm1 = n - 1 - ADM_gall_1d
+             262     3   p   2v                   ijm1   = n     - ADM_gall_1d
+             263     3               
+             264     3   p   2v                   grdx(n,k,l) = ( + ( sclt(ijm1,  k,TJ) + sclt(ij,    k,TI) ) * GMTR_A_var(ij,    k0,l,AI, HNX) &
+             265     3                                            + ( sclt(ij,    k,TI) + sclt(ij,    k,TJ) ) * GMTR_A_var(ij,    k0,l,AIJ,HNX) &
+             266     3                                            + ( sclt(ij,    k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(ij,    k0,l,AJ, HNX) &
+             267     3                                            - ( sclt(im1jm1,k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(im1j,  k0,l,AI, HNX) &
+             268     3                                            - ( sclt(im1jm1,k,TI) + sclt(im1jm1,k,TJ) ) * GMTR_A_var(im1jm1,k0,l,AIJ,HNX) &
+             269     3                                            - ( sclt(ijm1  ,k,TJ) + sclt(im1jm1,k,TI) ) * GMTR_A_var(ijm1,  k0,l,AJ, HNX) &
+             270     3                                          ) * 0.5D0 * GMTR_P_var(ij,k0,l,GMTR_P_RAREA)
+             271     3               
+             272     3   p   2v                   grdy(n,k,l) = ( + ( sclt(ijm1,  k,TJ) + sclt(ij,    k,TI) ) * GMTR_A_var(ij,    k0,l,AI, HNY) &
+             273     3                                            + ( sclt(ij,    k,TI) + sclt(ij,    k,TJ) ) * GMTR_A_var(ij,    k0,l,AIJ,HNY) &
+             274     3                                            + ( sclt(ij,    k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(ij,    k0,l,AJ, HNY) &
+             275     3                                            - ( sclt(im1jm1,k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(im1j,  k0,l,AI, HNY) &
+             276     3                                            - ( sclt(im1jm1,k,TI) + sclt(im1jm1,k,TJ) ) * GMTR_A_var(im1jm1,k0,l,AIJ,HNY) &
+             277     3                                            - ( sclt(ijm1  ,k,TJ) + sclt(im1jm1,k,TI) ) * GMTR_A_var(ijm1,  k0,l,AJ, HNY) &
+             278     3                                          ) * 0.5D0 * GMTR_P_var(ij,k0,l,GMTR_P_RAREA)
+             279     3               
+             280     3   p   2v                   grdz(n,k,l) = ( + ( sclt(ijm1,  k,TJ) + sclt(ij,    k,TI) ) * GMTR_A_var(ij,    k0,l,AI, HNZ) &
+             281     3                                            + ( sclt(ij,    k,TI) + sclt(ij,    k,TJ) ) * GMTR_A_var(ij,    k0,l,AIJ,HNZ) &
+             282     3                                            + ( sclt(ij,    k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(ij,    k0,l,AJ, HNZ) &
+             283     3                                            - ( sclt(im1jm1,k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(im1j,  k0,l,AI, HNZ) &
+             284     3                                            - ( sclt(im1jm1,k,TI) + sclt(im1jm1,k,TJ) ) * GMTR_A_var(im1jm1,k0,l,AIJ,HNZ) &
+             285     3                                            - ( sclt(ijm1  ,k,TJ) + sclt(im1jm1,k,TI) ) * GMTR_A_var(ijm1,  k0,l,AJ, HNZ) &
+             286     3                                          ) * 0.5D0 * GMTR_P_var(ij,k0,l,GMTR_P_RAREA)
+             287     3   p   2v                enddo
+             288     2   p                  enddo
+             289     1               
+             290     2                      if ( ADM_rgn_vnum(ADM_W,rgnid) == 3 ) then
+             291     2                         n = suf(ADM_gmin,ADM_gmin)
+             292     2               
+             293     2                         ij     = n
+             294     2                         im1j   = n - 1
+             295     2                         im1jm1 = n - 1 - ADM_gall_1d
+             296     2                         ijm1   = n     - ADM_gall_1d
+             297     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 191
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             298     3  pp    v                do k = ADM_kmin, ADM_kmax
+             299     3   p    v                   sclt(im1jm1,k,ADM_TI) = sclt(ijm1,k,ADM_TJ) ! copy
+             300     3               
+             301     3   p    v                   grdx(n,k,l) = ( + ( sclt(ijm1,  k,TJ) + sclt(ij,    k,TI) ) * GMTR_A_var(ij,    k0,l,AI, HNX) &
+             302     3                                            + ( sclt(ij,    k,TI) + sclt(ij,    k,TJ) ) * GMTR_A_var(ij,    k0,l,AIJ,HNX) &
+             303     3                                            + ( sclt(ij,    k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(ij,    k0,l,AJ, HNX) &
+             304     3                                            - ( sclt(im1jm1,k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(im1j,  k0,l,AI, HNX) &
+             305     3                                            - ( sclt(im1jm1,k,TI) + sclt(im1jm1,k,TJ) ) * GMTR_A_var(im1jm1,k0,l,AIJ,HNX) &
+             306     3                                          ) * 0.5D0 * GMTR_P_var(ij,k0,l,GMTR_P_RAREA)
+             307     3               
+             308     3   p    v                   grdy(n,k,l) = ( + ( sclt(ijm1,  k,TJ) + sclt(ij,    k,TI) ) * GMTR_A_var(ij,    k0,l,AI, HNY) &
+             309     3                                            + ( sclt(ij,    k,TI) + sclt(ij,    k,TJ) ) * GMTR_A_var(ij,    k0,l,AIJ,HNY) &
+             310     3                                            + ( sclt(ij,    k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(ij,    k0,l,AJ, HNY) &
+             311     3                                            - ( sclt(im1jm1,k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(im1j,  k0,l,AI, HNY) &
+             312     3                                            - ( sclt(im1jm1,k,TI) + sclt(im1jm1,k,TJ) ) * GMTR_A_var(im1jm1,k0,l,AIJ,HNY) &
+             313     3                                          ) * 0.5D0 * GMTR_P_var(ij,k0,l,GMTR_P_RAREA)
+             314     3               
+             315     3   p    v                   grdz(n,k,l) = ( + ( sclt(ijm1,  k,TJ) + sclt(ij,    k,TI) ) * GMTR_A_var(ij,    k0,l,AI, HNZ) &
+             316     3                                            + ( sclt(ij,    k,TI) + sclt(ij,    k,TJ) ) * GMTR_A_var(ij,    k0,l,AIJ,HNZ) &
+             317     3                                            + ( sclt(ij,    k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(ij,    k0,l,AJ, HNZ) &
+             318     3                                            - ( sclt(im1jm1,k,TJ) + sclt(im1j,  k,TI) ) * GMTR_A_var(im1j,  k0,l,AI, HNZ) &
+             319     3                                            - ( sclt(im1jm1,k,TI) + sclt(im1jm1,k,TJ) ) * GMTR_A_var(im1jm1,k0,l,AIJ,HNZ) &
+             320     3                                          ) * 0.5D0 * GMTR_P_var(ij,k0,l,GMTR_P_RAREA)
+             321     3   p    v                enddo
+             322     2                      endif
+             323     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 640
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             324     1  pp   6v             grdx   (:,ADM_kmin-1,l) = 0.D0
+             325     1   p   6v             grdx   (:,ADM_kmax+1,l) = 0.D0
+             326     1   p   6v             grdy   (:,ADM_kmin-1,l) = 0.D0
+             327     1   p   6v             grdy   (:,ADM_kmax+1,l) = 0.D0
+             328     1   p   6v             grdz   (:,ADM_kmin-1,l) = 0.D0
+             329     1   p   6v             grdz   (:,ADM_kmax+1,l) = 0.D0
+             330     1                   enddo
+             331                     
+             332     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             333     2                      do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             334     3  pp                     do k = ADM_kmin+1, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 87
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             335     4  pp   2v                   do g = 1, ADM_gall_pl
+             336     4   p   2v                      rhogw_vm_pl(g,k) = ( VMTR_C2Wfact_pl(1,g,k,l) * rhogvx_pl(g,k  ,l) &
+             337     4                                                  + VMTR_C2Wfact_pl(2,g,k,l) * rhogvx_pl(g,k-1,l) &
+             338     4                                                  + VMTR_C2Wfact_pl(3,g,k,l) * rhogvy_pl(g,k  ,l) &
+             339     4                                                  + VMTR_C2Wfact_pl(4,g,k,l) * rhogvy_pl(g,k-1,l) &
+             340     4                                                  + VMTR_C2Wfact_pl(5,g,k,l) * rhogvz_pl(g,k  ,l) &
+             341     4                                                  + VMTR_C2Wfact_pl(6,g,k,l) * rhogvz_pl(g,k-1,l) &
+             342     4                                                  ) * VMTR_RGAMH_pl(g,k,l)                        & ! horizontal contribution
+             343     4                                                + rhogw_pl(g,k,l) * VMTR_RGSH_pl(g,k,l)             ! vertical   contribution
+             344     4   p   2v                   enddo
+             345     3   p                     enddo
+             346     2               
+             347     2                         n = ADM_GSLF_PL
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 2
+                                   <<<      GRD_rdgz: 2
+                                   <<< Loop-information  End >>>
+             348     3  pp                     do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 250
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             349     4  pp   6s                   do v = ADM_gmin_pl, ADM_gmax_pl
+             350     4   p   6v                      ij   = v
+             351     4   p   6v                      ijp1 = v + 1
+             352     4   p   6s                      if( ijp1 > ADM_gmax_pl ) ijp1 = ADM_gmin_pl
+             353     4               
+             354     4   p   6v                      sclt_rhogw_pl(v,k) = ( ( rhogw_vm_pl(n,k+1) + rhogw_vm_pl(ij,k+1) + rhogw_vm_pl(ijp1,k+1) ) &
+             355     4                                                    - ( rhogw_vm_pl(n,k  ) + rhogw_vm_pl(ij,k  ) + rhogw_vm_pl(ijp1,k  ) ) &
+             356     4                                                    ) / 3.D0 * GRD_rdgz(k)
+             357     4   p   6v                   enddo
+             358     3   p                     enddo
+             359     2               
+             360     3                         do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 517
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             361     3  pp   6v                   rhogvx_vm_pl(:) = rhogvx_pl(:,k,l) * VMTR_RGAM_pl(:,k,l)
+             362     3   p   6v                   rhogvy_vm_pl(:) = rhogvy_pl(:,k,l) * VMTR_RGAM_pl(:,k,l)
+             363     3   p   6v                   rhogvz_vm_pl(:) = rhogvz_pl(:,k,l) * VMTR_RGAM_pl(:,k,l)
+             364     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 135
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             365     4  pp   2s                   do v = ADM_gmin_pl, ADM_gmax_pl
+             366     4   p   2v                      ij   = v
+             367     4   p   2v                      ijp1 = v + 1
+             368     4   p   2s                      if( ijp1 > ADM_gmax_pl ) ijp1 = ADM_gmin_pl
+             369     4               
+             370     4   p   2v                      sclt_pl(v,k) = ( + ( rhogvx_vm_pl(n   ) + rhogvx_vm_pl(ij  ) ) * GMTR_A_var_pl(ij,  k0,l,TNX ) &
+             371     4                                                + ( rhogvy_vm_pl(n   ) + rhogvy_vm_pl(ij  ) ) * GMTR_A_var_pl(ij,  k0,l,TNY ) &
+             372     4                                                + ( rhogvz_vm_pl(n   ) + rhogvz_vm_pl(ij  ) ) * GMTR_A_var_pl(ij,  k0,l,TNZ ) &
+             373     4                                                + ( rhogvx_vm_pl(ij  ) + rhogvx_vm_pl(ijp1) ) * GMTR_A_var_pl(ij,  k0,l,TN2X) &
+             374     4                                                + ( rhogvy_vm_pl(ij  ) + rhogvy_vm_pl(ijp1) ) * GMTR_A_var_pl(ij,  k0,l,TN2Y) &
+             375     4                                                + ( rhogvz_vm_pl(ij  ) + rhogvz_vm_pl(ijp1) ) * GMTR_A_var_pl(ij,  k0,l,TN2Z) &
+             376     4                                                - ( rhogvx_vm_pl(ijp1) + rhogvx_vm_pl(n   ) ) * GMTR_A_var_pl(ijp1,k0,l,TNX ) &
+             377     4                                                - ( rhogvy_vm_pl(ijp1) + rhogvy_vm_pl(n   ) ) * GMTR_A_var_pl(ijp1,k0,l,TNY ) &
+             378     4                                                - ( rhogvz_vm_pl(ijp1) + rhogvz_vm_pl(n   ) ) * GMTR_A_var_pl(ijp1,k0,l,TNZ ) &
+             379     4                                              ) * 0.5D0 * GMTR_T_var_pl(ij,k0,l,GMTR_T_RAREA) &
+             380     4                                            + sclt_rhogw_pl(v,k)
+             381     4   p   2v                   enddo
+             382     3                         enddo
+             383     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             384     3  pp                     do k = ADM_kmin, ADM_kmax
+             385     3   p                        grdx_pl(n,k,l) = 0.D0
+             386     3   p                        grdy_pl(n,k,l) = 0.D0
+             387     3   p                        grdz_pl(n,k,l) = 0.D0
+             388     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             389     4   p   4s                   do v = ADM_gmin_pl, ADM_gmax_pl
+             390     4   p   4v                      ij   = v
+             391     4   p   4v                      ijm1 = v - 1
+             392     4   p   4s                      if( ijm1 < ADM_gmin_pl ) ijm1 = ADM_gmax_pl ! cyclic condition
+             393     4               
+             394     4   p   4v                      grdx_pl(n,k,l) = grdx_pl(n,k,l) + ( sclt_pl(ijm1,k) + sclt_pl(ij,k) ) * GMTR_A_var_pl(ij,k0,l,HNX)
+             395     4   p   4v                      grdy_pl(n,k,l) = grdy_pl(n,k,l) + ( sclt_pl(ijm1,k) + sclt_pl(ij,k) ) * GMTR_A_var_pl(ij,k0,l,HNY)
+             396     4   p   4v                      grdz_pl(n,k,l) = grdz_pl(n,k,l) + ( sclt_pl(ijm1,k) + sclt_pl(ij,k) ) * GMTR_A_var_pl(ij,k0,l,HNZ)
+             397     4   p   4v                   enddo
+             398     3               
+             399     3   p                        grdx_pl(n,k,l) = grdx_pl(n,k,l) * 0.5D0 * GMTR_P_var_pl(n,k0,l,GMTR_P_RAREA)
+             400     3   p                        grdy_pl(n,k,l) = grdy_pl(n,k,l) * 0.5D0 * GMTR_P_var_pl(n,k0,l,GMTR_P_RAREA)
+             401     3   p                        grdz_pl(n,k,l) = grdz_pl(n,k,l) * 0.5D0 * GMTR_P_var_pl(n,k0,l,GMTR_P_RAREA)
+             402     3   p                     enddo
+             403     2               
+             404     2                      enddo
+             405     1                   endif
+             406                     
+             407                         call DEBUG_rapend('++++OPRT3D_divdamp')
+             408                     
+             409                         return
+             410                       end subroutine OPRT3D_divdamp
+             411                     
+             412                     end module mod_oprt3d
+             413                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_oprt3d)
+   jwd8220o-i  "share/mod_oprt3d.f90", line 15: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(OPRT3D_divdamp)
+   jwd8209o-i  "share/mod_oprt3d.f90", line 187: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 195: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_oprt3d.f90", line 208: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 208: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_oprt3d.f90", line 212: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 212: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 229: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 241: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 264: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 272: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 280: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 301: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 308: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 315: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 336: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 344: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_oprt3d.f90", line 354: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 354: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 370: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8208o-i  "share/mod_oprt3d.f90", line 394: Method of calculating sum or product is changed.
+   jwd8208o-i  "share/mod_oprt3d.f90", line 395: Method of calculating sum or product is changed.
+   jwd8208o-i  "share/mod_oprt3d.f90", line 396: Method of calculating sum or product is changed.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 399: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 400: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_oprt3d.f90", line 401: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 413
+   Statements : 182
+   Stack(byte): 1648
+   Prefetch num: 960
+
+ Total information
+   Procedures       : 1
+   Total lines      : 413
+   Total statements : 182
+   Total stack(byte): 1648
+   Total prefetch num: 960
+

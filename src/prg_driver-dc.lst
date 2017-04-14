@@ -1,0 +1,350 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:48:14 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/prg_driver-dc.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o prg_driver-dc.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Main program "prg_driver"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  Program driver
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     program prg_driver
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This program is a driver of non-hydrostatic model based on an
+              11                       !       icosahedral grid system.
+              12                       !
+              13                       !++ Current Corresponding Author : H.Tomita
+              14                       !
+              15                       !++ History:
+              16                       !      Version   Date       Comment
+              17                       !      -----------------------------------------------------------------------
+              18                       !      0.00      04-02-17   Imported from igdc-4.34
+              19                       !      0.03      04-05-31   Change by addtion of mod[onestep].
+              20                       !                05-12-01   M.Satoh add history_setup
+              21                       !                05-12-19   S.Iga moved output_timeinfo after output_all
+              22                       !                06-04-18   T.Mitsui add sfc_restart
+              23                       !                06-04-21   H.Tomita:  remove output_timeinfo due to
+              24                       !                                      computational efficeincy.
+              25                       !                                      Instead, this process is move to
+              26                       !                                      mod[mod_output].
+              27                       !                06-08-07   W.Yanase add history_vars
+              28                       !                06-09-27   S.Iga add history_vars_cfmip
+              29                       !                07-03-23   Y.Niwa add ndg_setup, ndg_do, FLAG_NUDGING
+              30                       !                07-06-27   Y.Niwa add history_vars_setup
+              31                       !                07-07-24   K.Suzuki: implementing SPRINTARS aerosol model
+              32                       !                07-08-06   Y.Niwa: add history_obs, history_vars_obs
+              33                       !                07-11-07   T.Mitsui: add option to omit output_all
+              34                       !                08-03-10   T.Mitsui: add intermediate output of restart file
+              35                       !                08-05-24   T.Mitsui: trivial fix
+              36                       !                08-09-09   Y.Niwa : modfied for nudging
+              37                       !                09-01-23   H.Tomita: a) abolish mod_output, mod_extdata
+              38                       !                                     mod_history_vars_cfmip, mod_o3var.
+              39                       !                                     b) introduce mod_extdata2.
+              40                       !                09-04-14   T.Mitsui: arrange initialization of aerosols
+              41                       !                09-07-10   H.Tomita: Add the module [mod_embudget].
+              42                       !                09-08-05   S.Iga: remove latlon_setup (suggested by T.Mitsui)
+              43                       !                09-08-05   T.Mitsui: add conditioning by ADM_myprc_is_run
+              44                       !                                     to keep out extra-processes from main routines.
+              45                       !                09-08-18   T.Mitsui: change of 09-08-05 is not enough.
+              46                       !                10-03-08   C.Kodama: Modify for overwrite_restart option
+              47                       !                10-04-30   M.Satoh: move diagvar_setup
+              48                       !                11-09-03   H.Yashiro : New I/O
+              49                       !                11-11-28   Y.Yamada : merge Terai-san timer
+              50                       !                12-06-07   T.Seiki  : Application to Multi-job System
+              51                       !                12-10-12   R.Yoshida  : Modify for Dynamical Core test
+              52                       !                12-10-22   R.Yoshida  : add papi instructions
+              53                       !      -----------------------------------------------------------------------
+              54                       !
+              55                       !-----------------------------------------------------------------------------
+              56                       !
+              57                       !++ Used modules
+              58                       !
+              59                       use mod_debug
+              60                       use mod_adm, only: &
+              61                          ADM_MULTI_PRC,      &
+              62                          ADM_LOG_FID,        &
+              63                          ADM_prc_me,         &
+              64                          ADM_prc_run_master, &
+              65                          ADM_proc_init,      &
+              66                          ADM_proc_stop,      &
+              67                          ADM_setup
+              68                       use mod_fio, only: &
+              69                          FIO_setup
+              70                       use mod_comm, only: &
+              71                          COMM_setup
+              72                       use mod_cnst, only: &
+              73                          CNST_setup
+              74                       use mod_calendar, only: &
+              75                          calendar_setup
+              76                       use mod_time, only: &
+              77                          TIME_setup,          &
+              78                          TIME_report,         &
+              79                          TIME_advance,        &
+              80                          TIME_LSTEP_MAX,      &
+              81                          cstep => TIME_CSTEP, &
+              82                          ctime => TIME_CTIME, &
+              83                          dtime => TIME_DTL
+              84                       use mod_grd, only: &
+              85                          GRD_setup
+              86                       use mod_gmtr, only: &
+              87                          GMTR_setup
+              88                       use mod_oprt, only: &
+              89                          OPRT_setup
+              90                       use mod_vmtr, only: &
+              91                          VMTR_setup
+              92                     
+              93                       use mod_runconf, only: &
+              94                          runconf_setup, &
+              95                          FLAG_NUDGING
+              96                       use mod_prgvar, only: &
+              97                          prgvar_setup,            &
+              98                          restart_input_basename,  &
+              99                          restart_output_basename, &
+             100                          restart_input,           &
+             101                          restart_output
+             102                       use mod_diagvar, only: &
+             103                            diagvar_setup, &
+             104                            diagvar_restart_output
+             105                       use mod_sfcvar, only: &
+             106                            sfcvar_setup
+             107                       use mod_bsstate, only: &
+             108                            bsstate_setup
+             109                       use mod_bndcnd, only   :   &
+             110                            bndcnd_setup
+             111                       use mod_numfilter, only  : &
+             112                            numfilter_setup
+             113                       use mod_forcing_driver, only : &
+             114                            forcing_init, &
+             115                            forcing
+             116                       use mod_ndg, only: &
+             117                            ndg_setup
+             118                       use mod_dynstep, only : &
+             119                            dynstep
+             120                       use mod_history, only: &
+             121                            history_setup, &
+             122                            history_out,   &
+             123                            HIST_output_step0
+             124                       use mod_history_vars, only: &
+             125                            history_vars_setup, &
+             126                            history_vars
+             127                       use mod_embudget, only: &
+             128                            embudget_setup, &
+             129                            embudget_monitor
+             130                       implicit none
+             131                     
+             132                       character(len=14) :: cdate
+             133                     
+             134                       integer :: n
+             135                       !-----------------------------------------------------------------------------
+             136                     
+             137                       call ADM_proc_init(ADM_MULTI_PRC)
+             138                     
+             139                       !---< admin module setup >---
+             140                       call ADM_setup('nhm_driver.cnf')
+             141                     
+             142                       !#############################################################################
+             143                     
+             144                       write(ADM_LOG_FID,*) '##### start  setup     #####'
+             145     1                 if ( ADM_prc_me == ADM_prc_run_master ) then
+             146     1                    write(*,*) '##### start  setup     #####'
+             147     1                 endif
+             148                     
+             149                       call DEBUG_rapstart('Total')
+             150                       call DEBUG_rapstart('Setup ALL')
+             151                     
+             152                       !---< cnst module setup >---
+             153                       call CNST_setup
+             154                     
+             155                       !---< calendar module setup >---
+             156                       call calendar_setup
+             157                     
+             158                       !---< I/O module setup >---
+             159                       call FIO_setup
+             160                     
+             161                       !---< comm module setup >---
+             162                       call COMM_setup
+             163                     
+             164                       !---< grid module setup >---
+             165                       call GRD_setup
+             166                     
+             167                       !---< geometrics module setup >---
+             168                       call GMTR_setup
+             169                     
+             170                       !---< operator module setup >---
+             171                       call OPRT_setup
+             172                     
+             173                       !---< vertical metrics module setup >---
+             174                       call VMTR_setup
+             175                     
+             176                       !---< time module setup >---
+             177                       call TIME_setup
+             178                     
+             179                     
+             180                       !---< nhm_runconf module setup >---
+             181                       call runconf_setup
+             182                     
+             183                       !---< prognostic variable module setup >---
+             184                       call prgvar_setup
+             185                       call restart_input( restart_input_basename )
+             186                     
+             187                       !---< diagnostic variable module setup >---
+             188                       call diagvar_setup
+             189                     
+             190                       !---< surface variable module setup >---
+             191                       call sfcvar_setup
+             192                     
+             193                     
+             194                       !---< boundary condition module setup >---
+             195                       call bndcnd_setup
+             196                     
+             197                       !---< basic state module setup >---
+             198                       call bsstate_setup
+             199                     
+             200                       !---< numerical filter module setup >---
+             201                       call numfilter_setup
+             202                     
+             203                       !---< forcing module setup >---
+             204                       call forcing_init
+             205                     
+             206                       !---< energy&mass budget module setup >---
+             207                       call embudget_setup
+             208                     
+             209                       !---< history module setup >---
+             210                       call history_setup
+             211                     
+             212                       !---< history variable module setup >---
+             213                       call history_vars_setup
+             214                     
+             215                       !---< nudging module setup >---
+             216                       if( FLAG_NUDGING ) call ndg_setup( ctime, dtime )
+             217                     
+             218                       write(ADM_LOG_FID,*) '##### finish setup     #####'
+             219     1                 if ( ADM_prc_me == ADM_prc_run_master ) then
+             220     1                    write(*,*) '##### finish setup     #####'
+             221     1                 endif
+             222                     
+             223                       call DEBUG_rapend('Setup ALL')
+             224                     
+             225                       !#############################################################################
+             226                     #ifdef _FIPP_
+             227                       call fipp_start()
+             228                     #endif
+             229                       call DEBUG_rapstart('Main ALL')
+             230                     
+             231                       write(ADM_LOG_FID,*) '##### start  main loop #####'
+             232     1                 if ( ADM_prc_me == ADM_prc_run_master ) then
+             233     1                    write(*,*) '##### start  main loop #####'
+             234     1                 endif
+             235                     
+             236                       call TIME_report
+             237                     
+             238                       !--- history output at initial time
+             239     1                 if ( HIST_output_step0 ) then
+             240     1                    cstep = -1
+             241     1                    ctime = -dtime
+             242     1                    call history_vars
+             243     1                    call TIME_advance
+             244     1                    call history_out
+             245     1                 endif
+             246                     
+             247     1                 do n = 1, TIME_LSTEP_MAX
+             248     1               
+             249     1                    call DEBUG_rapstart('+Atmos')
+             250     1                    call dynstep
+             251     1                    call forcing
+             252     1                    call DEBUG_rapend  ('+Atmos')
+             253     1               
+             254     1                    call DEBUG_rapstart('+History')
+             255     1                    call history_vars
+             256     1                    call TIME_advance
+             257     1               
+             258     1                    !--- budget monitor
+             259     1                    call embudget_monitor
+             260     1                    call history_out
+             261     1               
+             262     2                    if (n == TIME_LSTEP_MAX) then
+             263     2                       cdate = ""
+             264     2                       call restart_output( restart_output_basename )
+             265     2                       call diagvar_restart_output ( cdate )
+             266     2                    endif
+             267     1                    call DEBUG_rapend  ('+History')
+             268     1               
+             269     1                 enddo
+             270                     
+             271                       write(ADM_LOG_FID,*) '##### finish main loop #####'
+             272     1                 if ( ADM_prc_me == ADM_prc_run_master ) then
+             273     1                    write(*,*) '##### finish main loop #####'
+             274     1                 endif
+             275                     
+             276                       call DEBUG_rapend('Main ALL')
+             277                     #ifdef _FIPP_
+             278                       call fipp_stop()
+             279                     #endif
+             280                       !#############################################################################
+             281                     
+             282                       call DEBUG_rapend('Total')
+             283                       call DEBUG_rapreport
+             284                     
+             285                       !--- all processes stop
+             286                       call ADM_proc_stop
+             287                     
+             288                       stop
+             289                     end program prg_driver
+             290                     !-------------------------------------------------------------------------------
+
+ Procedure information
+   Lines      : 290
+   Statements : 103
+   Stack(byte): 16
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 290
+   Total statements : 103
+   Total stack(byte): 16
+   Total prefetch num: 0
+

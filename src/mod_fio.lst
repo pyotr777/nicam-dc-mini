@@ -1,0 +1,679 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 16:47:38 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_fio.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_fio.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_fio"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! File I/O module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module is continer for file I/O
+               7                     !!
+               8                     !! @author H.Tomita, H.Yashiro
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2011-07-27 (H.Tomita)  [NEW]
+              12                     !! @li      2011-08-19 (H.Yashiro) Incorporate into NICAM
+              13                     !! @li      2011-09-03 (H.Yashiro) Complete format specification
+              14                     !! @li      2011-12-14 (T.Seiki)   allocatable => pointer in type structure
+              15                     !! @li      2012-02-01 (T.Seiki)   fix array size over in array assignment
+              16                     !!
+              17                     !<
+              18                     module mod_fio
+              19                       !-----------------------------------------------------------------------------
+              20                       !
+              21                       !++ Used modules
+              22                       !
+              23                       use mod_debug
+              24                       !-----------------------------------------------------------------------------
+              25                       implicit none
+              26                       private
+              27                       !-----------------------------------------------------------------------------
+              28                       !
+              29                       !++ Public procedures
+              30                       !
+              31                       public :: FIO_setup
+              32                       public :: FIO_input
+              33                       public :: FIO_seek
+              34                       public :: FIO_output
+              35                       public :: FIO_finalize
+              36                     
+              37                       !-----------------------------------------------------------------------------
+              38                       !
+              39                       !++ Public parameters & variables
+              40                       !
+              41                       !--- character length
+              42                       integer, parameter, public :: FIO_HSHORT =  16
+              43                       integer, parameter, public :: FIO_HMID   =  64
+              44                       integer, parameter, public :: FIO_HLONG  = 256
+              45                     
+              46                       !--- data type
+              47                       integer, parameter, public :: FIO_REAL4    = 0
+              48                       integer, parameter, public :: FIO_REAL8    = 1
+              49                       integer, parameter, public :: FIO_INTEGER4 = 2
+              50                       integer, parameter, public :: FIO_INTEGER8 = 3
+              51                     
+              52                       !--- data endian
+              53                       integer, parameter, public :: FIO_UNKNOWN_ENDIAN = 0
+              54                       integer, parameter, public :: FIO_LITTLE_ENDIAN  = 1
+              55                       integer, parameter, public :: FIO_BIG_ENDIAN     = 2
+              56                     
+              57                       !--- topology
+              58                       integer, parameter, public :: FIO_ICOSAHEDRON = 0
+              59                       integer, parameter, public :: FIO_IGA_LCP     = 1
+              60                       integer, parameter, public :: FIO_IGA_MLCP    = 2
+              61                     
+              62                       !--- file mode (partial or complete)
+              63                       integer, parameter, public :: FIO_SPLIT_FILE = 0
+              64                       integer, parameter, public :: FIO_INTEG_FILE = 1
+              65                     
+              66                       !--- proccessor type
+              67                       integer, parameter, public :: FIO_SINGLE_PROC = 0
+              68                       integer, parameter, public :: FIO_MULTI_PROC  = 1
+              69                     
+              70                       !--- action type
+              71                       integer, parameter, public :: FIO_FREAD   = 0
+              72                       integer, parameter, public :: FIO_FWRITE  = 1
+              73                       integer, parameter, public :: FIO_FAPPEND = 2 ! [add] H.Yashiro 20110907 overwrite mode
+              74                     
+              75                       !--- data dump type
+              76                       integer, parameter, public :: FIO_DUMP_OFF      = 0
+              77                       integer, parameter, public :: FIO_DUMP_HEADER   = 1
+              78                       integer, parameter, public :: FIO_DUMP_ALL      = 2
+              79                       integer, parameter, public :: FIO_DUMP_ALL_MORE = 3
+              80                     
+              81                       !--- struct for package infomation
+              82                       type, public :: headerinfo
+              83                          character(LEN=FIO_HLONG) :: fname
+              84                          character(LEN=FIO_HMID)  :: description
+              85                          character(LEN=FIO_HLONG) :: note
+              86                          integer                  :: num_of_data
+              87                          integer                  :: fmode
+              88                          integer                  :: endiantype
+              89                          integer                  :: grid_topology
+              90                          integer                  :: glevel
+              91                          integer                  :: rlevel
+              92                          integer                  :: num_of_rgn
+              93                          ! [Mod] 2011/12/14, T.Seiki
+              94                     !!$  integer,allocatable      :: rgnid(:)
+              95                          integer, pointer         :: rgnid(:)
+              96                       endtype headerinfo
+              97                     
+              98                       !--- struct for data infomation
+              99                       type, public :: datainfo
+             100                          character(LEN=FIO_HSHORT) :: varname
+             101                          character(LEN=FIO_HMID)   :: description
+             102                          character(LEN=FIO_HSHORT) :: unit
+             103                          character(LEN=FIO_HSHORT) :: layername
+             104                          character(LEN=FIO_HLONG)  :: note
+             105                          integer(8)                :: datasize
+             106                          integer                   :: datatype
+             107                          integer                   :: num_of_layer
+             108                          integer                   :: step
+             109                          integer(8)                :: time_start
+             110                          integer(8)                :: time_end
+             111                       endtype datainfo
+             112                     
+             113                       !-----------------------------------------------------------------------------
+             114                       !
+             115                       !++ Private procedures
+             116                       !
+             117                       !-----------------------------------------------------------------------------
+             118                       !
+             119                       !++ Private parameters & variables
+             120                       !
+             121                       integer,             parameter, private :: FIO_nmaxfile = 64
+             122                       character(LEN=FIO_HLONG), save, private :: FIO_fname_list(FIO_nmaxfile)
+             123                       integer,                  save, private :: FIO_fid_list  (FIO_nmaxfile)
+             124                       integer,                  save, private :: FIO_fid_count = 1
+             125                     
+             126                       type(headerinfo), private :: hinfo
+             127                       type(datainfo),   private :: dinfo
+             128                     
+             129                       integer, private, parameter :: max_num_of_data = 2500 !--- max time step num
+             130                       integer, parameter, private :: preclist(0:3) = (/ 4, 8, 4, 8 /)
+             131                     
+             132                       !-----------------------------------------------------------------------------
+             133                     contains
+             134                       !-----------------------------------------------------------------------------
+             135                       subroutine FIO_setup
+             136                         use mod_adm, only : &
+             137                           ADM_LOG_FID,   &
+             138                           ADM_prc_me,    &
+             139                           ADM_prc_tab,   &
+             140                           ADM_glevel,    &
+             141                           ADM_rlevel,    &
+             142                           ADM_lall
+             143                         implicit none
+             144                     
+             145                         integer, allocatable :: prc_tab(:)
+             146                         !---------------------------------------------------------------------------
+             147                     
+             148                         ! dummy call
+             149                         call DEBUG_rapstart('FILEIO in')
+             150                         call DEBUG_rapend  ('FILEIO in')
+             151                         call DEBUG_rapstart('FILEIO out')
+             152                         call DEBUG_rapend  ('FILEIO out')
+             153                     
+             154                         allocate( prc_tab(ADM_lall) )
+             155                         ! [fix] 20120201 T.Seiki
+             156                         !!$ prc_tab(:) = ADM_prc_tab(:,ADM_prc_me)-1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             157        pp   8s          prc_tab(1:ADM_lall) = ADM_prc_tab(1:ADM_lall,ADM_prc_me)-1
+             158                     
+             159                         call fio_syscheck()
+             160                         call fio_put_commoninfo( FIO_SPLIT_FILE,  &
+             161                                                  FIO_BIG_ENDIAN,  &
+             162                                                  FIO_ICOSAHEDRON, &
+             163                                                  ADM_glevel,      &
+             164                                                  ADM_rlevel,      &
+             165                                                  ADM_lall,        &
+             166                                                  prc_tab          )
+             167                     
+             168                         deallocate(prc_tab)
+             169                     
+             170                         allocate( hinfo%rgnid(ADM_lall) )
+             171                     
+             172                         return
+             173                       end subroutine FIO_setup
+             174                     
+             175                       !-----------------------------------------------------------------------------
+             176                       subroutine FIO_getfid( &
+             177                           fid,      &
+             178                           basename, &
+             179                           rwtype,   &
+             180                           pkg_desc, &
+             181                           pkg_note  )
+             182                         use mod_adm, only : &
+             183                           ADM_LOG_FID, &
+             184                           ADM_prc_me
+             185                         implicit none
+             186                     
+             187                         integer,          intent(out) :: fid
+             188                         character(LEN=*), intent( in) :: basename
+             189                         integer,          intent( in) :: rwtype
+             190                         character(LEN=*), intent( in) :: pkg_desc
+             191                         character(LEN=*), intent( in) :: pkg_note
+             192                     
+             193                         character(LEN=FIO_HSHORT) :: rwname(0:2)
+             194                         data rwname / 'READ','WRITE','APPEND' / ! [fix] H.Yashiro 20110912
+             195                     
+             196                         character(LEN=FIO_HLONG) :: fname
+             197                         integer                  :: n
+             198                         !---------------------------------------------------------------------------
+             199                     
+             200                         !--- search existing file
+             201                         fid = -1
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 2
+                                   <<<      FIO_fid_list: 2
+                                   <<< Loop-information  End >>>
+             202     1                   do n = 1, FIO_fid_count
+             203     1                      if ( trim(basename)==trim(FIO_fname_list(n)) ) fid = FIO_fid_list(n)
+             204     1                   enddo
+             205                     
+             206     1                   if ( fid < 0 ) then ! file registration
+             207     1                      !--- register new file and open
+             208     1                      call fio_mk_fname(fname,trim(basename),'pe',ADM_prc_me-1,6)
+             209     1                      call fio_register_file(n,fname)
+             210     1               
+             211     2                      if ( rwtype == FIO_FREAD ) then
+             212     2               
+             213     2               !          call fio_dump_finfo(n,FIO_BIG_ENDIAN,FIO_DUMP_HEADER) ! dump to stdout(check)
+             214     2                         call fio_fopen(n,FIO_FREAD)
+             215     2                         call fio_read_allinfo(n)
+             216     2               
+             217     2                      elseif( rwtype == FIO_FWRITE ) then
+             218     2               
+             219     2                         call fio_fopen(n,FIO_FWRITE)
+             220     2                         call fio_put_write_pkginfo(n,pkg_desc,pkg_note)
+             221     2               
+             222     2                      endif
+             223     1               
+             224     1                      write(ADM_LOG_FID,*) '*** [FIO] File registration : ',trim(rwname(rwtype)),'-', n
+             225     1                      write(ADM_LOG_FID,*) '*** filename: ', trim(fname)
+             226     1               
+             227     1                      FIO_fname_list(FIO_fid_count) = trim(basename)
+             228     1                      FIO_fid_list  (FIO_fid_count) = n
+             229     1                      FIO_fid_count = FIO_fid_count + 1
+             230     1                      fid = n
+             231     1                   endif
+             232                     
+             233                         return
+             234                       end subroutine FIO_getfid
+             235                     
+             236                       !-----------------------------------------------------------------------------
+             237                       subroutine FIO_input( &
+             238                           var,           &
+             239                           basename,      &
+             240                           varname,       &
+             241                           layername,     &
+             242                           k_start,       &
+             243                           k_end,         &
+             244                           step,          &
+             245                           allow_missingq ) !--- optional
+             246                         use mod_adm, only : &
+             247                           ADM_proc_stop, &
+             248                           ADM_LOG_FID, &
+             249                           ADM_gall,    &
+             250                           ADM_lall
+             251                         implicit none
+             252                     
+             253                         real(8),          intent(out) :: var(:,:,:)
+             254                         character(LEN=*), intent( in) :: basename
+             255                         character(LEN=*), intent( in) :: varname
+             256                         character(LEN=*), intent( in) :: layername
+             257                         integer,          intent( in) :: k_start, k_end
+             258                         integer,          intent( in) :: step
+             259                     
+             260                         logical, intent(in), optional :: allow_missingq !--- if data is missing, set value to zero
+             261                     
+             262                         real(4) :: var4(ADM_gall,k_start:k_end,ADM_lall)
+             263                         real(8) :: var8(ADM_gall,k_start:k_end,ADM_lall)
+             264                     
+             265                         integer :: did, fid
+             266                         !---------------------------------------------------------------------------
+             267                     
+             268                         call DEBUG_rapstart('FILEIO in')
+             269                     
+             270                         !--- search/register file
+             271                         call FIO_getfid( fid, basename, FIO_FREAD, "", "" )
+             272                     
+             273                         !--- seek data ID and get information
+             274                         call fio_seek_datainfo(did,fid,varname,step)
+             275                         call fio_get_datainfo(fid,did,dinfo)
+             276                     
+             277                     !    write(ADM_LOG_FID,*) dinfo%varname
+             278                     !    write(ADM_LOG_FID,*) dinfo%description
+             279                     !    write(ADM_LOG_FID,*) dinfo%unit
+             280                     !    write(ADM_LOG_FID,*) dinfo%layername
+             281                     !    write(ADM_LOG_FID,*) dinfo%note
+             282                     !    write(ADM_LOG_FID,*) dinfo%datasize
+             283                     !    write(ADM_LOG_FID,*) dinfo%datatype
+             284                     !    write(ADM_LOG_FID,*) dinfo%num_of_layer
+             285                     !    write(ADM_LOG_FID,*) dinfo%step
+             286                     !    write(ADM_LOG_FID,*) dinfo%time_start
+             287                     !    write(ADM_LOG_FID,*) dinfo%time_end
+             288                     
+             289                         !--- verify
+             290     1                   if ( did == -1 ) then
+             291     2                      if ( present(allow_missingq) ) then ! [bugfix] H.Yashiro 20110912
+             292     3                         if ( allow_missingq ) then
+             293     3                            write(ADM_LOG_FID,*) 'xxx [INPUT]/[FIO] data not found! : ', &
+             294     3                                                 'varname= ',trim(varname),', step=',step
+             295     3                            write(ADM_LOG_FID,*) 'xxx [INPUT]/[FIO] Q Value is set to 0.'
+             296     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             297     3  pp   8s                   var(:,k_start:k_end,:) = 0.D0
+             298     3               
+             299     3                            return
+             300     3                         endif
+             301     2                      else
+             302     2                         write(ADM_LOG_FID,*) 'xxx [INPUT]/[FIO] data not found! : ', &
+             303     2                                              'varname= ',trim(varname),', step=',step
+             304     2                         call ADM_proc_stop
+             305     2                      endif
+             306     1                   endif
+             307                     
+             308     1                   if ( trim(dinfo%layername) /= trim(layername) ) then
+             309     1                      write(ADM_LOG_FID,*) 'xxx [INPUT]/[FIO] layername mismatch! ', &
+             310     1                                           "[",trim(dinfo%layername),":",trim(layername),"]"
+             311     1                      call ADM_proc_stop
+             312     1                   elseif( dinfo%num_of_layer /= k_end-k_start+1 ) then
+             313     1                      write(ADM_LOG_FID,*) 'xxx [INPUT]/[FIO] num_of_layer mismatch! ', &
+             314     1                                           dinfo%num_of_layer,k_end-k_start+1
+             315     1                      call ADM_proc_stop
+             316     1                   endif
+             317                     
+             318                         !--- read data
+             319     1                   if ( dinfo%datatype == FIO_REAL4 ) then
+             320     1               
+             321     1                      call fio_read_data(fid,did,var4(:,:,:))
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             322     1  pp   6v             var(:,k_start:k_end,:) = real(var4(:,1:dinfo%num_of_layer,:),kind=8)
+             323     1               
+             324     1                   elseif( dinfo%datatype == FIO_REAL8 ) then
+             325     1               
+             326     1                      call fio_read_data(fid,did,var8(:,:,:))
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             327     1  pp   8v             var(:,k_start:k_end,:) = var8(:,1:dinfo%num_of_layer,:)
+             328     1               
+             329     1                   endif
+             330                     
+             331                         call DEBUG_rapend('FILEIO in')
+             332                     
+             333                         return
+             334                       end subroutine FIO_input
+             335                     
+             336                       !-----------------------------------------------------------------------------
+             337                       subroutine FIO_seek( &
+             338                           start_step,       &
+             339                           num_of_step,      &
+             340                           data_date,        &
+             341                           prec,             &
+             342                           basename,         &
+             343                           varname,          &
+             344                           layername,        &
+             345                           k_start,          &
+             346                           k_end,            &
+             347                           ctime,            &
+             348                           cdate,            &
+             349                           opt_periodic_year )
+             350                         use mod_adm, only : &
+             351                           ADM_proc_stop, &
+             352                           ADM_LOG_FID
+             353                         use mod_calendar, only :&
+             354                           calendar_ss2yh, &
+             355                           calendar_yh2ss
+             356                         implicit none
+             357                     
+             358                         integer,          intent(inout) :: start_step
+             359                         integer,          intent(inout) :: num_of_step
+             360                         integer,          intent(inout) :: data_date(6,max_num_of_data)
+             361                         integer,          intent(inout) :: prec
+             362                         character(len=*), intent(in) :: basename
+             363                         character(len=*), intent(in) :: varname
+             364                         character(len=*), intent(in) :: layername
+             365                         integer,          intent(in) :: k_start, k_end
+             366                         real(8),          intent(in) :: ctime
+             367                         integer,          intent(in) :: cdate(6)
+             368                         logical,          intent(in) :: opt_periodic_year
+             369                     
+             370                         real(8) :: midtime !--- [sec]
+             371                         logical :: startflag
+             372                         integer :: did, fid
+             373                         integer :: i
+             374                         !---------------------------------------------------------------------------
+             375                     
+             376                         call DEBUG_rapstart('FILEIO in')
+             377                     
+             378                         !--- search/register file
+             379                         call FIO_getfid( fid, basename, FIO_FREAD, "", "" )
+             380                     
+             381                         startflag = .false.
+             382                     
+             383     1                   do i = 1, max_num_of_data
+             384     1                      !--- seek data ID and get information
+             385     1                      call fio_seek_datainfo(did,fid,varname,i)
+             386     1                      call fio_get_datainfo(fid,did,dinfo)
+             387     1               
+             388     1               !       write(ADM_LOG_FID,*) dinfo%varname
+             389     1               !       write(ADM_LOG_FID,*) dinfo%description
+             390     1               !       write(ADM_LOG_FID,*) dinfo%unit
+             391     1               !       write(ADM_LOG_FID,*) dinfo%layername
+             392     1               !       write(ADM_LOG_FID,*) dinfo%note
+             393     1               !       write(ADM_LOG_FID,*) dinfo%datasize
+             394     1               !       write(ADM_LOG_FID,*) dinfo%datatype
+             395     1               !       write(ADM_LOG_FID,*) dinfo%num_of_layer
+             396     1               !       write(ADM_LOG_FID,*) dinfo%step
+             397     1               !       write(ADM_LOG_FID,*) dinfo%time_start
+             398     1               !       write(ADM_LOG_FID,*) dinfo%time_end
+             399     1               
+             400     2                      if ( did == -1 ) then
+             401     2                         num_of_step = i - 1
+             402     2                         exit
+             403     2                      endif
+             404     1               
+             405     1                      !--- verify
+             406     2                      if ( trim(dinfo%layername) /= trim(layername) ) then
+             407     2                         write(ADM_LOG_FID,*) 'xxx [INPUT]/[FIO] layername mismatch! ', &
+             408     2                                              "[",trim(dinfo%layername),":",trim(layername),"]"
+             409     2                         call ADM_proc_stop
+             410     2                      elseif( dinfo%num_of_layer /= k_end-k_start+1 ) then
+             411     2                         write(ADM_LOG_FID,*) 'xxx [INPUT]/[FIO] num_of_layer mismatch!', &
+             412     2                                              dinfo%num_of_layer,k_end-k_start+1
+             413     2                         call ADM_proc_stop
+             414     2                      endif
+             415     1               
+             416     1                      ! [fix] H.Yashiro 20111011 : specify int kind=8
+             417     1                      midtime = dble( int( (dinfo%time_start+dinfo%time_end)*0.5D0+1.D0,kind=8 ) )
+             418     1                      call calendar_ss2yh( data_date(:,i), midtime )
+             419     1               
+             420     2                      if ( opt_periodic_year ) then
+             421     2                         data_date(1,i) = cdate(1)
+             422     2                         call calendar_yh2ss( midtime, data_date(:,i) )
+             423     2                      endif
+             424     1               
+             425     2                      if (       ( .not. startflag ) &
+             426     2                           .AND. ( ctime < midtime ) ) then
+             427     2                         startflag  = .true.
+             428     2                         start_step = i
+             429     2                         prec       = preclist(dinfo%datatype)
+             430     2                      endif
+             431     1                   enddo
+             432                     
+             433                         call DEBUG_rapend('FILEIO in')
+             434                     
+             435                         return
+             436                       end subroutine FIO_seek
+             437                     
+             438                       !-----------------------------------------------------------------------------
+             439                       subroutine FIO_output( &
+             440                           var,       &
+             441                           basename,  &
+             442                           pkg_desc,  &
+             443                           pkg_note,  &
+             444                           varname,   &
+             445                           data_desc, &
+             446                           data_note, &
+             447                           unit,      &
+             448                           dtype,     &
+             449                           layername, &
+             450                           k_start,   &
+             451                           k_end,     &
+             452                           step,      &
+             453                           t_start,   &
+             454                           t_end      )
+             455                         use mod_adm, only : &
+             456                           ADM_proc_stop, &
+             457                           ADM_LOG_FID, &
+             458                           ADM_prc_me, &
+             459                           ADM_gall,   &
+             460                           ADM_lall
+             461                         use mod_cnst, only : &
+             462                           CNST_UNDEF4
+             463                         implicit none
+             464                     
+             465                         real(8),          intent(in) :: var(:,:,:)
+             466                         character(LEN=*), intent(in) :: basename
+             467                         character(LEN=*), intent(in) :: pkg_desc
+             468                         character(LEN=*), intent(in) :: pkg_note
+             469                         character(LEN=*), intent(in) :: varname
+             470                         character(LEN=*), intent(in) :: data_desc
+             471                         character(LEN=*), intent(in) :: data_note
+             472                         character(LEN=*), intent(in) :: unit
+             473                         integer,          intent(in) :: dtype
+             474                         character(LEN=*), intent(in) :: layername
+             475                         integer,          intent(in) :: k_start, k_end
+             476                         integer,          intent(in) :: step
+             477                         real(8),          intent(in) :: t_start, t_end
+             478                     
+             479                         real(4) :: var4(ADM_gall,k_start:k_end,ADM_lall)
+             480                         real(8) :: var8(ADM_gall,k_start:k_end,ADM_lall)
+             481                     
+             482                         integer :: did, fid
+             483                         !---------------------------------------------------------------------------
+             484                     
+             485                         call DEBUG_rapstart('FILEIO out')
+             486                     
+             487                         !--- search/register file
+             488                         call FIO_getfid( fid, basename, FIO_FWRITE, pkg_desc, pkg_note )
+             489                     
+             490                         !--- append data to the file
+             491                         dinfo%varname      = varname
+             492                         dinfo%description  = data_desc
+             493                         dinfo%unit         = unit
+             494                         dinfo%layername    = layername
+             495                         dinfo%note         = data_note
+             496                         dinfo%datasize     = int( ADM_gall * ADM_lall * (k_end-k_start+1) * preclist(dtype), kind=8 )
+             497                         dinfo%datatype     = dtype
+             498                         dinfo%num_of_layer = k_end-k_start+1
+             499                         dinfo%step         = step
+             500                         dinfo%time_start   = int( t_start, kind=8 )
+             501                         dinfo%time_end     = int( t_end,   kind=8 )
+             502                     
+             503                     !    write(ADM_LOG_FID,*) dinfo%varname
+             504                     !    write(ADM_LOG_FID,*) dinfo%description
+             505                     !    write(ADM_LOG_FID,*) dinfo%unit
+             506                     !    write(ADM_LOG_FID,*) dinfo%layername
+             507                     !    write(ADM_LOG_FID,*) dinfo%note
+             508                     !    write(ADM_LOG_FID,*) dinfo%datasize
+             509                     !    write(ADM_LOG_FID,*) dinfo%datatype
+             510                     !    write(ADM_LOG_FID,*) dinfo%num_of_layer
+             511                     !    write(ADM_LOG_FID,*) dinfo%step
+             512                     !    write(ADM_LOG_FID,*) dinfo%time_start
+             513                     !    write(ADM_LOG_FID,*) dinfo%time_end
+             514                     
+             515     1                   if ( dtype == FIO_REAL4 ) then
+             516     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             517     1  pp   8v             var4(:,k_start:k_end,:)=real(var(:,k_start:k_end,:),kind=4)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    INTERCHANGED(nest: 2)
+                                   <<<    PREFETCH       : 48
+                                   <<<      var4: 48
+                                   <<< Loop-information  End >>>
+             518     1  pp   8s             where( var4(:,:,:) < (CNST_UNDEF4+1.0) )
+             519     1   p   8s                var4(:,:,:) = CNST_UNDEF4
+             520     1                      endwhere
+             521     1               
+             522     1                      call fio_put_write_datainfo_data(did,fid,dinfo,var4(:,:,:))
+             523     1               
+             524     1                   elseif( dtype == FIO_REAL8 ) then
+             525     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             526     1  pp   8v             var8(:,k_start:k_end,:)=var(:,k_start:k_end,:)
+             527     1               
+             528     1                      call fio_put_write_datainfo_data(did,fid,dinfo,var8(:,:,:))
+             529     1                   else
+             530     1                      write(ADM_LOG_FID,*) 'xxx [OUTPUT]/[FIO] Unsupported datatype!', dtype
+             531     1                      call ADM_proc_stop
+             532     1                   endif
+             533                     
+             534                         call DEBUG_rapend('FILEIO out')
+             535                     
+             536                         return
+             537                       end subroutine FIO_output
+             538                     
+             539                       !-----------------------------------------------------------------------------
+             540                       subroutine FIO_finalize
+             541                         use mod_adm, only : &
+             542                           ADM_LOG_FID, &
+             543                           ADM_prc_me
+             544                         implicit none
+             545                     
+             546                         character(LEN=FIO_HLONG) :: fname
+             547                         integer                  :: n
+             548                         !---------------------------------------------------------------------------
+             549                     
+             550     1                   do n = 1, FIO_fid_count
+             551     1                      call fio_fclose(FIO_fid_list(n))
+             552     1               
+             553     1                      write(ADM_LOG_FID,*) '*** [FIO] File Close : NO.', n
+             554     1                      call fio_mk_fname(fname,trim(FIO_fname_list(n)),'pe',ADM_prc_me-1,6)
+             555     1                      write(ADM_LOG_FID,*) '*** closed filename: ', trim(fname)
+             556     1                   enddo
+             557                     
+             558                         return
+             559                       end subroutine FIO_finalize
+             560                     
+             561                     end module mod_fio
+             562                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_fio)
+   jwd8220o-i  "share/mod_fio.f90", line 18: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+   jwd2023i-i  "share/mod_fio.f90", line 109: Gap inserted for boundary alignment of components of derived type 'time_start'.
+  Module subprogram name(FIO_seek)
+   jwd8201o-i  "share/mod_fio.f90", line 421: Invariant expression within loop is moved outside loop.
+
+ Procedure information
+   Lines      : 562
+   Statements : 280
+   Stack(byte): 7008
+   Prefetch num: 50
+
+ Total information
+   Procedures       : 1
+   Total lines      : 562
+   Total statements : 280
+   Total stack(byte): 7008
+   Total prefetch num: 50
+

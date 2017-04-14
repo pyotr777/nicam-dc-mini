@@ -1,0 +1,955 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:03:15 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/share/mod_thrmdyn.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_thrmdyn.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_thrmdyn"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  Thermodynamics variables module
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     module mod_thrmdyn
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This module contains subroutines in which the thermodyanics variables
+              11                       !       are calculated.
+              12                       !
+              13                       !
+              14                       !++ Current Corresponding Author : H.Tomita
+              15                       !
+              16                       !++ History:
+              17                       !      Version   Date       Comment
+              18                       !      -----------------------------------------------------------------------
+              19                       !      0.00      04-02-17   Imported from igdc-4.34
+              20                       !                07-01-26   H.Tomita: Support all type of EIN_TYPE
+              21                       !                08-06-13   T.Mitsui: mod thrmdyn_ent as strict difinition
+              22                       !      -----------------------------------------------------------------------
+              23                       !
+              24                       !-----------------------------------------------------------------------------
+              25                       !
+              26                       !++ Used modules
+              27                       !
+              28                       use mod_adm, only :       &
+              29                            kdim => ADM_kall,    &
+              30                            kmin => ADM_kmin,    &
+              31                            kmax => ADM_kmax
+              32                       use mod_cnst,  only :&
+              33                            CNST_RAIR,      &
+              34                            CNST_RVAP,      &
+              35                            CNST_CV,        &
+              36                            CNST_CP,        &
+              37                            CNST_PRE00,     &
+              38                            CNST_KAPPA,     &
+              39                            CNST_EPSV,      &
+              40                            CNST_TEM00,     &
+              41                            CNST_PSAT0,     &
+              42                            CNST_LHF0,      &
+              43                            CNST_LH0,       &
+              44                            CNST_LHF00,     &
+              45                            CNST_LH00
+              46                       use mod_runconf, only : &
+              47                            nqmax => TRC_VMAX ,&
+              48                            NQW_STR,NQW_END,   &
+              49                            I_QV,              &
+              50                            I_QI,              &
+              51                            I_QS,              &
+              52                            I_QG,              &
+              53                            I_QH,              &
+              54                            CVW,CPW
+              55                       !-----------------------------------------------------------------------------
+              56                       implicit none
+              57                       private
+              58                       !-----------------------------------------------------------------------------
+              59                       !
+              60                       !++ Public parameters
+              61                       !
+              62                       ! < NONE >
+              63                       !-----------------------------------------------------------------------------
+              64                       !
+              65                       !++ Public variables
+              66                       !
+              67                       ! < NONE >
+              68                       !-----------------------------------------------------------------------------
+              69                       !
+              70                       !++ Public procedure
+              71                       !
+              72                       public :: thrmdyn_rho
+              73                       public :: thrmdyn_ein
+              74                       public :: thrmdyn_eth
+              75                       public :: thrmdyn_tem
+              76                       public :: thrmdyn_pre
+              77                       public :: thrmdyn_th
+              78                       public :: thrmdyn_tempreth
+              79                       public :: thrmdyn_tempre
+              80                       public :: thrmdyn_cv
+              81                       public :: thrmdyn_cp
+              82                       public :: thrmdyn_qd
+              83                       public :: thrmdyn_ent
+              84                     
+              85                       public :: THRMDYN_qd_ijkl
+              86                       public :: THRMDYN_rho_ijkl
+              87                       public :: THRMDYN_ein_ijkl
+              88                       public :: THRMDYN_tempre_ijkl
+              89                       !-----------------------------------------------------------------------------
+              90                       !
+              91                       !++ Private parameters
+              92                       !
+              93                       ! < NONE >
+              94                       !-----------------------------------------------------------------------------
+              95                       !
+              96                       !++ Private variables
+              97                       !
+              98                       ! < NONE >
+              99                       !-----------------------------------------------------------------------------
+             100                       !
+             101                       !++ Private procedures
+             102                       !
+             103                       ! < NONE >
+             104                       !-----------------------------------------------------------------------------
+             105                     contains
+             106                       !-----------------------------------------------------------------------------
+             107                       subroutine thrmdyn_rho( &
+             108                            ijdim,             & !--- IN : number of horizontal grid
+             109                            rho,               & !--- OUT : density
+             110                            pre,               & !--- IN  : pressure
+             111                            tem,               & !--- IN  : temperature
+             112                            qd,                & !--- IN  : dry concentration
+             113                            q )                  !--- IN  : water concentration
+             114                         !------
+             115                         !------ Density calculation in all regions
+             116                         !------    1. calculation region of rho
+             117                         !------                   : (:,:,:)
+             118                         !------
+             119                         implicit none
+             120                         !
+             121                         integer, intent(in) :: ijdim
+             122                         real(8), intent(out) :: rho(1:ijdim,1:kdim)
+             123                         real(8), intent(in)  :: pre(1:ijdim,1:kdim)
+             124                         real(8), intent(in)  :: tem(1:ijdim,1:kdim)
+             125                         real(8), intent(in)  :: qd(1:ijdim,1:kdim)
+             126                         real(8), intent(in)  :: q(1:ijdim,1:kdim,1:nqmax)
+             127                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 422
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             128        pp   6v          rho(:,:) = pre(:,:) / tem(:,:) &
+             129                              / ( qd(:,:)*CNST_RAIR+q(:,:,I_QV)*CNST_RVAP )
+             130                         !
+             131                       end subroutine thrmdyn_rho
+             132                       !-----------------------------------------------------------------------------
+             133                       subroutine thrmdyn_ein( &
+             134                            ijdim,             & !--- IN : number of horizontal grid
+             135                            ein,               &  !--- OUT : internal energy
+             136                            tem,               &  !--- IN  : temperature
+             137                            qd,                &  !--- IN  : dry concentration
+             138                            q )                   !--- IN  : water concentration
+             139                         !------
+             140                         !------ Internal energy calculation in all regions
+             141                         !------    1. calculation region of ein
+             142                         !------                   : (:,:)
+             143                         !------
+             144                         !------ CAUTION : ein = CV*T*qd + CVV*T*qv + CPL*T*qc
+             145                         !------           ein_moist = CV*T*qd + (CVV*T+LH00)*qv + CPL*T*qc
+             146                         !
+             147                         implicit none
+             148                         !
+             149                         integer, intent(in)  :: ijdim
+             150                         real(8), intent(out) :: ein(1:ijdim,1:kdim)
+             151                         real(8), intent(in)  :: tem(1:ijdim,1:kdim)
+             152                         real(8), intent(in)  :: qd(1:ijdim,1:kdim)
+             153                         real(8), intent(in)  :: q(1:ijdim,1:kdim,1:nqmax)
+             154                         !
+             155                         real(8) :: cv(1:ijdim,1:kdim)
+             156                         !
+             157                         call thrmdyn_cv( &
+             158                              ijdim,      & !--- in
+             159                              cv,         & !--- out
+             160                              q,          & !--- in
+             161                              qd )          !--- in
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             162        pp   8v          ein(:,:) = cv(:,:) * tem(:,:)
+             163                         !
+             164                       end subroutine thrmdyn_ein
+             165                       !-----------------------------------------------------------------------------
+             166                       subroutine thrmdyn_eth( &
+             167                            ijdim,             &  !--- IN : number of horizontal grid
+             168                            eth,               &  !--- OUT : enthalpy
+             169                            ein,               &  !--- IN  : internal energy
+             170                            pre,               &  !--- IN  : pressure
+             171                            rho )                 !--- IN  : density
+             172                         !------
+             173                         !------ Enthalpy calculation in all regions
+             174                         !------    1. calculation region of eth
+             175                         !------                   : (:,:)
+             176                         !------
+             177                         implicit none
+             178                         !
+             179                         integer, intent(in)  :: ijdim
+             180                         real(8), intent(out) :: eth(1:ijdim,1:kdim)
+             181                         real(8), intent(in)  :: ein(1:ijdim,1:kdim)
+             182                         real(8), intent(in)  :: pre(1:ijdim,1:kdim)
+             183                         real(8), intent(in)  :: rho(1:ijdim,1:kdim)
+             184                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 517
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             185        pp   6v          eth(:,:) = ein(:,:) + pre(:,:) / rho(:,:)
+             186                         !
+             187                       end subroutine thrmdyn_eth
+             188                       !-----------------------------------------------------------------------------
+             189                       subroutine thrmdyn_tem( &
+             190                            ijdim,             &  !--- IN : number of horizontal grid
+             191                            tem,               &  !--- OUT  : temperature
+             192                            ein,               &  !--- IN : internal energy
+             193                            qd,                &  !--- IN  : dry concentration
+             194                            q )                   !--- IN  : water concentration
+             195                         !------
+             196                         !------ temperature calculation in all regions
+             197                         !------    1. calculation region of tem
+             198                         !------                   : (:,:)
+             199                         !------
+             200                         !------ CAUTION : ein = CV*T*qd + CVV*T*qv + CPL*T*qc
+             201                         !------           ein_moist = CV*T*qd + (CVV*T+LH00)*qv + CPL*T*qc
+             202                         implicit none
+             203                         !
+             204                         integer, intent(in)  :: ijdim
+             205                         real(8), intent(out)  :: tem(1:ijdim,1:kdim)
+             206                         real(8), intent(in)   :: ein(1:ijdim,1:kdim)
+             207                         real(8), intent(in)  :: qd(1:ijdim,1:kdim)
+             208                         real(8), intent(in)  :: q(1:ijdim,1:kdim,1:nqmax)
+             209                         !
+             210                         real(8)  :: cv(1:ijdim,1:kdim)
+             211                         !
+             212                         call thrmdyn_cv( &
+             213                              ijdim,      & !--- in
+             214                              cv,         & !--- out
+             215                              q,          & !--- in
+             216                              qd )          !--- in
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             217        pp   6v          tem(:,:) = ein(:,:) / cv(:,:)
+             218                         !
+             219                       end subroutine thrmdyn_tem
+             220                       !-----------------------------------------------------------------------------
+             221                       subroutine thrmdyn_pre( &
+             222                            ijdim,             &  !--- IN : number of horizontal grid
+             223                            pre,               &  !--- OUT : pressure
+             224                            tem,               &  !--- IN  : temperature
+             225                            rho,               &  !--- IN  : density
+             226                            qd,                &  !--- IN  : dry concentration
+             227                            q )                   !--- IN  : water concentration
+             228                     
+             229                         !------
+             230                         !------ Pressure calculation in all regions
+             231                         !------    1. calculation region of pre
+             232                         !------                   : (:,:)
+             233                         !------
+             234                         implicit none
+             235                         !
+             236                         integer, intent(in)  :: ijdim
+             237                         real(8), intent(out) :: pre(1:ijdim,1:kdim)
+             238                         real(8), intent(in)  :: tem(1:ijdim,1:kdim)
+             239                         real(8), intent(in)  :: rho(1:ijdim,1:kdim)
+             240                         real(8), intent(in)  :: qd(1:ijdim,1:kdim)
+             241                         real(8), intent(in)  :: q(1:ijdim,1:kdim,1:nqmax)
+             242                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 593
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             243        pp   6v          pre(:,:) = rho(:,:) * tem(:,:) &
+             244                              * ( qd(:,:)*CNST_RAIR+q(:,:,I_QV)*CNST_RVAP )
+             245                         !
+             246                       end subroutine thrmdyn_pre
+             247                       !-----------------------------------------------------------------------------
+             248                       subroutine thrmdyn_th( &
+             249                            ijdim,            &  !--- IN : number of horizontal grid
+             250                            th,               &  !--- OUT : potential temperature
+             251                            tem,              &  !--- IN  : temperature
+             252                            pre )                !--- IN  : pressure
+             253                         !------
+             254                         !------ Potential temperature calculation in all regions
+             255                         !------    1. calculation region of th
+             256                         !------                   : (:,:)
+             257                         !------
+             258                         implicit none
+             259                         !
+             260                         integer, intent(in)  :: ijdim
+             261                         real(8), intent(out) :: th(1:ijdim,1:kdim)
+             262                         real(8), intent(in)  :: tem(1:ijdim,1:kdim)
+             263                         real(8), intent(in)  :: pre(1:ijdim,1:kdim)
+             264                         !
+             265                         real(8) :: p0k
+             266                         !
+             267                         p0k=CNST_PRE00**CNST_KAPPA
+             268                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 44
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             269        pp    v          th(:,:) =tem(:,:)*(abs(pre(:,:))**(-CNST_KAPPA))*p0k
+             270                         !
+             271                       end subroutine thrmdyn_th
+             272                       !-----------------------------------------------------------------------------
+             273                       subroutine thrmdyn_tempreth( &
+             274                            ijdim,                  &  !--- IN : number of horizontal grid
+             275                            tem,                    &  !--- OUT : temperature
+             276                            pre,                    &  !--- OUT : pressure
+             277                            th,                     &  !--- OUT : potential temperature
+             278                            ein,                    &  !--- IN  : internal energy
+             279                            rho,                    &  !--- IN  : density
+             280                            qd,                     &  !--- IN  : dry concentration
+             281                            q )                        !--- IN  : water concentration
+             282                         !------
+             283                         !------  Calculation of temperature, pressure,
+             284                         !------  potential temperature in all regions.
+             285                         !------    1. calculation region  : (:,:)
+             286                         !------
+             287                         implicit none
+             288                         !
+             289                         integer, intent(in)  :: ijdim
+             290                         real(8), intent(out) :: tem(1:ijdim,1:kdim)
+             291                         real(8), intent(out) :: pre(1:ijdim,1:kdim)
+             292                         real(8), intent(out) :: th(1:ijdim,1:kdim)
+             293                         real(8), intent(in)  :: ein(1:ijdim,1:kdim)
+             294                         real(8), intent(in)  :: rho(1:ijdim,1:kdim)
+             295                         real(8), intent(in)  :: qd(1:ijdim,1:kdim)
+             296                         real(8), intent(in)  :: q(1:ijdim,1:kdim,1:nqmax)
+             297                         !
+             298                         real(8) :: cv(1:ijdim,1:kdim)
+             299                         !
+             300                         real(8) :: p0k
+             301                         !
+             302                         p0k=CNST_PRE00**CNST_KAPPA
+             303                         !
+             304                         call thrmdyn_cv( &
+             305                              ijdim,      & !--- in
+             306                              cv,         & !--- out
+             307                              q,          & !--- in
+             308                              qd )          !--- in
+             309                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             310        pp    v          tem(:,:) = ein(:,:) / cv(:,:)
+             311                         !
+             312         p    v          pre(:,:) = rho(:,:) * tem(:,:) &
+             313                              * ( qd(:,:)*CNST_RAIR+q(:,:,I_QV)*CNST_RVAP )
+             314         p    v          th(:,:) =tem(:,:)*(abs(pre(:,:))**(-CNST_KAPPA))*p0k
+             315                         !
+             316                       end subroutine thrmdyn_tempreth
+             317                       !-----------------------------------------------------------------------------
+             318                       subroutine thrmdyn_tempre( &
+             319                            ijdim,                &  !--- IN : number of horizontal grid
+             320                            tem,                  &  !--- OUT : temperature
+             321                            pre,                  &  !--- OUT : pressure
+             322                            ein,                  &  !--- IN  : internal energy
+             323                            rho,                  &  !--- IN  : density
+             324                            qd,                   &  !--- IN  : dry concentration
+             325                            q )                      !--- IN  : water concentration
+             326                         !------
+             327                         !------  Calculation of temperature, pressure,
+             328                         !------  potential temperature in all regions.
+             329                         !------    1. calculation region  : (:,:)
+             330                         !------
+             331                         implicit none
+             332                         !
+             333                         integer, intent(in)  :: ijdim
+             334                         real(8), intent(out) :: tem(ijdim,kdim)
+             335                         real(8), intent(out) :: pre(ijdim,kdim)
+             336                         real(8), intent(in)  :: ein(ijdim,kdim)
+             337                         real(8), intent(in)  :: rho(ijdim,kdim)
+             338                         real(8), intent(in)  :: qd (ijdim,kdim)
+             339                         real(8), intent(in)  :: q  (ijdim,kdim,nqmax)
+             340                     
+             341                         real(8) :: cv(1:ijdim,1:kdim)
+             342                     
+             343                         call thrmdyn_cv( &
+             344                              ijdim,      & !--- in
+             345                              cv,         & !--- out
+             346                              q,          & !--- in
+             347                              qd )          !--- in
+             348                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             349        pp   4v          tem(:,:) = ein(:,:) / cv(:,:)
+             350                     
+             351         p   4v          pre(:,:) = rho(:,:) * tem(:,:) &
+             352                              * ( qd(:,:)*CNST_RAIR+q(:,:,I_QV)*CNST_RVAP )
+             353                     
+             354                         return
+             355                       end subroutine thrmdyn_tempre
+             356                     
+             357                       !-----------------------------------------------------------------------------
+             358                       subroutine thrmdyn_cv( &
+             359                            ijdim,            & !--- IN : number of horizontal grid
+             360                            cva,              & !--- OUT : specific heat
+             361                            q,                & !--- IN  : mass concentration
+             362                            qd)                 !--- IN  : dry mass concentration
+             363                         !
+             364                         implicit none
+             365                         !
+             366                         integer, intent(in)  :: ijdim
+             367                         real(8), intent(out) :: cva(1:ijdim,1:kdim)
+             368                         real(8), intent(in) :: q(1:ijdim,1:kdim,1:nqmax)
+             369                         real(8), intent(in) :: qd(1:ijdim,1:kdim)
+             370                         !
+             371                         integer :: nq
+             372                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             373        pp   8v          cva(:,:) = qd(:,:) * CNST_CV
+             374     1   s               do nq = NQW_STR,NQW_END
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 889
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             375     1  pp   8v             cva(:,:) = cva(:,:) + q(:,:,nq) * CVW(nq)
+             376     1   p               end do
+             377                         !
+             378                       end subroutine thrmdyn_cv
+             379                       !-----------------------------------------------------------------------------
+             380                       subroutine thrmdyn_cp( &
+             381                            ijdim,            & !--- IN : number of horizontal grid
+             382                            kdim_local,       & !--- IN :
+             383                            cpa,              & !--- OUT : specific heat
+             384                            q,                & !--- IN  : mass concentration
+             385                            qd )                !--- IN  : dry mass concentration
+             386                         !
+             387                         implicit none
+             388                         !
+             389                         integer, intent(in)  :: ijdim
+             390                         integer, intent(in)  :: kdim_local
+             391                         real(8), intent(out) :: cpa(1:ijdim,1:kdim_local)
+             392                         real(8), intent(in) :: q(1:ijdim,1:kdim_local,1:nqmax)
+             393                         real(8), intent(in) :: qd(1:ijdim,1:kdim_local)
+             394                         !
+             395                         integer :: nq
+             396                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             397        pp   8v          cpa(:,:) = qd(:,:) * CNST_CP
+             398     1   s               do nq = NQW_STR,NQW_END
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 889
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             399     1  pp   8v             cpa(:,:) = cpa(:,:) + q(:,:,nq) * CPW(nq)
+             400     1   p               end do
+             401                         !
+             402                       end subroutine thrmdyn_cp
+             403                       !-----------------------------------------------------------------------------
+             404                       subroutine thrmdyn_qd( &
+             405                            ijdim,            & !--- IN : number of horizontal grid
+             406                            qd,               & !--- OUT  : dry mass concentration
+             407                            q )                 !--- IN  : mass concentration
+             408                         !
+             409                         implicit none
+             410                         !
+             411                         integer, intent(in)  :: ijdim
+             412                         real(8), intent(out) :: qd(1:ijdim,1:kdim)
+             413                         real(8), intent(in) :: q(1:ijdim,1:kdim,1:nqmax)
+             414                         !
+             415                         integer :: nq
+             416                         !
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             417        pp    v          qd(:,:) = 1.0D0
+             418     1   s               do nq = NQW_STR,NQW_END
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 942
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             419     1  pp   8v             qd(:,:) = qd(:,:) - q(:,:,nq)
+             420     1   p               end do
+             421                         !
+             422                       end subroutine thrmdyn_qd
+             423                       !-----------------------------------------------------------------------------
+             424                       subroutine thrmdyn_ent( &
+             425                            ijdim,             & !--- IN :
+             426                            kdim_local,        & !--- IN :
+             427                            ent,               & !--- OUT :
+             428                            tem,               & !--- IN
+             429                            pre,               & !--- IN
+             430                            q,                 & !--- IN
+             431                            qd                 & !--- IN
+             432                            )
+             433                         use mod_cnst, only : &
+             434                              CNST_RAIR,      &
+             435                              CNST_RVAP,      &
+             436                              CNST_CI,        &
+             437                              CNST_CL,        &
+             438                              CNST_CP,        &
+             439                              CNST_CPV,       &
+             440                              CNST_PRE00,     &
+             441                              CNST_EPSV,      &
+             442                              CNST_TEM00,     &
+             443                              CNST_PSAT0,     &
+             444                              CNST_LH0,       &
+             445                              CNST_LHF0
+             446                         use mod_runconf, only:  &
+             447                              nqmax => TRC_VMAX, &
+             448                              I_QC, I_QR, I_QI, I_QS, I_QG, I_QH
+             449                         !
+             450                         implicit none
+             451                         integer, intent(in) :: ijdim
+             452                         integer, intent(in) :: kdim_local
+             453                         real(8), intent(out) :: ent(1:ijdim,1:kdim_local)
+             454                         real(8), intent(in) :: tem(1:ijdim,1:kdim_local)
+             455                         real(8), intent(in) :: pre(1:ijdim,1:kdim_local)
+             456                         real(8), intent(in) :: q(1:ijdim,1:kdim_local,1:nqmax)
+             457                         real(8), intent(in) :: qd(1:ijdim,1:kdim_local)
+             458                         !
+             459                         real(8) :: pred(1:ijdim,1:kdim_local)
+             460                         real(8) :: prev(1:ijdim,1:kdim_local)
+             461                     
+             462                         real(8), parameter :: PREMIN = 1.d-10
+             463                         !
+             464                         integer :: nq
+             465                         !
+             466                         ! entropy
+             467                     !!$    ! ent = qd * sd + qv * sv + qc * sc
+             468                         ! ent = qd * sd + qv * sv + qc * sc + qr * sr ...
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 15
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+             469        pp   6v          pred(:,:) = pre(:,:) * CNST_EPSV * qd(:,:) &
+             470                              / ( CNST_EPSV * qd(:,:) + q(:,:,I_QV) )
+             471         p   6v          prev(:,:) = pre(:,:) * q(:,:,I_QV) &
+             472                              / ( CNST_EPSV * qd(:,:) + q(:,:,I_QV) )
+             473         p   6v          pred(:,:) = max( pred(:,:), PREMIN )
+             474         p   6v          prev(:,:) = max( prev(:,:), PREMIN )
+             475                     
+             476                         !     call thrmdyn_cp( &
+             477                         !          ijdim,      & !--- IN
+             478                         !          kdim_local, & !--- IN
+             479                         !          cpa,        & !--- OUT
+             480                         !          q,          & !--- IN
+             481                         !          qd )          !--- IN
+             482                         ! 08/06/13 [fix] T.Mitsui, strict definition of entropy is given by
+             483                         ! (8),(11),(13) Satoh (2003), Mon.Wea.Rev.
+             484                     !!$     cpa(:,:) = CNST_CP
+             485                     !!$     !
+             486                     !!$     ent(:,:) = cpa(:,:) * log( tem(:,:) / CNST_TEM00 ) &
+             487                     !!$          - qd(:,:) * CNST_RAIR * log ( pred(:,:) / CNST_PRE00 ) &
+             488                     !!$          + q(:,:,I_QV) * ( - CNST_RVAP * log ( ( prev(:,:) / CNST_PSAT0 ) ) &
+             489                     !!$          + CNST_LH0 / CNST_TEM00 )
+             490                         !
+             491                         ! write(*,*) cpa(1,1), ent(1,1)
+             492                         !
+             493                     !!$     do nq = NQW_STR, NQW_END
+             494                     !!$        if ( nq == I_QI .or. nq == I_QS &
+             495                     !!$             .or. nq == I_QG .or. nq == I_QH ) then
+             496                     !!$           ent(:,:) = ent(:,:) - q(:,:,nq) * CNST_LHF0 / CNST_TEM00
+             497                     !!$        end if
+             498                     !!$     end do
+             499                         !
+             500         p   6v          ent(:,:) = qd(:,:) * CNST_CP   * log ( tem(:,:)  / CNST_TEM00 )   &
+             501                              -     qd(:,:) * CNST_RAIR * log ( pred(:,:) / CNST_PRE00 )   &
+             502                              + q(:,:,I_QV) * CNST_CPV  * log ( tem(:,:)  / CNST_TEM00 )   &
+             503                              - q(:,:,I_QV) * CNST_RVAP * log ( prev(:,:) / CNST_PSAT0 )   &
+             504                              + q(:,:,I_QV) * CNST_LH0 / CNST_TEM00
+             505     1                   do nq = NQW_STR, NQW_END
+             506     2                      if      ( (nq==I_QC) .or. (nq==I_QR) )then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 43
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+             507     2  pp   8v                ent(:,:) = ent(:,:) + q(:,:,nq) * CNST_CL * log( tem(:,:) / CNST_TEM00 )
+             508     2                      else if ( (nq==I_QI) .or. (nq==I_QS) .or. (nq==I_QG) .or. (nq==I_QH) ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 43
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+             509     2  pp   6v                ent(:,:) = ent(:,:) + q(:,:,nq) * CNST_CI * log( tem(:,:) / CNST_TEM00 ) &
+             510     2                              - q(:,:,nq) * CNST_LHF0 / CNST_TEM00
+             511     2                      end if
+             512     1                   end do
+             513                         !
+             514                         return
+             515                       end subroutine thrmdyn_ent
+             516                     
+             517                       !-----------------------------------------------------------------------------
+             518                       subroutine THRMDYN_qd_ijkl( &
+             519                            ijdim, &
+             520                            kdim,  &
+             521                            ldim,  &
+             522                            vmax,  &
+             523                            wstr,  &
+             524                            wend,  &
+             525                            qd,    &
+             526                            q      )
+             527                         implicit none
+             528                     
+             529                         integer, intent(in)  :: ijdim
+             530                         integer, intent(in)  :: kdim
+             531                         integer, intent(in)  :: ldim
+             532                         integer, intent(in)  :: vmax                     ! total number of tracers
+             533                         integer, intent(in)  :: wstr                     ! start index of water mass tracers
+             534                         integer, intent(in)  :: wend                     ! end   index of water mass tracers
+             535                         real(8), intent(out) :: qd(ijdim,kdim,ldim)      ! dry air mass concentration [kg/kg]
+             536                         real(8), intent(in)  :: q (ijdim,kdim,ldim,vmax) ! tracer  mass concentration [kg/kg]
+             537                     
+             538                         integer :: iw
+             539                         !---------------------------------------------------------------------------
+             540                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             541        pp    v          qd(:,:,:) = 1.D0
+             542                     
+             543     1   s               do iw = wstr, wend
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 889
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             544     1  pp   8v             qd(:,:,:) = qd(:,:,:) - q(:,:,:,iw)
+             545     1   p               enddo
+             546                     
+             547                         return
+             548                       end subroutine THRMDYN_qd_ijkl
+             549                     
+             550                       !-----------------------------------------------------------------------------
+             551                       subroutine THRMDYN_rho_ijkl( &
+             552                            ijdim, &
+             553                            kdim,  &
+             554                            ldim,  &
+             555                            rho,   &
+             556                            pre,   &
+             557                            tem,   &
+             558                            qd,    &
+             559                            qv     )
+             560                         implicit none
+             561                     
+             562                         integer, intent(in)  :: ijdim
+             563                         integer, intent(in)  :: kdim
+             564                         integer, intent(in)  :: ldim
+             565                         real(8), intent(out) :: rho(ijdim,kdim,ldim) ! density     [kg/m3]
+             566                         real(8), intent(in)  :: pre(ijdim,kdim,ldim) ! pressure    [Pa]
+             567                         real(8), intent(in)  :: tem(ijdim,kdim,ldim) ! temperature [K]
+             568                         real(8), intent(in)  :: qd (ijdim,kdim,ldim) ! dry air     mass concentration [kg/kg]
+             569                         real(8), intent(in)  :: qv (ijdim,kdim,ldim) ! water vapor mass concentration [kg/kg]
+             570                         !---------------------------------------------------------------------------
+             571                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 433
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             572        pp   6v          rho(:,:,:) = pre(:,:,:) / ( ( qd(:,:,:)*CNST_RAIR + qv(:,:,:)*CNST_RVAP ) * tem(:,:,:) )
+             573                     
+             574                         return
+             575                       end subroutine THRMDYN_rho_ijkl
+             576                     
+             577                       !-----------------------------------------------------------------------------
+             578                       subroutine THRMDYN_ein_ijkl( &
+             579                            ijdim, &
+             580                            kdim,  &
+             581                            ldim,  &
+             582                            vmax,  &
+             583                            wstr,  &
+             584                            wend,  &
+             585                            ein,   &
+             586                            tem,   &
+             587                            qd,    &
+             588                            q      )
+             589                         implicit none
+             590                     
+             591                         integer, intent(in)  :: ijdim
+             592                         integer, intent(in)  :: kdim
+             593                         integer, intent(in)  :: ldim
+             594                         integer, intent(in)  :: vmax                      ! total number of tracers
+             595                         integer, intent(in)  :: wstr                      ! start index of water mass tracers
+             596                         integer, intent(in)  :: wend                      ! end   index of water mass tracers
+             597                         real(8), intent(out) :: ein(ijdim,kdim,ldim)      ! internal energy [J]
+             598                         real(8), intent(in)  :: tem(ijdim,kdim,ldim)      ! temperature     [K]
+             599                         real(8), intent(in)  :: qd (ijdim,kdim,ldim)      ! dry air mass concentration [kg/kg]
+             600                         real(8), intent(in)  :: q  (ijdim,kdim,ldim,vmax) ! tracer  mass concentration [kg/kg]
+             601                     
+             602                         real(8) :: cv(ijdim,kdim,ldim)
+             603                     
+             604                         integer :: iw
+             605                         !---------------------------------------------------------------------------
+             606                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             607        pp   8v          cv(:,:,:) = qd(:,:,:) * CNST_CV
+             608                     
+             609     1   s               do iw = wstr, wend
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 843
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             610     1  pp   8v             cv(:,:,:) = cv(:,:,:) + q(:,:,:,iw) * CVW(iw)
+             611     1   p               enddo
+             612                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             613        pp   8v          ein(:,:,:) = tem(:,:,:) * cv(:,:,:)
+             614                     
+             615                         return
+             616                       end subroutine THRMDYN_ein_ijkl
+             617                     
+             618                       !-----------------------------------------------------------------------------
+             619                       subroutine THRMDYN_tempre_ijkl( &
+             620                            ijdim, &
+             621                            kdim,  &
+             622                            ldim,  &
+             623                            vmax,  &
+             624                            wstr,  &
+             625                            wend,  &
+             626                            tem,   &
+             627                            pre,   &
+             628                            ein,   &
+             629                            rho,   &
+             630                            qd,    &
+             631                            q      )
+             632                         implicit none
+             633                     
+             634                         integer, intent(in)  :: ijdim
+             635                         integer, intent(in)  :: kdim
+             636                         integer, intent(in)  :: ldim
+             637                         integer, intent(in)  :: vmax                      ! total number of tracers
+             638                         integer, intent(in)  :: wstr                      ! start index of water mass tracers
+             639                         integer, intent(in)  :: wend                      ! end   index of water mass tracers
+             640                         real(8), intent(out) :: tem(ijdim,kdim,ldim)      ! temperature     [K]
+             641                         real(8), intent(out) :: pre(ijdim,kdim,ldim)      ! pressure    [Pa]
+             642                         real(8), intent(in)  :: ein(ijdim,kdim,ldim)      ! internal energy [J]
+             643                         real(8), intent(in)  :: rho(ijdim,kdim,ldim)      ! density     [kg/m3]
+             644                         real(8), intent(in)  :: qd (ijdim,kdim,ldim)      ! dry air mass concentration [kg/kg]
+             645                         real(8), intent(in)  :: q  (ijdim,kdim,ldim,vmax) ! tracer  mass concentration [kg/kg]
+             646                     
+             647                         real(8) :: cv(ijdim,kdim,ldim)
+             648                     
+             649                         integer :: iw
+             650                         !---------------------------------------------------------------------------
+             651                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             652        pp   8v          cv(:,:,:) = qd(:,:,:) * CNST_CV
+             653                     
+             654     1   s               do iw = wstr, wend
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 843
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             655     1  pp   8v             cv(:,:,:) = cv(:,:,:) + q(:,:,:,iw) * CVW(iw)
+             656     1   p               enddo
+             657                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 348
+                                   <<<  [OPTIMIZATION]
+                                   <<<    COLLAPSED
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             658        pp   4v          tem(:,:,:) = ein(:,:,:) / cv(:,:,:)
+             659                     
+             660         p   4v          pre(:,:,:) = rho(:,:,:) * tem(:,:,:) * ( qd(:,:,:)*CNST_RAIR + q(:,:,:,wstr)*CNST_RVAP )
+             661                     
+             662                         return
+             663                       end subroutine THRMDYN_tempre_ijkl
+             664                     
+             665                     end module mod_thrmdyn
+             666                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_thrmdyn)
+   jwd8220o-i  "nhm/share/mod_thrmdyn.f90", line 6: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(thrmdyn_rho)
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 128: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(thrmdyn_th)
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 269: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(thrmdyn_tempreth)
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 312: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 314: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(thrmdyn_tempre)
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 351: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(thrmdyn_ent)
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 469: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_thrmdyn.f90", line 469: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/share/mod_thrmdyn.f90", line 471: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 473: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 500: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_thrmdyn.f90", line 500: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/share/mod_thrmdyn.f90", line 507: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 509: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "nhm/share/mod_thrmdyn.f90", line 509: Division is changed to multiplication by reciprocal.
+  Module subprogram name(THRMDYN_tempre_ijkl)
+   jwd8209o-i  "nhm/share/mod_thrmdyn.f90", line 660: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 666
+   Statements : 258
+   Stack(byte): 3408
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 666
+   Total statements : 258
+   Total stack(byte): 3408
+   Total prefetch num: 0
+

@@ -1,0 +1,1366 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:48:37 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src/tool
+   Source file       : prg_fio_ico2ll.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../../src -o prg_fio_ico2ll.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../../src -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Main program "fio_ico2ll"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !
+               3                     !+  program ico2ll (NEW I/O)
+               4                     !
+               5                     !-------------------------------------------------------------------------------
+               6                     program fio_ico2ll
+               7                       !-----------------------------------------------------------------------------
+               8                       !
+               9                       !++ Description:
+              10                       !       This program converts from data on dataicosahedral grid (new I/O format)
+              11                       !       to that on latitude-longitude grid.
+              12                       !       (some part of source code is imported from ico2ll.f90)
+              13                       !
+              14                       !++ Current Corresponding Author : H.Yashiro
+              15                       !
+              16                       !++ Contributer of ico2ll.f90 : M.Satoh, S.Iga, Y.Niwa, H.Tomita, T.Mitsui,
+              17                       !                               W.Yanase,  H.Taniguchi, Y.Yamada
+              18                       !
+              19                       !++ History:
+              20                       !      Version   Date      Comment
+              21                       !      -----------------------------------------------------------------------
+              22                       !      0.90      11-09-07  H.Yashiro : [NEW] partially imported from ico2ll.f90
+              23                       !      0.95      12-04-19  H.Yashiro : [mod] deal large record length
+              24                       !      -----------------------------------------------------------------------
+              25                       !
+              26                       !-----------------------------------------------------------------------------
+              27                       !
+              28                       !++ Used modules
+              29                       !
+              30                       use mod_misc, only : &
+              31                         MISC_get_available_fid, &
+              32                         MISC_make_idstr
+              33                       use mod_cnst, only : &
+              34                         CNST_UNDEF, &
+              35                         CNST_UNDEF4
+              36                       use mod_calendar, only : &
+              37                         calendar_ss2yh
+              38                       use mod_fio, only : &
+              39                         FIO_HSHORT,       &
+              40                         FIO_HMID,         &
+              41                         FIO_HLONG,        &
+              42                         FIO_REAL4,        &
+              43                         FIO_REAL8,        &
+              44                         FIO_BIG_ENDIAN,   &
+              45                         FIO_ICOSAHEDRON,  &
+              46                         FIO_IGA_LCP,      &
+              47                         FIO_IGA_MLCP,     &
+              48                         FIO_INTEG_FILE,   &
+              49                         FIO_SPLIT_FILE,   &
+              50                         FIO_FREAD,        &
+              51                         headerinfo,       &
+              52                         datainfo
+              53                       use mod_mnginfo_light, only : &
+              54                         MNG_mnginfo_input,   &
+              55                         MNG_mnginfo_noinput, &
+              56                         MNG_PALL,            &
+              57                         MNG_prc_rnum,        &
+              58                         MNG_prc_tab
+              59                       !-----------------------------------------------------------------------------
+              60                       implicit none
+              61                       !-----------------------------------------------------------------------------
+              62                       !
+              63                       !++ param & variable
+              64                       !
+              65                       integer, parameter :: max_nvar   = 500
+              66                       integer, parameter :: max_nstep  = 1500
+              67                       integer, parameter :: max_nlayer = 200
+              68                     
+              69                       integer, parameter :: flim = 1
+              70                       integer,      save :: fmax
+              71                     
+              72                       !--- NAMELIST
+              73                       integer                   :: glevel              = -1
+              74                       integer                   :: rlevel              = -1
+              75                       character(LEN=FIO_HSHORT) :: grid_topology       = 'ICOSAHEDRON'
+              76                                                                        ! 'LCP'
+              77                                                                        ! 'MLCP'
+              78                       logical                   :: complete            = .false.
+              79                       character(LEN=FIO_HLONG)  :: mnginfo             = ''
+              80                       character(LEN=FIO_HLONG)  :: layerfile_dir       = ''
+              81                       character(LEN=FIO_HLONG)  :: llmap_base          = ''
+              82                       character(LEN=FIO_HLONG)  :: infile(flim)        = ''
+              83                       integer                   :: step_str            = 1
+              84                       integer                   :: step_end            = max_nstep
+              85                       character(LEN=FIO_HLONG)  :: outfile_dir         = '.'
+              86                       character(LEN=FIO_HSHORT) :: outfile_prefix      = ''
+              87                       integer                   :: outfile_rec         = 1
+              88                       logical                   :: lon_swap            = .false.
+              89                       logical                   :: devide_template     = .false.
+              90                       logical                   :: output_grads        = .true.
+              91                       logical                   :: output_gtool        = .false.
+              92                       logical                   :: datainfo_nodep_pe   = .false.   !   <- can be .true. if data header do not depend on pe.
+              93                       character(LEN=FIO_HSHORT) :: selectvar(max_nvar) = ''
+              94                       character(LEN=FIO_HSHORT) :: large_memory_var(max_nvar) = '' ! [add] 13-04-18
+              95                     
+              96                       logical                   :: help = .false.
+              97                     
+              98                       namelist /OPTION/ glevel,            &
+              99                                         rlevel,            &
+             100                                         grid_topology,     &
+             101                                         complete,          &
+             102                                         mnginfo,           &
+             103                                         layerfile_dir,     &
+             104                                         llmap_base,        &
+             105                                         infile,            &
+             106                                         step_str,          &
+             107                                         step_end,          &
+             108                                         outfile_dir,       &
+             109                                         outfile_prefix,    &
+             110                                         outfile_rec,       &
+             111                                         lon_swap,          &
+             112                                         devide_template,   &
+             113                                         output_grads,      &
+             114                                         output_gtool,      &
+             115                                         datainfo_nodep_pe, &  ! [add] 13-04-18
+             116                                         selectvar,         &
+             117                                         large_memory_var,  &  ! [add] 13-04-18
+             118                                         help
+             119                       !-----------------------------------------------------------------------------
+             120                       character(LEN=FIO_HLONG) :: infname   = ""
+             121                       character(LEN=FIO_HLONG) :: outbase   = ""
+             122                       character(LEN=FIO_HLONG) :: layerfile = ""
+             123                       integer                  :: fmode
+             124                       integer                  :: gtopology
+             125                       logical                  :: allvar = .true.
+             126                     
+             127                       ! ll grid coordinate
+             128                       integer              :: imax, jmax
+             129                       real(8), allocatable :: lon(:), lat(:)
+             130                       real(8), allocatable :: lon_tmp(:) ! [add] 13-04-18
+             131                     
+             132                       ! ico2ll weight mapping
+             133                       integer              :: LALL
+             134                       integer, allocatable :: num_llgrid(:)
+             135                       integer, allocatable :: llstr(:), llend(:)
+             136                       integer, allocatable :: lon_idx(:), lat_idx(:)
+             137                       integer, allocatable :: n1(:), n2(:), n3(:)
+             138                       real(8), allocatable :: w1(:), w2(:), w3(:)
+             139                     
+             140                       ! ico data information
+             141                       integer, allocatable :: ifid(:)
+             142                       integer, allocatable :: prc_tab_C(:)
+             143                       type(headerinfo) hinfo
+             144                       type(datainfo)   dinfo
+             145                     
+             146                       integer                                :: num_of_data
+             147                       integer                                :: nvar
+             148                       character(LEN=FIO_HSHORT), allocatable :: var_name(:)
+             149                       character(LEN=FIO_HMID),   allocatable :: var_desc(:)
+             150                       character(LEN=FIO_HSHORT), allocatable :: var_unit(:)
+             151                       character(LEN=FIO_HSHORT), allocatable :: var_layername(:)
+             152                       integer,                   allocatable :: var_datatype(:)
+             153                       integer,                   allocatable :: var_nlayer(:)
+             154                       integer,                   allocatable :: var_nstep(:)
+             155                       integer(8),                allocatable :: var_time_str(:)
+             156                       integer(8),                allocatable :: var_dt(:)
+             157                       real(8),                   allocatable :: var_zgrid(:,:)
+             158                       ! header
+             159                       character(LEN=16),         allocatable :: var_gthead(:,:)
+             160                     
+             161                       ! ico data
+             162                       integer              :: GALL
+             163                       real(4), allocatable :: data4allrgn(:)
+             164                       real(8), allocatable :: data8allrgn(:)
+             165                       real(4), allocatable :: icodata4(:,:,:)
+             166                     
+             167                       ! ll data
+             168                       real(4), allocatable :: lldata(:,:,:)
+             169                       real(4), allocatable :: temp(:,:)
+             170                     
+             171                     
+             172                       character(LEN=FIO_HLONG) :: fname
+             173                       character(LEN=20)        :: tmpl
+             174                       character(LEN=16)        :: gthead(64)
+             175                       integer(8)               :: nowsec
+             176                       integer(8)               :: recsize ! [mod] 12-04-19 H.Yashiro
+             177                       integer                  :: kmax, num_of_step, step, date_str(6)
+             178                     
+             179                       logical :: addvar
+             180                       integer :: fid, did, ofid, ierr, irec
+             181                       integer :: v, t, p, l, k, n, i, j
+             182                       real(8) :: pi
+             183                       !=============================================================================
+             184                     
+             185                       pi = 4.D0 * atan( 1.D0 ) ! [add] 13-04-18
+             186                     
+             187                       !--- read option and preprocess
+             188                       call readoption !! set fmax, infile
+             189                     
+             190     1                 if ( glevel==-1 .or. rlevel==-1 ) then
+             191     1                    write(*,*) "xxx Set glevel, rlevel. STOP"
+             192     1                    stop
+             193     1                 endif
+             194     1                 if ( step_str < 1 .or. step_end < 1 ) then
+             195     1                    write(*,*) "xxx step must be >= 1. STOP"
+             196     1                    stop
+             197     1                 elseif( step_str > step_end ) then
+             198     1                    write(*,*) "xxx step_str must be < step_end. STOP"
+             199     1                    stop
+             200     1                 endif
+             201                     
+             202     1                 if ( grid_topology=="ICOSAHEDRON" ) then
+             203     1                    gtopology = FIO_ICOSAHEDRON
+             204     1                 elseif( grid_topology=="LCP" ) then
+             205     1                    gtopology = FIO_IGA_LCP
+             206     1                 elseif( grid_topology=="MLCP" ) then
+             207     1                    gtopology = FIO_IGA_MLCP
+             208     1                 else
+             209     1                    write(*,*) "Unknown type of Grid toporogy:",grid_topology
+             210     1                    stop
+             211     1                 endif
+             212                     
+             213     1                 if (output_gtool) then
+             214     1                    output_grads    = .false.
+             215     1                    devide_template = .false.
+             216     1                    outfile_rec = 1
+             217     1                 endif
+             218                     
+             219     1                 if ( trim(selectvar(1)) /= '' ) then
+             220     1                    allvar = .false.
+             221     1                 endif
+             222                     
+             223                       !--- prepare region infomation
+             224     1                 if (complete) then ! all region
+             225     1                   fmode = FIO_INTEG_FILE
+             226     1                   call MNG_mnginfo_noinput( rlevel )
+             227     1                 else               ! region specified by mnginfo
+             228     1                   fmode = FIO_SPLIT_FILE
+             229     1                   call MNG_mnginfo_input( rlevel, trim(mnginfo) )
+             230     1                 endif
+             231                     
+             232                       !--- setup
+             233                       call fio_syscheck()
+             234                     
+             235                       !#########################################################
+             236                       !--- Read lat-lon grid information
+             237                       fid = MISC_get_available_fid()
+             238                       open(fid, file=trim(llmap_base)//'.info',form='unformatted',status='old',iostat=ierr)
+             239     1                    if (ierr/=0) then
+             240     1                       write(*,*) 'Cannot open llmap info file!',trim(llmap_base)//'.info'
+             241     1                       stop
+             242     1                    endif
+             243                     
+             244                          read(fid) imax
+             245                          allocate(lon(imax))
+             246                          read(fid) lon(:)
+             247                          read(fid) jmax
+             248                          allocate(lat(jmax))
+             249                          read(fid) lat(:)
+             250                       close(fid)
+             251                     
+             252                       !--- Read lat-lon weight map
+             253                       !write(*,*) '*** io_mode for llmap : LEGACY'
+             254                     
+             255                       GALL = ( (2**(glevel-rlevel))+2 ) &
+             256                            * ( (2**(glevel-rlevel))+2 )
+             257                     
+             258                       LALL = 10 * (2**rlevel) * (2**rlevel)
+             259                     
+             260                       allocate( num_llgrid(LALL) )
+             261                       allocate( llstr     (LALL) )
+             262                       allocate( llend     (LALL) )
+             263                     
+             264                       allocate( lon_idx(imax*jmax) )
+             265                       allocate( lat_idx(imax*jmax) )
+             266                       allocate( n1     (imax*jmax) )
+             267                       allocate( n2     (imax*jmax) )
+             268                       allocate( n3     (imax*jmax) )
+             269                       allocate( w1     (imax*jmax) )
+             270                       allocate( w2     (imax*jmax) )
+             271                       allocate( w3     (imax*jmax) )
+             272                     
+             273     1                 do l = 1, LALL
+             274     1                    call MISC_make_idstr(fname,trim(llmap_base),'rgn',l)
+             275     1                    fid = MISC_get_available_fid()
+             276     1                    open(fid,file=trim(fname),form='unformatted',status='old',iostat=ierr)
+             277     2                       if (ierr/=0) then
+             278     2                          write(*,*) 'Cannot open llmap file!',trim(fname)
+             279     2                          stop
+             280     2                       endif
+             281     1               
+             282     1                       read(fid) num_llgrid(l)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             283     1  pp  12s              llend(l) = sum( num_llgrid(1:l) )
+             284     1                       llstr(l) = llend(l) - num_llgrid(l) + 1
+             285     1               
+             286     2                       if ( num_llgrid(l)/=0 ) then
+             287     2                          read(fid) lon_idx( llstr(l):llend(l) )
+             288     2                          read(fid) lat_idx( llstr(l):llend(l) )
+             289     2                          read(fid) n1     ( llstr(l):llend(l) )
+             290     2                          read(fid) n2     ( llstr(l):llend(l) )
+             291     2                          read(fid) n3     ( llstr(l):llend(l) )
+             292     2                          read(fid) w1     ( llstr(l):llend(l) )
+             293     2                          read(fid) w2     ( llstr(l):llend(l) )
+             294     2                          read(fid) w3     ( llstr(l):llend(l) )
+             295     2                       endif
+             296     1                    close(fid)
+             297     1                 enddo
+             298                     
+             299                       ! Read icodata information
+             300                       !write(*,*) '*** io_mode for data  : ADVANCED'
+             301                     
+             302                       allocate( ifid(MNG_PALL) )
+             303                       allocate( var_nstep    (max_nvar) )
+             304                       allocate( var_name     (max_nvar) )
+             305                       allocate( var_desc     (max_nvar) )
+             306                       allocate( var_unit     (max_nvar) )
+             307                       allocate( var_layername(max_nvar) )
+             308                       allocate( var_datatype (max_nvar) )
+             309                       allocate( var_nlayer   (max_nvar) )
+             310                       allocate( var_time_str (max_nvar) )
+             311                       allocate( var_dt       (max_nvar) )
+             312                       allocate( var_zgrid    (max_nlayer, max_nvar) )
+             313                       allocate( var_gthead   (64, max_nvar) )
+             314                     
+             315                     
+             316     1                 do v = 1, max_nvar
+             317     1                    if ( trim(large_memory_var(v)) == '' ) exit
+             318     1                    !write(*,*) v, trim(large_memory_var(v)), len_trim(large_memory_var(v))
+             319     1                    call fio_register_vname_tmpdata( trim(large_memory_var(v)), &
+             320     1                         len_trim(large_memory_var(v)) )
+             321     1                 end do
+             322                     
+             323     1                 do p = 1, MNG_PALL
+             324     1                    write(*,*) 'p=', p
+             325     1               
+             326     2                    if (complete) then ! all region
+             327     2                       infname = trim(infile(1))//'.rgnall'
+             328     2                    else
+             329     2                       call fio_mk_fname(infname,trim(infile(1)),'pe',p-1,6)
+             330     2                    endif
+             331     1                    allocate( prc_tab_C(MNG_prc_rnum(p))   )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             332     1  pp   8s           prc_tab_C(:) = MNG_prc_tab(:,p)-1
+             333     1               
+             334     1                    call fio_put_commoninfo( fmode,           &
+             335     1                                             FIO_BIG_ENDIAN,  &
+             336     1                                             gtopology,       &
+             337     1                                             glevel,          &
+             338     1                                             rlevel,          &
+             339     1                                             MNG_prc_rnum(p), &
+             340     1                                             prc_tab_C        )
+             341     1               
+             342     1                    call fio_register_file(ifid(p),trim(infname))
+             343     1                    call fio_fopen(ifid(p),FIO_FREAD)
+             344     1               
+             345     1                    ! <-- [add] C.Kodama 13.04.18
+             346     2                    if( datainfo_nodep_pe .and. p > 1 ) then
+             347     2                       ! assume that datainfo do not depend on pe.
+             348     2                       call fio_read_pkginfo( ifid(p) )
+             349     2                       call fio_valid_pkginfo( ifid(p) )
+             350     2                       call fio_copy_datainfo( ifid(p), ifid(1) )
+             351     2                    else if ( .not. datainfo_nodep_pe  &
+             352     2                              .and. trim(large_memory_var(1)) /= '' ) then
+             353     2                       ! also read field data and store them in temporary buffer
+             354     2                       call fio_read_allinfo_tmpdata( ifid(p) )
+             355     2                    else
+             356     2                       ! normal way to read pkginfo and datainfo
+             357     2                       call fio_read_allinfo( ifid(p) )
+             358     2                    end if
+             359     1                    ! -->
+             360     1               
+             361     2                    if ( p == 1 ) then ! only once
+             362     2                       allocate( hinfo%rgnid(MNG_prc_rnum(p)) )
+             363     2               
+             364     2                       call fio_get_pkginfo(ifid(p),hinfo)
+             365     2               
+             366     2                       num_of_data = hinfo%num_of_data
+             367     2                       write(*,*) '*** get variable informations'
+             368     2                       write(*,*) 'num_of_data    : ', num_of_data
+             369     2               
+             370     2                       nvar = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 10
+                                   <<<      var_nstep: 2, var_datatype: 2
+                                   <<<      var_nlayer: 2, var_time_str: 2
+                                   <<<      var_dt: 2
+                                   <<< Loop-information  End >>>
+             371     3                       do did = 0, num_of_data-1
+             372     3                          call fio_get_datainfo(ifid(p),did,dinfo)
+             373     3               
+             374     4                          if (allvar) then ! output all variables
+             375     4                             addvar = .true.
+             376     4                          else             ! select valiables to output
+             377     4                             addvar = .false.
+             378     4               
+             379     5                             do v = 1, max_nvar
+             380     6                                if ( trim(selectvar(v)) == trim(dinfo%varname) ) then
+             381     6                                   addvar = .true.
+             382     6                                   exit
+             383     6                                elseif( trim(selectvar(v)) == '' ) then
+             384     6                                   exit
+             385     6                                endif
+             386     5                             enddo
+             387     4                          endif
+             388     3               
+             389     4                          do v = 1, nvar
+             390     5                             if ( trim(var_name(v)) == trim(dinfo%varname) ) then
+             391     5                                var_nstep(v) = var_nstep(v) + 1
+             392     5               
+             393     5                                if( var_nstep(v) == 2 ) var_dt(v) = dinfo%time_start - var_time_str(v)
+             394     5               
+             395     5                                if( var_nstep(v) == step_str ) var_time_str(v) = dinfo%time_start ! [mod] H.Yashiro 20111003
+             396     5               
+             397     5                                addvar = .false.
+             398     5                                exit
+             399     5                             endif
+             400     4                          enddo
+             401     3               
+             402     4                          if (addvar) then
+             403     4                             nvar = nvar + 1
+             404     4                             var_nstep    (nvar) = 1
+             405     4                             var_name     (nvar) = dinfo%varname
+             406     4                             var_desc     (nvar) = dinfo%description
+             407     4                             var_unit     (nvar) = dinfo%unit
+             408     4                             var_layername(nvar) = dinfo%layername
+             409     4                             var_datatype (nvar) = dinfo%datatype
+             410     4                             var_nlayer   (nvar) = dinfo%num_of_layer
+             411     4                             var_time_str (nvar) = dinfo%time_start
+             412     4                             var_dt       (nvar) = dinfo%time_end - dinfo%time_start
+             413     4               
+             414     4                             layerfile = trim(layerfile_dir)//'/'//trim(dinfo%layername)//'.txt'
+             415     4               
+             416     4                             fid = MISC_get_available_fid()
+             417     4                             open(fid,file=trim(layerfile),form='formatted',status='old',iostat=ierr)
+             418     5                                if ( ierr /= 0 ) then
+             419     5                                   write(*,*) 'xxx layerfile doesnt exist!', trim(layerfile)
+             420     5                                   stop
+             421     5                                endif
+             422     4               
+             423     4                                read(fid,*) kmax
+             424     5   s    s                       do k = 1, kmax
+             425     5   m    s                          read(fid,'(F16.4)') var_zgrid(k,nvar)
+             426     5   p    s                       enddo
+             427     4                             close(fid)
+             428     4                          endif
+             429     3               
+             430     3                       enddo !--- did LOOP
+             431     2                    endif !--- PE=000000
+             432     1               
+             433     1                    deallocate( prc_tab_C )
+             434     1                    call fio_fclose(ifid(p)) ! [add] 13-04-18
+             435     1                 enddo !--- PE LOOP
+             436                     
+             437     1                 if ( nvar == 0 ) then
+             438     1                    write(*,*) 'No variables to convert. Finish.'
+             439     1                    stop
+             440     1                 endif
+             441                     
+             442                       write(*,*) '########## Variable List ########## '
+             443                       write(*,*) 'ID |NAME            |STEPS|Layername       |START FROM         |DT [sec]'
+             444     1   s    s        do v = 1, nvar
+             445     1   m    s           call calendar_ss2yh( date_str(:), real(var_time_str(v),kind=8) )
+             446     1   s    s           write(tmpl,'(I4.4,"/",I2.2,"/",I2.2,1x,I2.2,":",I2.2,":",I2.2)') date_str(:)
+             447     1   m    s           write(*,'(1x,I3,A1,A16,A1,I5,A1,A16,A1,A19,A1,I8)') &
+             448     1                             v,'|',var_name(v),'|',var_nstep(v),'|',var_layername(v),'|', tmpl,'|', var_dt(v)
+             449     1   p    s        enddo
+             450                     
+             451                       write(*,*) '*** convert start : PaNDa format to lat-lon data'
+             452                     
+             453                       !#########################################################
+             454                       !--- start weighting summation
+             455     1                 do v = 1, nvar
+             456     1               
+             457     1                    kmax = var_nlayer(v)
+             458     1                    recsize = int(imax,kind=8)*int(jmax,kind=8)*int(kmax,kind=8)*4_8 ! [mod] 12-04-19 H.Yashiro
+             459     1               
+             460     1                    !--- open output file
+             461     1                    outbase = trim(outfile_dir)//'/'//trim(outfile_prefix)//trim(var_name(v))
+             462     1                    ofid = MISC_get_available_fid()
+             463     1               
+             464     1                    num_of_step = min(step_end,var_nstep(v)) - step_str + 1  ! [mov] 13-04-18
+             465     1               
+             466     2                    if (.not. devide_template) then
+             467     3                       if (output_grads) then
+             468     3               
+             469     3                          write(*,*) 'Output: ', trim(outbase)//'.grd', recsize, imax, jmax, kmax
+             470     3                          open( unit   = ofid,                  &
+             471     3                                file   = trim(outbase)//'.grd', &
+             472     3                                form   = 'unformatted',         &
+             473     3                                access = 'direct',              &
+             474     3                                recl   = recsize,               &
+             475     3                                status = 'unknown'              )
+             476     3                          irec = 1
+             477     3               
+             478     4                          if ( outfile_rec > 1 ) then
+             479     4                             write(*,*) 'Change output record position : start from step ', outfile_rec
+             480     4                             irec = outfile_rec
+             481     4                          endif
+             482     3               
+             483     3                       elseif(output_gtool) then
+             484     3               
+             485     3                          write(*,*) 'Output: ', trim(outbase)//'.gt3'
+             486     3                          open( unit   = ofid,                  &
+             487     3                                file   = trim(outbase)//'.gt3', &
+             488     3                                form   = 'unformatted',         &
+             489     3                                access = 'sequential',          &
+             490     3                                status = 'unknown'              )
+             491     3               
+             492     3                          ! [mod] H.Yashiro 20111003
+             493     3                          call makegtoolheader( var_gthead(:,v),     &
+             494     3                                                outfile_dir,         &
+             495     3                                                var_name(v),         &
+             496     3                                                var_desc(v),         &
+             497     3                                                var_unit(v),         &
+             498     3                                                var_layername(v),    &
+             499     3                                                imax,                &
+             500     3                                                jmax,                &
+             501     3                                                var_nlayer(v),       &
+             502     3                                                lon,                 &
+             503     3                                                lat,                 &
+             504     3                                                var_zgrid(1:kmax,v), &
+             505     3                                                var_dt(v),           &
+             506     3                                                lon_swap             )
+             507     3               
+             508     3                       endif
+             509     2                    endif
+             510     1               
+             511     1               
+             512     2                    do t = 1, num_of_step
+             513     2               
+             514     2                       allocate( lldata(imax,jmax,kmax) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             515     2  pp    v              lldata(:,:,:) = CNST_UNDEF4
+             516     2               
+             517     2                       nowsec = var_time_str(v) + (t-1)*var_dt(v)
+             518     2               
+             519     2                       !--- open output file (every timestep)
+             520     3                       if (devide_template) then
+             521     3                          tmpl   = sec2template(nowsec)
+             522     3                          write(*,*)
+             523     3                          write(*,*) 'Output: ', trim(outbase)//'.'//trim(tmpl)//'.grd', recsize
+             524     3               
+             525     3                          open( unit   = ofid,             &
+             526     3                                file   = trim(outbase)//'.'//trim(tmpl)//'.grd', &
+             527     3                                form   = 'unformatted',    &
+             528     3                                access = 'direct',         &
+             529     3                                recl   = recsize,          &
+             530     3                                status = 'unknown'         )
+             531     3                          irec = 1
+             532     3                       endif
+             533     2               
+             534     2                       step = t-1 + step_str
+             535     2               
+             536     3                       do p = 1, MNG_PALL
+             537     3                          call fio_fopen(ifid(p),FIO_FREAD)  ! [add] 13-04-18
+             538     3                          if ( t==1 ) write(*,'(A10)',advance='no') ' ->region:'
+             539     3               
+             540     3                          allocate( data4allrgn(GALL*kmax*MNG_prc_rnum(p)) )
+             541     3                          allocate( data8allrgn(GALL*kmax*MNG_prc_rnum(p)) )
+             542     3                          allocate( icodata4   (GALL,kmax,MNG_prc_rnum(p)) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             543     3  pp    v                 data4allrgn(:)  = CNST_UNDEF4
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             544     3  pp    v                 data8allrgn(:)  = CNST_UNDEF
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             545     3  pp    v                 icodata4(:,:,:) = CNST_UNDEF4
+             546     3               
+             547     3                          !--- seek data ID and get information
+             548     3                          call fio_seek_datainfo(did,ifid(p),var_name(v),step)
+             549     3                          call fio_get_datainfo(ifid(p),did,dinfo)
+             550     3               
+             551     3                          !--- verify
+             552     4                          if ( did == -1 ) then
+             553     4                             write(*,*) 'xxx data not found! varname:',trim(var_name(v)),", step : ",step
+             554     4                             stop
+             555     4                          endif
+             556     3               
+             557     3                          !--- read from pe000xx file
+             558     3               
+             559     3               
+             560     4                          if ( dinfo%datatype == FIO_REAL4 ) then
+             561     5                             if ( trim(large_memory_var(1)) /= '' ) then
+             562     5                                call fio_read_data_tmpdata(ifid(p),did,data4allrgn(:))
+             563     5                             else
+             564     5                                call fio_read_data(ifid(p),did,data4allrgn(:))
+             565     5                             end if
+             566     4               
+             567     4                          elseif( dinfo%datatype == FIO_REAL8 ) then
+             568     5                             if ( trim(large_memory_var(1)) /= '' ) then
+             569     5                                call fio_read_data_tmpdata(ifid(p),did,data8allrgn(:))
+             570     5                             else
+             571     5                                call fio_read_data(ifid(p),did,data8allrgn(:))
+             572     5                             end if
+             573     4               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1067
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             574     4  pp   8v                    data4allrgn(:) = real(data8allrgn(:),kind=4)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      data4allrgn: 16
+                                   <<< Loop-information  End >>>
+             575     4  pp   8s                    where( data8allrgn(:) == CNST_UNDEF )
+             576     4   p   8s                       data4allrgn(:) = CNST_UNDEF4
+             577     4                             endwhere
+             578     4               
+             579     4                          endif
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             580     3  pp   8v                 icodata4(:,:,:) = reshape( data4allrgn(:), shape(icodata4) )
+             581     3               
+             582     4                          do l = 1, MNG_prc_rnum(p)
+             583     4                             if ( t==1 ) write(*,'(1x,I5.5)',advance='no') MNG_prc_tab(l,p)
+             584     4               
+             585     4                             !--- ico -> lat-lon
+             586     5                             if ( num_llgrid(MNG_prc_tab(l,p)) /= 0 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             587     6  pp                            do k = 1, kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 36
+                                   <<<      n2: 4, lon_idx: 8, lat_idx: 8, n3: 4
+                                   <<<      w1: 4, w2: 4, w3: 4
+                                   <<< Loop-information  End >>>
+             588     7   p   2s                       do n = llstr(MNG_prc_tab(l,p)), llend(MNG_prc_tab(l,p))
+             589     8   p   2m                          if (      icodata4(n1(n),k,l) == CNST_UNDEF4 &
+             590     8                                        .OR. icodata4(n2(n),k,l) == CNST_UNDEF4 &
+             591     8                                        .OR. icodata4(n3(n),k,l) == CNST_UNDEF4 ) then
+             592     8               
+             593     8   p   2m                             lldata(lon_idx(n),lat_idx(n),k) = CNST_UNDEF4
+             594     8   p    s                          else
+             595     8   p    s                             lldata(lon_idx(n),lat_idx(n),k) = real(w1(n),kind=4) * icodata4(n1(n),k,l) &
+             596     8                                                                      + real(w2(n),kind=4) * icodata4(n2(n),k,l) &
+             597     8                                                                      + real(w3(n),kind=4) * icodata4(n3(n),k,l)
+             598     8   p    v                          endif
+             599     7   p    v                       enddo
+             600     6   p                            enddo
+             601     5                             endif
+             602     4               
+             603     4                          enddo ! region LOOP
+             604     3               
+             605     3                          if ( t==1 ) write(*,*)
+             606     3                          deallocate( data4allrgn )
+             607     3                          deallocate( data8allrgn )
+             608     3                          deallocate( icodata4    )
+             609     3                          call fio_fclose(ifid(p)) ! [add] 13-04-18
+             610     3                       enddo ! PE LOOP
+             611     2               
+             612     2                       !--- swap longitude
+             613     3                       if (lon_swap) then
+             614     3                          allocate( temp(imax,jmax) )
+             615     4                          do k = 1, kmax ! Mod 07.03.29 T.Mitsui saving memory
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             616     4  pp   8v                    temp(1:imax/2,     :) = lldata(imax/2+1:imax,:,k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             617     4  pp   8v                    temp(imax/2+1:imax,:) = lldata(1:imax/2     ,:,k)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             618     4  pp   8v                    lldata(:,:,k)         = temp(:,:)
+             619     4                          enddo
+             620     3                          deallocate( temp )
+             621     3                       endif
+             622     2               
+             623     2                       !--- output lat-lon data file
+             624     3                       if (output_grads) then
+             625     3                          write(ofid,rec=irec) lldata(:,:,:)
+             626     3                          irec = irec + 1
+             627     3                       elseif(output_gtool) then
+             628     3                          write(var_gthead(25,v),'(I16)') int( nowsec/3600,kind=4 )
+             629     3                          write(var_gthead(27,v),'(A16)') calendar_ss2cc_gtool(nowsec)
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             630     3       4                  gthead(:) = var_gthead(:,v)
+             631     3               
+             632     3                          write(ofid) gthead(:)
+             633     3                          write(ofid) lldata(:,:,:)
+             634     3                       endif
+             635     2               
+             636     2                       !--- close output file
+             637     3                       if (devide_template) then
+             638     3                          close(ofid)
+             639     3                       endif
+             640     2               
+             641     2                       write(*,*) ' +append step:', step
+             642     2                       deallocate( lldata )
+             643     2                    enddo ! step LOOP
+             644     1               
+             645     1                    !--- close output file
+             646     2                    if (.not. devide_template) then
+             647     2                       close(ofid)
+             648     2                    endif
+             649     1               
+             650     2                    if (output_grads) then
+             651     2                       call makegradsctl( outfile_dir,         &
+             652     2                                          outfile_prefix,      &
+             653     2                                          var_name(v),         &
+             654     2                                          imax,                &
+             655     2                                          jmax,                &
+             656     2                                          kmax,                &
+             657     2                                          lon,                 &
+             658     2                                          lat,                 &
+             659     2                                          var_zgrid(1:kmax,v), &
+             660     2                                          var_nstep(v),        &
+             661     2                                          var_time_str(v),     &
+             662     2                                          var_dt(v),           &
+             663     2                                          lon_swap,            &
+             664     2                                          devide_template      )
+             665     2                    endif
+             666     1               
+             667     1                 enddo ! variable LOOP
+             668                     
+             669                     ! [del] 13-04-18
+             670                     !  do p = 1, MNG_PALL
+             671                     !     call fio_fclose(ifid(p))
+             672                     !  enddo
+             673                     
+             674                     contains
+             675                       !-----------------------------------------------------------------------------
+             676                       !> read option
+             677                       !-----------------------------------------------------------------------------
+             678                       subroutine readoption
+             679                         use mod_misc, only : &
+             680                           MISC_get_available_fid
+             681                         use mod_tool_option, only: &
+             682                           OPT_convert, &
+             683                           OPT_fid
+             684                         implicit none
+             685                     
+             686                         integer :: io
+             687                         !---------------------------------------------------------------------------
+             688                     
+             689                         ! --- Set option
+             690                         OPT_fid = MISC_get_available_fid()
+             691                         open(OPT_fid,status='SCRATCH')
+             692                     
+             693                           call OPT_convert( fmax )
+             694                     
+             695                           read(OPT_fid,nml=OPTION,iostat=io)
+             696                     
+             697                         close(OPT_fid)
+             698                     
+             699                         if (      io /= 0     &
+             700                              .OR. fmax == 0   &
+             701                              .OR. fmax > flim &
+             702                              .OR. help        ) call helpoption
+             703                     
+             704                       end subroutine readoption
+             705                     
+             706                       !-----------------------------------------------------------------------------
+             707                       !> display help for option and abort
+             708                       !-----------------------------------------------------------------------------
+             709                       subroutine helpoption
+             710                         implicit none
+             711                         !---------------------------------------------------------------------------
+             712                     
+             713                         write(*,OPTION)
+             714                     
+             715                         stop
+             716                       end subroutine helpoption
+             717                     
+             718                       !-----------------------------------------------------------------------------
+             719                       subroutine makegradsctl( &
+             720                           outfile_dir,    &
+             721                           outfile_prefix, &
+             722                           varname,        &
+             723                           imax,           &
+             724                           jmax,           &
+             725                           kmax,           &
+             726                           lon,            &
+             727                           lat,            &
+             728                           alt,            &
+             729                           nstep,          &
+             730                           time_str,       &
+             731                           dt,             &
+             732                           lon_swap,       &
+             733                           devide_template )
+             734                         implicit none
+             735                     
+             736                         character(LEN=128), intent(in) :: outfile_dir
+             737                         character(LEN=16),  intent(in) :: outfile_prefix
+             738                         character(LEN=16),  intent(in) :: varname
+             739                         integer,            intent(in) :: imax
+             740                         integer,            intent(in) :: jmax
+             741                         integer,            intent(in) :: kmax
+             742                         real(8),            intent(in) :: lon(imax)
+             743                         real(8),            intent(in) :: lat(jmax)
+             744                         real(8),            intent(in) :: alt(kmax)
+             745                         integer,            intent(in) :: nstep
+             746                         integer(8),         intent(in) :: time_str
+             747                         integer(8),         intent(in) :: dt
+             748                         logical,            intent(in) :: lon_swap
+             749                         logical,            intent(in) :: devide_template
+             750                     
+             751                         real(8) :: pi
+             752                         real(8) :: temp(imax)
+             753                     
+             754                         character(LEN=32)  :: outfile
+             755                         integer            :: fid
+             756                         character(LEN=20)  :: s1, s2
+             757                         integer            :: i, j, k
+             758                         !---------------------------------------------------------------------------
+             759                         pi = 4.D0 * atan( 1.D0 )
+             760                     
+             761                         outfile = trim(outfile_prefix)//trim(var_name(v))
+             762                     
+             763                         fid = MISC_get_available_fid()
+             764                         open( unit   = fid,         &
+             765                               file   = trim(outfile_dir)//'/'//trim(outfile)//'.ctl', &
+             766                               form   = 'formatted', &
+             767                               status = 'replace'    )
+             768                     
+             769                            ! S.Iga051226=>
+             770     1                      if ( devide_template ) then
+             771     1                         ! W. Yanase 081008   use %h2 instead of %f2 for GrADS template
+             772     1                         write(fid,'(A)') 'DSET ^'//trim(outfile)//'.%y4-%m2-%d2-%h2h%n2m'//'.grd'
+             773     1                         write(fid,'(A)') 'OPTIONS TEMPLATE '
+             774     1                      else
+             775     1                         write(fid,'(A)') 'DSET ^'//trim(outfile)//'.grd'
+             776     1                      endif
+             777                            ! S.Iga051226<=
+             778                     
+             779                            write(fid,'(A)')      'TITLE NICAM data output'
+             780                            write(fid,'(A)')      'OPTIONS BIG_ENDIAN '
+             781                            write(fid,'(A,E12.5)') 'UNDEF ', real( -99.9E+33, kind=4 )
+             782                     
+             783                            write(fid,'(A,I5,A)') 'XDEF ', imax, ' LEVELS'
+             784     1                      if (lon_swap) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             785     1  pp   8v                temp(1:imax/2)      = lon(imax/2+1:imax)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             786     1  pp   8v                temp(imax/2+1:imax) = lon(1:imax/2) + 2*pi
+             787     1        s                write(fid,'(10(1x,F9.4))') (temp(i)*180.D0/pi,i=1,imax)
+             788     1                      else
+             789     1        s                write(fid,'(10(1x,F9.4))') (lon(i) *180.D0/pi,i=1,imax)
+             790     1                      endif
+             791                     
+             792                            write(fid,'(A,I5,A)')    'YDEF ',jmax, ' LEVELS'
+             793              s             write(fid,'(10(1x,F9.4))') (lat(j)*180.D0/pi,j=1,jmax)
+             794                     
+             795     1                      if ( kmax == 1 ) then
+             796     1                         write(fid,'(A,I5,A,2I5)') 'ZDEF ', kmax, ' LINEAR', 1, 1
+             797     1                      else
+             798     1                         write(fid,'(A,I5,A)') 'ZDEF ', kmax, ' LEVELS'
+             799     1                         write(fid,'(10(1x,F9.2))') (alt(k),k=1,kmax)
+             800     1                      endif
+             801                     
+             802                            s1 = trim( sec2initplate(time_str) ) ! S.Iga060508
+             803                            s2 = trim( timeincrement(int(dt)) )  ! S.Iga060508
+             804                            write(fid,'(A,I5,2A,1x,A)') 'TDEF ',nstep, ' LINEAR ', trim(s1), trim(s2)
+             805                     
+             806                            write(fid,'(a,i5)') 'VARS ', 1
+             807     1                      if ( kmax == 1 ) then
+             808     1                         write(fid,'(a,2i5,1x,a)') trim(varname), 0, 99, 'NONE'
+             809     1                      else
+             810     1                         write(fid,'(a,2i5,1x,a)') trim(varname), kmax, 99, 'NONE'
+             811     1                      endif
+             812                            write(fid,'(a)') 'ENDVARS '
+             813                         close(fid)
+             814                     
+             815                         write(*,'(A,A)') 'Generate ',trim(outfile)//'.ctl'
+             816                     
+             817                       end subroutine makegradsctl
+             818                     
+             819                       !-----------------------------------------------------------------------------
+             820                       subroutine makegtoolheader( &
+             821                           gthead,      & !--- OUT
+             822                           outfile_dir, &
+             823                           varname,     &
+             824                           description, &
+             825                           unit,        &
+             826                           layername,   &
+             827                           imax,        &
+             828                           jmax,        &
+             829                           kmax,        &
+             830                           lon,         &
+             831                           lat,         &
+             832                           alt,         &
+             833                           dt,          &
+             834                           lon_swap     )
+             835                         implicit none
+             836                     
+             837                         character(LEN=16),         intent(out) :: gthead(64)
+             838                         character(LEN=FIO_HLONG),  intent( in) :: outfile_dir
+             839                         character(LEN=FIO_HSHORT), intent( in) :: varname
+             840                         character(LEN=FIO_HMID),   intent( in) :: description
+             841                         character(LEN=FIO_HSHORT), intent( in) :: unit
+             842                         character(LEN=FIO_HSHORT), intent( in) :: layername
+             843                         integer,                   intent( in) :: imax
+             844                         integer,                   intent( in) :: jmax
+             845                         integer,                   intent( in) :: kmax
+             846                         real(8),                   intent( in) :: lon(imax)
+             847                         real(8),                   intent( in) :: lat(jmax)
+             848                         real(8),                   intent( in) :: alt(kmax)
+             849                         integer(8),                intent( in) :: dt
+             850                         logical,                   intent( in) :: lon_swap
+             851                     
+             852                         character(LEN=16) :: axhead(64)
+             853                         character(LEN=16) :: hitem
+             854                         character(LEN=32) :: htitle
+             855                         character(LEN=16) :: gt_axisx
+             856                         character(LEN=16) :: gt_axisy
+             857                         character(LEN=16) :: kdate
+             858                     
+             859                         integer           :: ndttm(8)
+             860                         character(LEN=10) :: ndate, ntime, nzone
+             861                     
+             862                         real(8) :: pi
+             863                         real(8) :: temp(imax)
+             864                         real(8) :: dx, lonp1(imax+1)
+             865                         integer :: i
+             866                         !---------------------------------------------------------------------------
+             867                         pi = 4.D0 * atan( 1.D0 )
+             868                     
+             869                         hitem  = trim(varname)
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             870     1       f           do i=1,16
+             871     1       f              if( hitem(i:i)=='_' ) hitem(i:i)  = '-' ! escape underbar
+             872     1       f           enddo
+             873                         htitle(1:32) = description(1:32) ! trim to 32char
+             874     1       8           do i=1,32
+             875     1       8              if( htitle(i:i)=='_' ) htitle(i:i) = '-' ! escape underbar
+             876     1       8           enddo
+             877                     
+             878                         write(gt_axisx,'(A,I4.4)') 'LON', imax
+             879                         write(gt_axisy,'(A,I4.4)') 'LAT', jmax
+             880                     
+             881                         call date_and_time(ndate, ntime, nzone, ndttm)
+             882                         write(kdate,'(I4.4,I2.2,I2.2,1x,I2.2,I2.2,I2.2,1x)') ndttm(1),ndttm(2),ndttm(3),ndttm(5),ndttm(6),ndttm(7)
+             883                     
+             884             4           gthead(:) = ' '
+             885                         write(gthead( 1),'(I16)'  ) 9010
+             886                         write(gthead( 2),'(A16)'  ) 'NICAM'
+             887                         write(gthead( 3),'(A16)'  ) hitem
+             888                         write(gthead(12),'(I16)'  ) 1
+             889                         write(gthead(13),'(I16)'  ) 1
+             890                         write(gthead(14),'(A16)'  ) htitle(1:16)
+             891                         write(gthead(15),'(A16)'  ) htitle(17:32)
+             892                         write(gthead(16),'(A16)'  ) unit
+             893                     
+             894                         write(gthead(26),'(A16)'  ) 'HOUR            '
+             895                         write(gthead(28),'(I16)'  ) int(dt/3600,kind=4)
+             896                         write(gthead(29),'(A16)'  ) gt_axisx ! from info file
+             897                         write(gthead(30),'(I16)'  ) 1
+             898                         write(gthead(31),'(I16)'  ) imax
+             899                         write(gthead(32),'(A16)'  ) gt_axisy ! from info file
+             900                         write(gthead(33),'(I16)'  ) 1
+             901                         write(gthead(34),'(I16)'  ) jmax
+             902                         write(gthead(35),'(A16)'  ) layername
+             903                         write(gthead(36),'(I16)'  ) 1
+             904                         write(gthead(37),'(I16)'  ) kmax
+             905                         write(gthead(38),'(A16)'  ) 'UR4'
+             906                         write(gthead(39),'(E16.7)') real(-99.9E+33,4)
+             907                         write(gthead(40),'(E16.7)') real(-99.9E+33,4)
+             908                         write(gthead(41),'(E16.7)') real(-99.9E+33,4)
+             909                         write(gthead(42),'(E16.7)') real(-99.9E+33,4)
+             910                         write(gthead(43),'(E16.7)') real(-99.9E+33,4)
+             911                         write(gthead(44),'(I16)'  ) 1
+             912                         write(gthead(46),'(I16)'  ) 0
+             913                         write(gthead(47),'(E16.7)') 0.
+             914                         write(gthead(48),'(I16)'  ) 0
+             915                         write(gthead(60),'(A16)'  ) kdate
+             916                         write(gthead(62),'(A16)'  ) kdate
+             917                         write(gthead(61),'(A16)'  ) 'NICAM'
+             918                         write(gthead(63),'(A16)'  ) 'NICAM'
+             919                         write(gthead(64),'(I16)'  ) imax*jmax*kmax
+             920                     
+             921                         !--- Generate axis file
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 433
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             922         s   4           axhead(:) = ' '
+             923                         write(axhead( 1),'(I16)'  ) 9010
+             924                         write(axhead( 2),'(A16)'  ) 'AXLOC'
+             925                         write(axhead(12),'(I16)'  ) 1
+             926                         write(axhead(13),'(I16)'  ) 1
+             927                         write(axhead(25),'(I16)'  ) 0
+             928                         write(axhead(26),'(A16)'  ) 'SEC'
+             929                         write(axhead(27),'(A16)'  ) kdate
+             930                         write(axhead(28),'(I16)'  ) 1
+             931                         write(axhead(30),'(I16)'  ) 1
+             932                         write(axhead(33),'(I16)'  ) 1
+             933                         write(axhead(34),'(I16)'  ) 1
+             934                         write(axhead(36),'(I16)'  ) 1
+             935                         write(axhead(37),'(I16)'  ) 1
+             936                         write(axhead(38),'(A16)'  ) 'UR4'
+             937                         write(axhead(39),'(E16.7)') -999.0
+             938                         write(axhead(44),'(I16)'  ) 1
+             939                         write(axhead(46),'(I16)'  ) 0
+             940                         write(axhead(47),'(E16.7)') 0.
+             941                         write(axhead(48),'(I16)'  ) 0
+             942                         write(axhead(60),'(A16)'  ) kdate
+             943                         write(axhead(62),'(A16)'  ) kdate
+             944                         write(axhead(61),'(A16)'  ) 'NICAM'
+             945                         write(axhead(63),'(A16)'  ) 'NICAM'
+             946                     
+             947                         fid = MISC_get_available_fid()
+             948                         open( unit   = fid,           &
+             949                               file   = trim(trim(outfile_dir)//'/GTAXLOC.'//trim(gt_axisx)),&
+             950                               form   = 'unformatted', &
+             951                               access = 'sequential',  &
+             952                               status = 'new',         &
+             953                               iostat = ierr           )
+             954                     
+             955     1                   if (ierr == 0) then
+             956     1               
+             957     1                      dx = lon(2)-lon(1)
+             958     1               
+             959     2                      if (lon_swap) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             960     2  pp   8v                temp(1:imax/2)      = lon(imax/2+1:imax)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             961     2  pp   8v                temp(imax/2+1:imax) = lon(1:imax/2) + 2*pi
+             962     2               
+             963     2                         lonp1(1) = temp(1) - dx/2
+             964     2                      else
+             965     2                         lonp1(1) = lon(1)  - dx/2
+             966     2                      endif
+             967     1                      if ( abs(lonp1(1)) < 1.D-10 ) lonp1(1) = 0.D0
+             968     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             969     2   s   8s             do i = 2, imax+1
+             970     2   s   8s                lonp1(i) = lonp1(i-1) + dx
+             971     2   s   8s             enddo
+             972     1               
+             973     1                      write(axhead( 3),'(A16)'  ) trim(gt_axisx)
+             974     1                      write(axhead(29),'(A16)'  ) trim(gt_axisx)
+             975     1                      write(axhead(31),'(I16)'  ) imax+1
+             976     1                      write(axhead(40),'(E16.7)')   0.E0
+             977     1                      write(axhead(41),'(E16.7)') 360.E0
+             978     1                      write(axhead(42),'(E16.7)')  10.E0
+             979     1                      write(axhead(43),'(E16.7)')  30.E0
+             980     1                      write(axhead(64),'(I16)'  ) imax+1
+             981     1               
+             982     1                      write(fid) axhead
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             983     1       8v             write(fid) real( lonp1(1:imax+1)/pi*180.D0, kind=4 )
+             984     1               
+             985     1                      close(fid)
+             986     1                   endif
+             987                     
+             988                         open( unit   = fid,          &
+             989                               file   = trim(trim(outfile_dir)//'/GTAXLOC.'//trim(gt_axisy)),&
+             990                               form   = 'unformatted', &
+             991                               access = 'sequential',  &
+             992                               status = 'new',         &
+             993                               iostat = ierr           )
+             994                     
+             995     1                   if (ierr == 0) then
+             996     1                      write(axhead( 3),'(A16)'  ) trim(gt_axisy)
+             997     1                      write(axhead(29),'(A16)'  ) trim(gt_axisy)
+             998     1                      write(axhead(31),'(I16)'  ) jmax
+             999     1                      write(axhead(40),'(E16.7)') -90.E0
+            1000     1                      write(axhead(41),'(E16.7)')  90.E0
+            1001     1                      write(axhead(42),'(E16.7)')  10.E0
+            1002     1                      write(axhead(43),'(E16.7)')  30.E0
+            1003     1                      write(axhead(64),'(I16)'  ) jmax
+            1004     1               
+            1005     1                      write(fid) axhead
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1006     1       8v             write(fid) real( lat(1:jmax)/pi*180.D0, kind=4 )
+            1007     1               
+            1008     1                      close(fid)
+            1009     1                   endif
+            1010                     
+            1011                         open( unit   = fid,          &
+            1012                               file   = trim(trim(outfile_dir)//'/GTAXLOC.'//trim(layername)),&
+            1013                               form   = 'unformatted', &
+            1014                               access = 'sequential',  &
+            1015                               status = 'new',         &
+            1016                               iostat = ierr           )
+            1017                     
+            1018     1                   if (ierr == 0) then
+            1019     1                      write(axhead( 3),'(A16)'  ) trim(layername)
+            1020     1                      write(axhead(29),'(A16)'  ) trim(layername)
+            1021     1                      write(axhead(31),'(I16)'  ) kmax
+            1022     1                      write(axhead(40),'(E16.7)')     0.E0
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1023     1       8v             write(axhead(41),'(E16.7)') real(maxval(alt),kind=4)
+            1024     1                      write(axhead(42),'(E16.7)')  1000.E0
+            1025     1                      write(axhead(43),'(E16.7)') 10000.E0
+            1026     1                      write(axhead(64),'(I16)'  ) kmax
+            1027     1               
+            1028     1                      write(fid) axhead
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1029     1       8v             write(fid) real( alt(1:kmax), kind=4 )
+            1030     1               
+            1031     1                      close(fid)
+            1032     1                   endif
+            1033                     
+            1034                     
+            1035                       end subroutine makegtoolheader
+            1036                     
+            1037                       !S.Iga051226 =>
+            1038                       !-----------------------------------------------------------------------------
+            1039                       function sec2initplate(datesec) result(template)
+            1040                         !-- output grads-like template part  like 01JAN0000
+            1041                         implicit none
+            1042                     
+            1043                         integer(8)        :: datesec
+            1044                         ! [mod] 10/08/03 T.Mitsui, can be compiled by gfortran
+            1045                     !!$  character(*):: template
+            1046                         character(LEN=20) :: template
+            1047                     
+            1048                         integer :: d(6)
+            1049                     
+            1050                         character(LEN=3) :: nmonth(12)
+            1051                         data nmonth / 'JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC' /
+            1052                         !---------------------------------------------------------------------------
+            1053                     
+            1054                         ! [Comment] H.Yashiro 20110903
+            1055                         ! Prefer not to use calendar_dd2ym subroutine
+            1056                         ! Epoch time is different between calendar_ss2yh and calendar_dd2ym
+            1057                         ! New I/O stores timestamp, which is generated via calendar_yh2ss
+            1058                         call calendar_ss2yh( d(:), real(datesec,kind=8) )
+            1059                     
+            1060                         write(template,'(I2.2,A1,I2.2,A1,I2.2,A3,I4.4)') &
+            1061                                                   d(4), ':', d(5), 'Z', d(3), nmonth(d(2)), d(1)
+            1062                     
+            1063                       end function sec2initplate
+            1064                     
+            1065                       !-----------------------------------------------------------------------------
+            1066                       function sec2template(datesec) result(template)
+            1067                         !-- output grads-like template part  like 2005-12-01-23h50m
+            1068                         implicit none
+            1069                     
+            1070                         integer(8)        :: datesec
+            1071                         ! [mod] 10/08/03 T.Mitsui, can be compiled by gfortran
+            1072                     !!$  character(*):: template
+            1073                         character(LEN=20) :: template
+            1074                     
+            1075                         integer :: d(6)
+            1076                         !---------------------------------------------------------------------------
+            1077                     
+            1078                         ! [Comment] H.Yashiro 20110903
+            1079                         ! Prefer not to use calendar_dd2ym subroutine
+            1080                         ! Epoch time is different between calendar_ss2yh and calendar_dd2ym
+            1081                         ! New I/O stores timestamp, which is generated via calendar_yh2ss
+            1082                         call calendar_ss2yh( d(:), real(datesec,kind=8) )
+            1083                     
+            1084                         write(template,'(I4.4,A1,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1)') &
+            1085                                               d(1), '-', d(2), '-', d(3), '-', d(4), 'h', d(5), 'm'
+            1086                     
+            1087                       end function sec2template
+            1088                     
+            1089                       !-----------------------------------------------------------------------------
+            1090                       function timeincrement(isec) result(template)
+            1091                         implicit none
+            1092                     
+            1093                         integer       :: isec
+            1094                         character(20) :: template
+            1095                     
+            1096                         character(18):: tmp
+            1097                         !---------------------------------------------------------------------------
+            1098                     
+            1099                         write(tmp,*) max(isec/60, 1)
+            1100                     
+            1101                         template = trim(tmp)//'mn'
+            1102                     
+            1103                       end function timeincrement
+            1104                       !S.Iga051226 <=
+            1105                     
+            1106                       !-----------------------------------------------------------------------------
+            1107                       function calendar_ss2cc_gtool(datesec) result(template)
+            1108                         !--- calendar, sec. -> character (YYYYMMDD HHMMSS)
+            1109                         implicit none
+            1110                     
+            1111                         integer(8)        :: datesec
+            1112                         character(LEN=16) :: template
+            1113                     
+            1114                         integer :: d(6), i
+            1115                         !---------------------------------------------------------------------------
+            1116                     
+            1117                         ! [Comment] H.Yashiro 20110903
+            1118                         ! Prefer not to use calendar_dd2ym subroutine
+            1119                         ! Epoch time is different between calendar_ss2yh and calendar_dd2ym
+            1120                         ! New I/O stores timestamp, which is generated via calendar_yh2ss
+            1121                         call calendar_ss2yh( d(:), real(datesec,kind=8) )
+            1122                     
+            1123                         write (template,'(i4.4,i2.2,i2.2,1x,i2.2,i2.2,i2.2,1x)') (d(i),i=1,6)
+            1124                     
+            1125                       end function calendar_ss2cc_gtool
+            1126                     
+            1127                     end program fio_ico2ll
+            1128                     !-------------------------------------------------------------------------------
+            1129                     
+
+ Diagnostic messages: program name(fio_ico2ll)
+   jwd8220o-i  "prg_fio_ico2ll.f90", line 6: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+   jwd2006i-i  "prg_fio_ico2ll.f90", line 130: 'lon_tmp' is declared but never referenced.
+   jwd2006i-i  "prg_fio_ico2ll.f90", line 181: 'j' is declared but never referenced.
+   jwd2006i-i  "prg_fio_ico2ll.f90", line 181: 'i' is declared but never referenced.
+   jwd8209o-i  "prg_fio_ico2ll.f90", line 595: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Internal subprogram name(makegradsctl)
+   jwd8206o-i  "prg_fio_ico2ll.f90", line 787: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "prg_fio_ico2ll.f90", line 787: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "prg_fio_ico2ll.f90", line 789: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "prg_fio_ico2ll.f90", line 789: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "prg_fio_ico2ll.f90", line 793: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "prg_fio_ico2ll.f90", line 793: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Internal subprogram name(makegtoolheader)
+   jwd8206o-i  "prg_fio_ico2ll.f90", line 983: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "prg_fio_ico2ll.f90", line 983: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "prg_fio_ico2ll.f90", line 1006: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "prg_fio_ico2ll.f90", line 1006: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 1129
+   Statements : 670
+   Stack(byte): 38288
+   Prefetch num: 62
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1129
+   Total statements : 670
+   Total stack(byte): 38288
+   Total prefetch num: 62
+

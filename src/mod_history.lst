@@ -1,0 +1,1573 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:14:46 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/share/mod_history.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_history.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_history"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! History module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module is for managing the output variables
+               7                     !!
+               8                     !! @author M.Satoh
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2005-11-29 (M.Satoh)    [new]
+              12                     !! @li      2005-12-14 (S.Iga)      ADM_gall
+              13                     !! @li      2006-02-16 (M.Satoh)    T. Mitsui: correct timing
+              14                     !! @li      2006-08-07 (W.Yanase)   v_save=0 in history_setup, NO_VINTRPL
+              15                     !! @li      2007-01-19 (K.Suzuki)   higher vectorized rate and allowing undefined value in average
+              16                     !! @li      2007-06-27 (Y.Niwa)     add MONTHLY_AVERAGE option add ktype 'GL' 'GO' options
+              17                     !! @li      2007-07-02 (Y.Niwa)     bug fix
+              18                     !! @li      2007-11-30 (Y.Niwa)     add option for output at pressure levels
+              19                     !! @li      2007-12-05 (T.Mitsui)   bug fix
+              20                     !! @li      2008-05-30 (T.Mitsui)   distinguish w-grid, and option of v_interpolation
+              21                     !! @li      2009-07-13 (S.Iga)      check_count is added. (nmhist miswriting checker)
+              22                     !! @li      2010-05-11 (M.Satoh)    add l_region in history_in
+              23                     !! @li      2011-04-26 (C.Kodama)   support >10000 time steps
+              24                     !! @li      2011-09-03 (H.Yashiro)  New I/O
+              25                     !! @li      2012-01-26 (Y.Yamada)   trivial bug fix
+              26                     !! @li      2012-03-28 (T.Seiki)    fix undefined reference
+              27                     !! @li      2012-06-07 (T.Seiki)    add output_path for multi-job run
+              28                     !! @li      2012-11-05 (H.Yashiro)  NICAM milestone project (Phase I:cleanup of shared module)
+              29                     !!
+              30                     !<
+              31                     module mod_history
+              32                       !-----------------------------------------------------------------------------
+              33                       !
+              34                       !++ Used modules
+              35                       !
+              36                       use mod_adm, only: &
+              37                          ADM_LOG_FID,  &
+              38                          ADM_MAXFNAME, &
+              39                          ADM_NSYS
+              40                       !-----------------------------------------------------------------------------
+              41                       implicit none
+              42                       private
+              43                       !-----------------------------------------------------------------------------
+              44                       !
+              45                       !++ Public procedure
+              46                       !
+              47                       public :: history_setup
+              48                       public :: history_in
+              49                       public :: history_out
+              50                     
+              51                       !-----------------------------------------------------------------------------
+              52                       !
+              53                       !++ Public parameters & variables
+              54                       !
+              55                       integer,                 public,              save :: HIST_req_nmax
+              56                       character(len=ADM_NSYS), public, allocatable, save :: item_save(:)
+              57                       logical,                 public,              save :: HIST_output_step0 = .false.
+              58                     
+              59                       !-----------------------------------------------------------------------------
+              60                       !
+              61                       !++ Private procedure
+              62                       !
+              63                       private :: history_outlist
+              64                       private :: history_timeinfo
+              65                       private :: get_log_pres
+              66                     
+              67                       !-----------------------------------------------------------------------------
+              68                       !
+              69                       !++ Private parameters & variables
+              70                       !
+              71                       integer, private, parameter :: HIST_req_limit = 1000
+              72                     
+              73                       character(len=ADM_MAXFNAME), private, save :: HIST_io_fname  = ''
+              74                       character(len=ADM_NSYS),     private, save :: HIST_io_desc   = ''
+              75                       integer,                     private, save :: HIST_dtype     = -1
+              76                       character(len=ADM_MAXFNAME), private, save :: output_path    = ''
+              77                       character(len=ADM_NSYS),     private, save :: histall_fname  = ''
+              78                       character(len=ADM_MAXFNAME), private, save :: output_io_mode != 'LEGACY'
+              79                       logical,                     private, save :: direct_access  = .false.
+              80                       integer,                     private, save :: output_size    = 4
+              81                       integer,                     private, save :: npreslev       = 1
+              82                       real(8),                     private, save :: pres_levs(60)  != CNST_PRE00
+              83                       logical,                     private, save :: check_flag     = .true.
+              84                     
+              85                       integer,                     private, save :: ksum
+              86                       logical,                     private, save :: calc_pressure = .false.
+              87                     
+              88                       character(len=ADM_MAXFNAME), private, allocatable, save :: file_save (:)
+              89                       character(len=ADM_NSYS),     private, allocatable, save :: desc_save (:)
+              90                       character(len=ADM_NSYS),     private, allocatable, save :: unit_save (:)
+              91                       integer,                     private, allocatable, save :: step_save (:)
+              92                       character(len=ADM_NSYS),     private, allocatable, save :: ktype_save(:)
+              93                       integer,                     private, allocatable, save :: kstr_save (:)
+              94                       integer,                     private, allocatable, save :: kend_save (:)
+              95                       integer,                     private, allocatable, save :: kmax_save (:)
+              96                       character(len=ADM_NSYS),     private, allocatable, save :: output_type_save  (:)
+              97                       logical,                     private, allocatable, save :: out_prelev_save   (:)
+              98                       logical,                     private, allocatable, save :: out_vintrpl_save  (:)
+              99                       logical,                     private, allocatable, save :: opt_wgrid_save    (:)
+             100                       logical,                     private, allocatable, save :: opt_lagintrpl_save(:)
+             101                     
+             102                       character(len=ADM_NSYS),     private, allocatable, save :: lname_save   (:)
+             103                       integer,                     private, allocatable, save :: tmax_save    (:)
+             104                       real(8),                     private, allocatable, save :: tstr_save    (:)
+             105                       real(8),                     private, allocatable, save :: tend_save    (:)
+             106                       integer,                     private, allocatable, save :: month_old    (:)
+             107                       integer,                     private, allocatable, save :: l_region_save(:)
+             108                     
+             109                       integer,                     private, allocatable, save :: ksumstr  (:)
+             110                       integer,                     private, allocatable, save :: ksumend  (:)
+             111                       real(8),                     private, allocatable, save :: tsum_save(:,:)
+             112                       logical,                     private, allocatable, save :: flag_save(:)
+             113                     
+             114                       real(8),                     private, allocatable, save :: v_save   (:,:,:,:)
+             115                       real(8),                     private, allocatable, save :: v_save_pl(:,:,:,:)
+             116                       real(8),                     private, allocatable, save :: zlev_save(:)
+             117                     
+             118                       real(8),                     private, allocatable, save :: pres_levs_ln(:)
+             119                       integer,                     private, allocatable, save :: cnvpre_klev(:,:,:)
+             120                       real(8),                     private, allocatable, save :: cnvpre_fac1(:,:,:)
+             121                       real(8),                     private, allocatable, save :: cnvpre_fac2(:,:,:)
+             122                       !-----------------------------------------------------------------------------
+             123                     contains
+             124                       !-----------------------------------------------------------------------------
+             125                       subroutine history_setup
+             126                         use mod_adm, only: &
+             127                            ADM_CTL_FID,   &
+             128                            ADM_proc_stop, &
+             129                            ADM_gall,      &
+             130                            ADM_gall_pl,   &
+             131                            ADM_lall,      &
+             132                            ADM_lall_pl,   &
+             133                            ADM_kmin,      &
+             134                            ADM_kmax,      &
+             135                            ADM_vlayer
+             136                         use mod_cnst, only: &
+             137                            CNST_PRE00
+             138                         use mod_fio, only: &
+             139                            FIO_REAL8, &
+             140                            FIO_REAL4
+             141                         use mod_time, only: &
+             142                            TIME_CTIME
+             143                         use mod_calendar, only: &
+             144                            calendar_ss2yh
+             145                         use mod_grd, only: &
+             146                            GRD_gz
+             147                         use mod_runconf, only: &
+             148                            RUN_TYPE!,          &
+             149                     !         NTAU_ISCCP,        &
+             150                     !         NPRES_ISCCP,       &
+             151                     !         LAND_TYPE,         &
+             152                     !         OCEAN_TYPE
+             153                     !    use mod_landvar_bc, only: &
+             154                     !         KMAX_bc    => KMAX,    &
+             155                     !         GLVNAME_bc => GLVNAME, &
+             156                     !         I_ALL_bc   => I_ALL
+             157                     !    use mod_landvar_matsiro, only: &
+             158                     !         KMAX_mat    => KMAX,    &
+             159                     !         GLVNAME_mat => GLVNAME, &
+             160                     !         I_ALL_mat   => I_ALL
+             161                     !    use mod_oceanvar_mixedlayer, only: &
+             162                     !         KMAX_ocn  => KMAX, &
+             163                     !         GOVNAME,           &
+             164                     !         I_ALL_ocn => I_ALL
+             165                         implicit none
+             166                     
+             167                         character(len=ADM_NSYS)     :: hist3D_layername  != ''
+             168                         integer                     :: step_def          = 1
+             169                         character(len=ADM_NSYS)     :: ktype_def         != ''
+             170                         integer                     :: kstr_def          = 1
+             171                         integer                     :: kend_def          != ADM_vlayer
+             172                         integer                     :: kmax_def          != ADM_vlayer
+             173                         character(len=ADM_NSYS)     :: output_type_def   != 'SNAPSHOT'
+             174                         logical                     :: out_prelev_def    = .false.
+             175                         logical                     :: no_vintrpl        = .true.
+             176                         logical                     :: opt_wgrid_def     = .false.
+             177                         logical                     :: opt_lagintrpl_def = .true.
+             178                         logical                     :: doout_step0
+             179                     
+             180                         character(len=ADM_NSYS)     :: item
+             181                         character(len=ADM_MAXFNAME) :: file
+             182                         character(len=ADM_NSYS)     :: desc
+             183                         character(len=ADM_NSYS)     :: unit
+             184                         integer                     :: step
+             185                         character(len=ADM_NSYS)     :: ktype
+             186                         integer                     :: kstr
+             187                         integer                     :: kend
+             188                         integer                     :: kmax
+             189                         character(len=ADM_NSYS)     :: output_type
+             190                         logical                     :: out_prelev
+             191                         logical                     :: out_vintrpl
+             192                         logical                     :: opt_wgrid
+             193                         logical                     :: opt_lagintrpl
+             194                     
+             195                         namelist / NMHISD / &
+             196                              output_path,       &
+             197                              histall_fname,     &
+             198                              hist3D_layername,  &
+             199                              output_io_mode,    &
+             200                              direct_access,     &
+             201                              output_size,       &
+             202                              step,              &
+             203                              ktype,             &
+             204                              kstr,              &
+             205                              kend,              &
+             206                              kmax,              &
+             207                              output_type,       &
+             208                              out_prelev,        &
+             209                              no_vintrpl,        &
+             210                              opt_wgrid_def,     &
+             211                              opt_lagintrpl_def, &
+             212                              npreslev,          &
+             213                              pres_levs,         &
+             214                              check_flag,        &
+             215                              doout_step0
+             216                     
+             217                         namelist / NMHIST / &
+             218                              item,         &
+             219                              file,         &
+             220                              desc,         &
+             221                              unit,         &
+             222                              step,         &
+             223                              ktype,        &
+             224                              kstr,         &
+             225                              kend,         &
+             226                              kmax,         &
+             227                              output_type,  &
+             228                              out_prelev,   &
+             229                              out_vintrpl,  &
+             230                              opt_wgrid,    &
+             231                              opt_lagintrpl
+             232                     
+             233                         character(len=ADM_NSYS) :: lname
+             234                     
+             235                         integer :: idate(6)
+             236                         integer :: ierr
+             237                         integer :: n
+             238                         !---------------------------------------------------------------------------
+             239                     
+             240                         ! set default
+             241                         output_path       = ''
+             242                         histall_fname     = ''
+             243                         hist3D_layername  = ''
+             244                         output_io_mode    = 'LEGACY'
+             245                         ktype_def         = 'unknown'
+             246                         kend_def          = ADM_vlayer
+             247                         kmax_def          = ADM_vlayer
+             248                         output_type_def   = 'SNAPSHOT'
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             249         s    v          pres_levs(:)      = CNST_PRE00
+             250                     
+             251                         ! nonsence prepare
+             252                         step        = step_def
+             253                         ktype       = ktype_def
+             254                         kstr        = kstr_def
+             255                         kend        = kend_def
+             256                         kmax        = kmax_def
+             257                         output_type = output_type_def
+             258                         out_prelev  = out_prelev_def
+             259                     
+             260                         doout_step0 = HIST_output_step0
+             261                     
+             262                         !--- read parameters
+             263                         write(ADM_LOG_FID,*)
+             264                         write(ADM_LOG_FID,*) '+++ Module[history]/Category[nhm share]'
+             265                         rewind(ADM_CTL_FID)
+             266                         read(ADM_CTL_FID,nml=NMHISD,iostat=ierr)
+             267     1                   if ( ierr < 0 ) then
+             268     1                      write(ADM_LOG_FID,*) '*** NMHISD is not specified. use default.'
+             269     1                   elseif( ierr > 0 ) then
+             270     1                      write(*,          *) 'xxx Not appropriate names in namelist NMHISD. STOP.'
+             271     1                      write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist NMHISD. STOP.'
+             272     1                      call ADM_proc_stop
+             273     1                   endif
+             274                         write(ADM_LOG_FID,NMHISD)
+             275                     
+             276                         ! nonsence restore
+             277                         step_def        = step
+             278                         ktype_def       = ktype
+             279                         kstr_def        = kstr
+             280                         kend_def        = kend
+             281                         kmax_def        = kmax
+             282                         output_type_def = output_type
+             283                         out_prelev_def  = out_prelev
+             284                     
+             285                         HIST_output_step0 = doout_step0
+             286                     
+             287     1                   if (      trim(output_io_mode) == 'ADVANCED' &
+             288     1                        .OR. trim(output_io_mode) == 'LEGACY'   ) then
+             289     1                      write(ADM_LOG_FID,*) '*** History output type:', trim(output_io_mode)
+             290     1                   else
+             291     1                      write(ADM_LOG_FID,*) 'xxx Invalid output_io_mode!', trim(output_io_mode)
+             292     1                      call ADM_proc_stop
+             293     1                   endif
+             294                         HIST_io_fname = trim(output_path)//trim(histall_fname)
+             295                         HIST_io_desc  = trim(RUN_TYPE)
+             296                     
+             297     1                   if ( output_size == 4 ) then
+             298     1                      HIST_dtype = FIO_REAL4
+             299     1                   elseif ( output_size == 8 ) then
+             300     1                      HIST_dtype = FIO_REAL8
+             301     1                   else
+             302     1                      write(*,*) 'output_size is not appropriate:',output_size
+             303     1                      call ADM_proc_stop
+             304     1                   endif
+             305                     
+             306                     
+             307                         ! listup history request
+             308                         rewind(ADM_CTL_FID)
+             309     1                   do n = 1, HIST_req_limit
+             310     1                      read(ADM_CTL_FID,nml=NMHIST,iostat=ierr)
+             311     2                      if ( ierr < 0 ) then
+             312     2                         exit
+             313     2                      elseif( ierr > 0 ) then
+             314     2                         write(*,          *) 'xxx Not appropriate names in namelist NMHIST. STOP.'
+             315     2                         write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist NMHIST. STOP.'
+             316     2                         call ADM_proc_stop
+             317     2                     endif
+             318     1                   enddo
+             319                         HIST_req_nmax = n - 1
+             320                     
+             321     1                   if    ( HIST_req_nmax > HIST_req_limit ) then
+             322     1                      write(ADM_LOG_FID,*) '*** request of history file is exceed! n >', HIST_req_limit
+             323     1                   elseif( HIST_req_nmax == 0 ) then
+             324     1                      write(ADM_LOG_FID,*) '*** No history file specified.'
+             325     1                      return
+             326     1                   else
+             327     1                      write(ADM_LOG_FID,*) '*** Number of requested history item : ', HIST_req_nmax
+             328     1                   endif
+             329                     
+             330                         allocate( item_save         (HIST_req_nmax) )
+             331                         allocate( file_save         (HIST_req_nmax) )
+             332                         allocate( desc_save         (HIST_req_nmax) )
+             333                         allocate( unit_save         (HIST_req_nmax) )
+             334                         allocate( step_save         (HIST_req_nmax) )
+             335                         allocate( ktype_save        (HIST_req_nmax) )
+             336                         allocate( kstr_save         (HIST_req_nmax) )
+             337                         allocate( kend_save         (HIST_req_nmax) )
+             338                         allocate( kmax_save         (HIST_req_nmax) )
+             339                         allocate( output_type_save  (HIST_req_nmax) )
+             340                         allocate( out_prelev_save   (HIST_req_nmax) )
+             341                         allocate( out_vintrpl_save  (HIST_req_nmax) )
+             342                         allocate( opt_wgrid_save    (HIST_req_nmax) )
+             343                         allocate( opt_lagintrpl_save(HIST_req_nmax) )
+             344             4           item_save         (:) = ""
+             345             8           file_save         (:) = ""
+             346             4           desc_save         (:) = ""
+             347             4           unit_save         (:) = ""
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             348        pp    s          step_save         (:) = 0
+             349             4           ktype_save        (:) = ""
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             350        pp    s          kstr_save         (:) = -1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             351        pp    s          kend_save         (:) = -1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             352        pp    s          kmax_save         (:) = 0
+             353             4           output_type_save  (:) = ""
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             354        pp    s          out_prelev_save   (:) = .false.
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             355        pp    s          out_vintrpl_save  (:) = .false.
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             356        pp    s          opt_wgrid_save    (:) = .false.
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             357        pp    s          opt_lagintrpl_save(:) = .false.
+             358                     
+             359                         allocate( lname_save        (HIST_req_nmax) )
+             360                         allocate( tmax_save         (HIST_req_nmax) )
+             361                         allocate( tstr_save         (HIST_req_nmax) )
+             362                         allocate( tend_save         (HIST_req_nmax) )
+             363                         allocate( month_old         (HIST_req_nmax) )
+             364                         allocate( l_region_save     (HIST_req_nmax) )
+             365                         allocate( flag_save         (HIST_req_nmax) )
+             366             4           lname_save        (:) = ""
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             367        pp    s          tmax_save         (:) = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             368        pp    v          tstr_save         (:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             369        pp    v          tend_save         (:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             370        pp    s          month_old         (:) = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             371        pp    s          l_region_save     (:) = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             372        pp    s          flag_save         (:) = .false.
+             373                     
+             374                         call calendar_ss2yh( idate, TIME_CTIME )
+             375                     
+             376                         rewind(ADM_CTL_FID)
+             377     1                   do n = 1, HIST_req_limit
+             378     1               
+             379     1                      ! set default
+             380     1                      item          = ''
+             381     1                      file          = ''
+             382     1                      desc          = ''
+             383     1                      unit          = 'NIL'
+             384     1                      step          = step_def
+             385     1                      ktype         = ktype_def
+             386     1                      kstr          = kstr_def
+             387     1                      kend          = kend_def
+             388     1                      kmax          = -1
+             389     1                      output_type   = output_type_def
+             390     1                      out_prelev    = out_prelev_def
+             391     2                      if ( no_vintrpl ) then
+             392     2                         out_vintrpl  = .false.
+             393     2                      else
+             394     2                         out_vintrpl  = .true.
+             395     2                      endif
+             396     1                      opt_wgrid     = opt_wgrid_def
+             397     1                      opt_lagintrpl = opt_lagintrpl_def
+             398     1               
+             399     1                      ! read namelist
+             400     1                      read(ADM_CTL_FID,nml=NMHIST,iostat=ierr)
+             401     1                      if( ierr /= 0 ) exit
+             402     1               
+             403     2                      if ( item == '' ) then
+             404     2                         write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist NMHIST. STOP.'
+             405     2                         call ADM_proc_stop
+             406     2                      endif
+             407     1               
+             408     1                      if( file == '' ) file = item
+             409     1               
+             410     1                      ! set default layername
+             411     2                      if ( kmax == 1 ) then
+             412     2                         lname = "ZSSFC1"
+             413     2                      else
+             414     2                         lname = "LAYERNM"
+             415     2                      endif
+             416     1               
+             417     2                      select case( trim(ktype) )
+             418     2                      case('3D')
+             419     3                         if ( out_prelev ) then
+             420     3                            kstr = 1
+             421     3                            kend = npreslev
+             422     3                         else
+             423     3                            kstr = ADM_kmin
+             424     3                            kend = ADM_kmax
+             425     3                         endif
+             426     2                         lname = hist3D_layername
+             427     2                      case('2D')
+             428     2                         kstr = 1
+             429     2                         kend = 1
+             430     2                         lname = "ZSSFC1"
+             431     2               !       case('ISCCP')
+             432     2               !          kstr = 1
+             433     2               !          kend = NTAU_ISCCP*NPRES_ISCCP
+             434     2               !       case('GL')
+             435     2               !          kstr =  1
+             436     2               !          kend = -1
+             437     2               !          if ( trim(LAND_TYPE) == 'BUCKET' ) then
+             438     2               !             do idx = 1, I_ALL_bc
+             439     2               !                if( trim(GLVNAME_bc(idx) ) == trim(item) ) kend = KMAX_bc(idx)
+             440     2               !             enddo
+             441     2               !          elseif( trim(LAND_TYPE) == 'MATSIRO' ) then
+             442     2               !             do idx = 1, I_ALL_mat
+             443     2               !                if( trim(GLVNAME_mat(idx)) == trim(item) ) kend = KMAX_mat(idx)
+             444     2               !             enddo
+             445     2               !          endif
+             446     2               !          if ( kend == -1 ) then
+             447     2               !             write(ADM_LOG_FID,*) 'xxx History item=', trim(item), ' is not in LAND module=', trim(LAND_TYPE),'. STOP.'
+             448     2               !             call ADM_proc_stop
+             449     2               !          endif
+             450     2               !       case('GO')
+             451     2               !          kstr =  1
+             452     2               !          kend = -1
+             453     2               !          if ( trim(OCEAN_TYPE) == 'MIXEDLAYER' ) then
+             454     2               !              do idx = 1, I_ALL_ocn
+             455     2               !                 if( trim(GOVNAME(idx)) == trim(item) ) kend = KMAX_ocn(idx)
+             456     2               !              enddo
+             457     2               !          endif
+             458     2               !          if ( kend == -1 ) then
+             459     2               !             write(ADM_LOG_FID,*) 'xxx History item=', trim(item), ' is not in OCEAN module=', trim(OCEAN_TYPE),'. STOP.'
+             460     2               !             call ADM_proc_stop
+             461     2               !          endif
+             462     2                      endselect
+             463     1               
+             464     1                      ! check consistensy between kend and kmax
+             465     2                      if ( kmax > 0 ) then
+             466     3                         if ( kmax /= kend - kstr + 1 ) then
+             467     3                            kend = kstr + kmax - 1
+             468     3                         endif
+             469     2                      else
+             470     2                         kmax = kend - kstr + 1
+             471     2                      endif
+             472     1               
+             473     2                      if ( out_prelev ) then
+             474     3                         if ( ktype /= '3D' ) then
+             475     3                            write(ADM_LOG_FID,*) '*** Only 3D vars can be output by pressure coordinates. item=', trim(item)
+             476     3                            out_prelev = .false.
+             477     3                         else
+             478     3                            calc_pressure = .true.
+             479     3                         endif
+             480     2                      endif
+             481     1               
+             482     2                      if ( out_vintrpl ) then
+             483     3                         if ( ktype /= '3D' ) then
+             484     3                            out_vintrpl = .false.
+             485     3                         endif
+             486     2                      endif
+             487     1               
+             488     1                      item_save         (n) = item
+             489     1                      file_save         (n) = file
+             490     1                      desc_save         (n) = desc
+             491     1                      unit_save         (n) = unit
+             492     1                      step_save         (n) = step
+             493     1                      ktype_save        (n) = ktype
+             494     1                      kstr_save         (n) = kstr
+             495     1                      kend_save         (n) = kend
+             496     1                      kmax_save         (n) = kmax
+             497     1                      output_type_save  (n) = output_type
+             498     1                      out_prelev_save   (n) = out_prelev
+             499     1                      out_vintrpl_save  (n) = out_vintrpl
+             500     1                      opt_wgrid_save    (n) = opt_wgrid
+             501     1                      opt_lagintrpl_save(n) = opt_lagintrpl
+             502     1               
+             503     1                      lname_save        (n) = lname
+             504     1                      tmax_save         (n) = 0
+             505     1                      tstr_save         (n) = TIME_CTIME
+             506     1                      tend_save         (n) = 0.D0
+             507     1               
+             508     1                      month_old         (n) = idate(2)
+             509     1                      l_region_save     (n) = 0
+             510     1                   enddo
+             511                     
+             512                         allocate( ksumstr(HIST_req_nmax) )
+             513                         allocate( ksumend(HIST_req_nmax) )
+             514                     
+             515                         ksum = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             516     1   s   8s          do n = 1, HIST_req_nmax
+             517     1   s   8s             ksumstr(n) = ksum + 1
+             518     1   s   8s             ksumend(n) = ksum + kmax_save(n)
+             519     1   s   8s             ksum       = ksum + kmax_save(n)
+             520     1   s   8s          enddo
+             521                     
+             522                         allocate( tsum_save(HIST_req_nmax,ADM_lall) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 8
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             523        pp    v          tsum_save(:,:) = 0.D0
+             524                     
+             525                         ! k-merged history container
+             526                         allocate( v_save   (ADM_gall,   ksum,ADM_lall,   1) )
+             527                         allocate( v_save_pl(ADM_gall_pl,ksum,ADM_lall_pl,1) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             528        pp    v          v_save   (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             529        pp    v          v_save_pl(:,:,:,:) = 0.D0
+             530                     
+             531                         allocate( zlev_save(ksum) )
+             532                     
+             533     1                   do n = 1, HIST_req_nmax
+             534     2                      select case( trim(ktype_save(n)) )
+             535     2                      case('3D')
+             536     3                         if ( out_prelev_save(n) ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             537     3  pp   8v                   zlev_save( ksumstr(n):ksumend(n) ) = pres_levs(1:kmax_save(n))
+             538     3                         else
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             539     3  pp   8v                   zlev_save( ksumstr(n):ksumend(n) ) = GRD_gz(ADM_kmin:ADM_kmax)
+             540     3                         endif
+             541     2                      case('2D')
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             542     2  pp    v                zlev_save( ksumstr(n):ksumend(n) ) = 0.D0
+             543     2               !       case('ISCCP')
+             544     2               !          do k = 1, NTAU_ISCCP*NPRES_ISCCP
+             545     2               !             zlev_save( ksumstr(n) + k-1 ) = real(k,kind=8)
+             546     2               !          enddo
+             547     2               !       case('GL')
+             548     2               !       case('GO')
+             549     2               !          do k = 1, kmax_save(n)
+             550     2               !             zlev_save( ksumstr(n) + k-1 ) = real(k,kind=8)
+             551     2               !          enddo
+             552     2                      case default
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             553     2  pp   8v                zlev_save( ksumstr(n):ksumend(n) ) = GRD_gz( ADM_kmin+kstr_save(n)-1:ADM_kmin+kend_save(n)-1 )
+             554     2                      endselect
+             555     1                   enddo
+             556                     
+             557                         allocate( pres_levs_ln(npreslev) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 45
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+             558        pp   8v          pres_levs_ln(1:npreslev) = log( pres_levs(1:npreslev) * 100 )
+             559                     
+             560                         allocate( cnvpre_klev(ADM_gall,npreslev,ADM_lall) )
+             561                         allocate( cnvpre_fac1(ADM_gall,npreslev,ADM_lall) )
+             562                         allocate( cnvpre_fac2(ADM_gall,npreslev,ADM_lall) )
+             563                     
+             564                         return
+             565                       end subroutine history_setup
+             566                     
+             567                       !-----------------------------------------------------------------------------
+             568                       subroutine  history_in( item, gd, l_region )
+             569                         use mod_adm, only : &
+             570                            ADM_proc_stop,   &
+             571                            ADM_l_me,        &
+             572                            ADM_gall,        &
+             573                            ADM_gall_in,     &
+             574                            ADM_lall,        &
+             575                            ADM_kmin,        &
+             576                            ADM_IopJop_nmax, &
+             577                            ADM_IopJop,      &
+             578                            ADM_GIoJo
+             579                         use mod_cnst, only: &
+             580                            CNST_UNDEF
+             581                         use mod_time, only: &
+             582                            TIME_CSTEP, &
+             583                            TIME_DTL
+             584                         use mod_calendar, only: &
+             585                            calendar_ss2yh
+             586                         implicit none
+             587                     
+             588                         character(len=*), intent(in) :: item
+             589                         real(8),          intent(in) :: gd(:,:)
+             590                         integer,          intent(in), optional :: l_region
+             591                     
+             592                         character(len=ADM_NSYS) :: hitem
+             593                         integer                 :: ijdim_input
+             594                         integer                 :: kdim_input
+             595                     
+             596                         logical :: save_var
+             597                         integer :: kmax
+             598                         integer :: g, g2, k, k2, l, n
+             599                         !---------------------------------------------------------------------------
+             600                     
+             601                         hitem = trim(item)
+             602                     
+             603                         ijdim_input = size(gd,1)
+             604                         kdim_input  = size(gd,2)
+             605                     
+             606     1                   if (       ijdim_input /= ADM_gall_in &
+             607     1                        .AND. ijdim_input /= ADM_gall    ) then
+             608     1                      write(ADM_LOG_FID,*) '+++ Module[history]/Category[nhm share]'
+             609     1                      write(ADM_LOG_FID,*) 'xxx invalid dimension, item=', hitem, &
+             610     1                                           ', ijdim_input=', ijdim_input, &
+             611     1                                           ', ADM_gall_in=', ADM_gall_in, &
+             612     1                                           ', ADM_gall=',    ADM_gall
+             613     1                      call ADM_proc_stop
+             614     1                   endif
+             615                     
+             616     1                   if ( calc_pressure ) then
+             617     1                      call get_log_pres
+             618     1                   endif
+             619                     
+             620     1                   do n = 1, HIST_req_nmax
+             621     1               
+             622     1                      save_var = .false.
+             623     1               
+             624     1                      ! Item is required or not? ( Same name can be contained in item_save )
+             625     2                      if ( hitem == item_save(n) ) then
+             626     2               
+             627     2                         flag_save(n) = .true.
+             628     2               
+             629     3                         if ( ktype_save(n) == '3D' ) then ! trim HALO
+             630     4                            if ( kdim_input-2 /= kmax_save(n) ) then
+             631     4                               write(ADM_LOG_FID,*) '+++ Module[history]/Category[nhm share]'
+             632     4                               write(ADM_LOG_FID,*) '*** Size unmatch, item=', hitem, &
+             633     4                                                    ', kdim_input=', kdim_input, &
+             634     4                                                    ', kmax_save=',  kmax_save(n)
+             635     4                            endif
+             636     3                         else
+             637     4                            if ( kdim_input /= kmax_save(n) ) then
+             638     4                               write(ADM_LOG_FID,*) '+++ Module[history]/Category[nhm share]'
+             639     4                               write(ADM_LOG_FID,*) '*** Size unmatch, item=', hitem, &
+             640     4                                                    ', kdim_input=', kdim_input, &
+             641     4                                                    ', kmax_save=',  kmax_save(n)
+             642     4                            endif
+             643     3                         endif
+             644     2               
+             645     2                         ! add data or not?
+             646     3                         if ( trim(output_type_save(n)) == 'SNAPSHOT' ) then
+             647     3                            if( mod(TIME_CSTEP+1,step_save(n)) == 0 ) save_var = .true.
+             648     3                         else
+             649     3                            save_var = .true.
+             650     3                         endif
+             651     2                      endif
+             652     1               
+             653     2                      if ( save_var ) then
+             654     2               
+             655     3                         if ( present(l_region) ) then
+             656     3                            l_region_save(n) = l_region
+             657     3                         elseif( ADM_l_me >= 1 .and. ADM_l_me <= ADM_lall ) then
+             658     3                            l_region_save(n) = ADM_l_me
+             659     3                         else
+             660     3                            l_region_save(n) = l_region_save(n) + 1
+             661     3                            if( l_region_save(n) > ADM_lall ) l_region_save(n) = 1 ! cyclic
+             662     3                         endif
+             663     2               
+             664     2                         kmax = min( kmax_save(n), kdim_input )
+             665     2                         l    = l_region_save(n)
+             666     2               
+             667     3                         if ( .NOT. out_prelev_save(n) ) then ! normal
+             668     3               
+             669     4                            if ( ktype_save(n) == '3D' ) then ! trim HALO
+             670     4               
+             671     5                               if (ijdim_input == ADM_gall_in) then
+             672     6                                  do k = 1, kmax
+             673     7   s   6s                         do g = 1, ADM_IopJop_nmax
+             674     7   p   6v                            k2 = ksumstr(n)-1 + k
+             675     7   p   6v                            g2 = ADM_IopJop(g,ADM_GIoJo)
+             676     7               
+             677     7   m   6m                            v_save(g2,k2,l,1) = v_save(g2,k2,l,1) + gd(g,k+ADM_kmin-1) * TIME_DTL
+             678     7   p   6v                         enddo
+             679     6                                  enddo
+             680     5                               else ! ijdim_input == ADM_gall
+             681     6                                  do k = 1, kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 762
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             682     7  pp   6v                         do g = 1, ADM_gall
+             683     7   p   6v                            k2 = ksumstr(n)-1 + k
+             684     7               
+             685     7   p   6v                            v_save(g,k2,l,1) = v_save(g,k2,l,1) + gd(g,k+ADM_kmin-1) * TIME_DTL
+             686     7   p   6v                         enddo
+             687     6                                  enddo
+             688     5                               endif
+             689     4               
+             690     4                            else
+             691     4               
+             692     5                               if (ijdim_input == ADM_gall_in) then
+             693     6                                  do k = 1, kmax
+             694     7   s   6s                         do g = 1, ADM_IopJop_nmax
+             695     7   p   6v                            k2 = ksumstr(n)-1 + k
+             696     7   p   6v                            g2 = ADM_IopJop(g,ADM_GIoJo)
+             697     7               
+             698     7   m   6m                            v_save(g2,k2,l,1) = v_save(g2,k2,l,1) + gd(g,k) * TIME_DTL
+             699     7   p   6v                         enddo
+             700     6                                  enddo
+             701     5                               else ! ijdim_input == ADM_gall
+             702     6                                  do k = 1, kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 762
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             703     7  pp   6v                         do g = 1, ADM_gall
+             704     7   p   6v                            k2 = ksumstr(n)-1 + k
+             705     7               
+             706     7   p   6v                            v_save(g,k2,l,1) = v_save(g,k2,l,1) + gd(g,k) * TIME_DTL
+             707     7   p   6v                         enddo
+             708     6                                  enddo
+             709     5                               endif
+             710     4               
+             711     4                            endif
+             712     3               
+             713     3                         else ! convert to pressure level
+             714     3               
+             715     4                            if (ijdim_input == ADM_gall_in) then
+             716     5                               do k2 = 1, npreslev
+             717     6   s   4s                      do g  = 1, ADM_IopJop_nmax
+             718     6   s   4s                         k  = cnvpre_klev(g2,k,l)
+             719     6   s   4s                         g2 = ADM_IopJop(g,ADM_GIoJo)
+             720     6               
+             721     7   s   4s                         if ( k > ADM_kmin ) then
+             722     7   m   4s                            v_save(g2,k2,l,1) = ( cnvpre_fac1(g2,k2,l) * gd(g,k-1) &
+             723     7                                                         + cnvpre_fac2(g2,k2,l) * gd(g,k  ) ) * TIME_DTL
+             724     7   s   4s                         else
+             725     7   m   4s                            v_save(g2,k2,l,1) = CNST_UNDEF
+             726     7   p   4s                         endif
+             727     6   p   4s                      enddo
+             728     5                               enddo
+             729     4                            else ! ijdim_input == ADM_gall
+             730     5                               do k = 1, kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 391
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 24
+                                   <<<      cnvpre_fac1: 12, cnvpre_fac2: 12
+                                   <<< Loop-information  End >>>
+             731     6  pp   6s                      do g = 1, ADM_gall
+             732     6   p   6s                         k2 = ksumstr(n)-1 + k
+             733     6               
+             734     7   p   6s                         if ( k > ADM_kmin ) then
+             735     7   p   6s                            v_save(g,k2,l,1) = ( cnvpre_fac1(g,k2,l) * gd(g,k-1) &
+             736     7                                                        + cnvpre_fac2(g,k2,l) * gd(g,k  ) ) * TIME_DTL
+             737     7   p   6s                         else
+             738     7   p   6s                            v_save(g,k2,l,1) = CNST_UNDEF
+             739     7   p   6s                         endif
+             740     6   p   6s                      enddo
+             741     5                               enddo
+             742     4                            endif
+             743     3               
+             744     3                         endif ! z*-level or p-level
+             745     2               
+             746     2                         tsum_save(n,l) = tsum_save(n,l) + TIME_DTL
+             747     2               
+             748     2                      endif ! save data ?
+             749     1                   enddo
+             750                     
+             751                         return
+             752                       end subroutine history_in
+             753                     
+             754                       !----------------------------------------------------------------------------
+             755                       subroutine history_out
+             756                         use mod_adm, only: &
+             757                            ADM_proc_stop, &
+             758                            ADM_gall,      &
+             759                            ADM_gall_pl,   &
+             760                            ADM_lall,      &
+             761                            ADM_lall_pl,   &
+             762                            ADM_kall,      &
+             763                            ADM_kmax,      &
+             764                            ADM_kmin
+             765                         use mod_time, only: &
+             766                            TIME_CSTEP, &
+             767                            TIME_CTIME
+             768                         use mod_calendar, only : &
+             769                            calendar_ss2yh, &
+             770                            Calendar_SS2CC
+             771                         use mod_comm, only : &
+             772                            COMM_data_transfer, &
+             773                            COMM_var
+             774                         use mod_fio, only: &
+             775                            FIO_output
+             776                         use mod_gtl, only: &
+             777                            GTL_max, &
+             778                            GTL_min, &
+             779                            GTL_output_var2, &
+             780                            GTL_output_var2_da
+             781                         use mod_vintrpl, only: &
+             782                            VINTRPL_z_level, &
+             783                            VINTRPL_z_level2
+             784                     
+             785                         real(8) :: tmp   (ADM_gall,   ADM_kall,ADM_lall   )
+             786                         real(8) :: tmp_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             787                         real(8) :: val_max, val_min
+             788                     
+             789                         character(len=20)           :: HTIME
+             790                         character(len=ADM_NSYS)     :: item
+             791                         character(len=ADM_MAXFNAME) :: basename
+             792                     
+             793                         logical, save :: first = .true.
+             794                     
+             795                         integer :: idate(6)
+             796                         logical :: out_var(HIST_req_limit)
+             797                         integer :: num_output
+             798                         integer :: g, k, l, n
+             799                         !---------------------------------------------------------------------------
+             800                     
+             801     1                   if ( first ) then
+             802     1                      call history_outlist
+             803     1                      first = .false.
+             804     1                   endif
+             805                     
+             806                         call calendar_ss2yh( idate, TIME_CTIME )
+             807                     
+             808                         ! count up output vars at this time
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             809         s    s          out_var(:) = .false.
+             810                         num_output = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 10
+                                   <<<      step_save: 2, month_old: 4, out_var: 4
+                                   <<< Loop-information  End >>>
+             811     1                   do n = 1, HIST_req_nmax
+             812     2                      if ( flag_save(n) ) then
+             813     3                         if ( trim(output_type_save(n)) == 'MONTHLY_AVERAGE' ) then
+             814     4                            if ( idate(2) /= month_old(n) ) then
+             815     4                               out_var(n)   = .true.
+             816     4                               month_old(n) = idate(2)
+             817     4               
+             818     4                               num_output = num_output + 1
+             819     4                            endif
+             820     3                         else
+             821     4                            if ( mod( TIME_CSTEP, step_save(n) ) == 0 ) then
+             822     4                               out_var(n) = .true.
+             823     4               
+             824     4                               num_output = num_output + 1
+             825     4                            endif
+             826     3                         endif
+             827     2                      endif
+             828     1                   enddo
+             829                     
+             830                         ! At least one variable will output, do communication
+             831     1                   if ( num_output > 0 ) then
+             832     1                      write(ADM_LOG_FID,*) '### HISTORY num_output = ', num_output
+             833     1                      call Calendar_SS2CC ( HTIME, TIME_CTIME )
+             834     1                      write(ADM_LOG_FID,*) '###         date-time  = ', HTIME
+             835     1               
+             836     1                      call comm_var( v_save, v_save_pl, KSUM, 1, comm_type=2, NSval_fix=.true. )
+             837     1                   else
+             838     1                      return
+             839     1                   endif
+             840                     
+             841     1                   do n = 1, HIST_req_nmax
+             842     1               
+             843     2                      if ( out_var(n) ) then
+             844     2               
+             845     2                         tmax_save(n) = tmax_save(n) + 1
+             846     2                         tend_save(n) = TIME_CTIME
+             847     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             848     3  pp                     do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             849     4  pp                     do k = ksumstr(n), ksumend(n)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 174
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             850     5  pp   8v                do g = 1, ADM_gall
+             851     5   p   8v                   v_save(g,k,l,1) = v_save(g,k,l,1) / tsum_save(n,l)
+             852     5   p   8v                enddo
+             853     4   p                     enddo
+             854     3   p                     enddo
+             855     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             856     3  pp                     do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             857     4  pp                     do k = ksumstr(n), ksumend(n)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 176
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             858     5  pp   8v                do g = 1, ADM_gall_pl
+             859     5   p   8v                   v_save_pl(g,k,l,1) = v_save_pl(g,k,l,1) / tsum_save(n,1)
+             860     5   p   8v                enddo
+             861     4   p                     enddo
+             862     3   p                     enddo
+             863     2               
+             864     2                         item = item_save(n)
+             865     2                         val_max =  GTL_max( v_save   (:,:,:,1),          &
+             866     2                                             v_save_pl(:,:,:,1),          &
+             867     2                                             ksum, ksumstr(n), ksumend(n) )
+             868     2                         val_min =  GTL_min( v_save   (:,:,:,1),          &
+             869     2                                             v_save_pl(:,:,:,1),          &
+             870     2                                             ksum, ksumstr(n), ksumend(n) )
+             871     2               
+             872     3                         if ( out_vintrpl_save(n) ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             873     4  pp                        do k = Adm_kmin, Adm_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             874     4  pp   8v                      tmp   (:,k,:) = v_save   (:,ksumstr(n)+k-2,:,1)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             875     4  pp   8v                      tmp_pl(:,k,:) = v_save_pl(:,ksumstr(n)+k-2,:,1)
+             876     4   p                        enddo
+             877     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 7
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             878     3  pp   8v                   tmp   (:,ADM_kmin-1,:) = tmp   (:,ADM_kmin,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 7
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             879     3  pp   8v                   tmp   (:,ADM_kmax+1,:) = tmp   (:,ADM_kmax,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             880     3  pp   8v                   tmp_pl(:,ADM_kmin-1,:) = tmp_pl(:,ADM_kmin,:)
+             881     3   p   8v                   tmp_pl(:,ADM_kmax+1,:) = tmp_pl(:,ADM_kmax,:)
+             882     3               
+             883     4                            if ( opt_lagintrpl_save(n) ) then
+             884     4                               call VINTRPL_z_level ( tmp, tmp_pl, opt_wgrid_save(n) )
+             885     4                            else
+             886     4                               call VINTRPL_z_level2( tmp, tmp_pl, opt_wgrid_save(n) )
+             887     4                            endif
+             888     3               
+             889     4                            do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             890     4  pp   8v                      v_save   (:,ksumstr(n)+k-2,:,1) = tmp   (:,k,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             891     4  pp   8v                      v_save_pl(:,ksumstr(n)+k-2,:,1) = tmp_pl(:,k,:)
+             892     4                            enddo
+             893     3                         endif
+             894     2               
+             895     2                         write(ADM_LOG_FID,'(A,A16,A,1PE24.17,A,E24.17)') ' [', item(1:16), '] max=', val_max, ', min=', val_min
+             896     2               
+             897     3                         if ( trim(output_io_mode) == 'ADVANCED' ) then
+             898     3               
+             899     4                            if ( trim(output_type_save(n)) == 'SNAPSHOT' ) then
+             900     4               
+             901     4                               call FIO_output( v_save(:,:,:,1),                             &
+             902     4                                                HIST_io_fname,    HIST_io_desc    , '',      &
+             903     4                                                file_save(n),     desc_save(n), '',          &
+             904     4                                                unit_save(n),     HIST_dtype,                &
+             905     4                                                lname_save(n),    ksumstr(n),   ksumend(n),  &
+             906     4                                                tmax_save(n),     tend_save(n), tend_save(n) )
+             907     4               
+             908     4                            elseif(trim(output_type_save(n)) == 'AVERAGE') then
+             909     4               
+             910     4                               call FIO_output( v_save(:,:,:,1),                             &
+             911     4                                                HIST_io_fname,    HIST_io_desc    , '',      &
+             912     4                                                file_save(n),     desc_save(n), '',          &
+             913     4                                                unit_save(n),     HIST_dtype,                &
+             914     4                                                lname_save(n),    ksumstr(n),   ksumend(n),  &
+             915     4                                                tmax_save(n),     tstr_save(n), tend_save(n) )
+             916     4               
+             917     4                            endif
+             918     3               
+             919     3                         elseif( trim(output_io_mode) == 'LEGACY' ) then
+             920     3                            basename = trim(output_path)//file_save(n)
+             921     3               
+             922     4                            if ( direct_access ) then
+             923     4                               call GTL_output_var2_da( basename, v_save(:,:,:,1),                        &
+             924     4                                                        ksumstr(n), ksumend(n), tmax_save(n), output_size )
+             925     4                            else
+             926     4                               call GTL_output_var2( basename, v_save(:,:,:,1), v_save_pl(:,:,:,1), &
+             927     4                                                     ksumstr(n), ksumend(n), output_size            )
+             928     4                            endif
+             929     3               
+             930     3                            call history_timeinfo
+             931     3                         endif
+             932     2               
+             933     2                         ! reset saved variable
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             934     2  pp    v                v_save   (:,ksumstr(n):ksumend(n),:,1) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             935     2  pp    v                v_save_pl(:,ksumstr(n):ksumend(n),:,1) = 0.D0
+             936     2               
+             937     2                         tstr_save(n) = TIME_CTIME
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<< Loop-information  End >>>
+             938     2  pp   8s                tsum_save(n,:) = 0.D0
+             939     2                      endif
+             940     1                   enddo
+             941                     
+             942                       end subroutine history_out
+             943                     
+             944                       !-----------------------------------------------------------------------------
+             945                       subroutine history_outlist
+             946                         use mod_adm, only: &
+             947                            ADM_proc_stop
+             948                         implicit none
+             949                     
+             950                         character(len=ADM_NSYS)     :: item
+             951                         character(len=ADM_MAXFNAME) :: file
+             952                         character(len=ADM_NSYS)     :: unit
+             953                         character(len=ADM_NSYS)     :: ktype
+             954                         character(len=ADM_NSYS)     :: otype
+             955                     
+             956                         integer :: n
+             957                         !---------------------------------------------------------------------------
+             958                     
+             959                         write(ADM_LOG_FID,*)
+             960                         write(ADM_LOG_FID,*) '*** [HIST] Output item list '
+             961                         write(ADM_LOG_FID,*) '*** Total number of requested history item :', HIST_req_nmax
+             962                         write(ADM_LOG_FID,*) '============================================================================'
+             963                         write(ADM_LOG_FID,*) 'NAME            :Save name       :UNIT            :Avg.type        :interval'
+             964                         write(ADM_LOG_FID,*) '                :Vert.type       :# of layer      :p?  :z?  :zh? :lag.intrp?'
+             965                         write(ADM_LOG_FID,*) '============================================================================'
+             966                     
+             967     1                   do n = 1, HIST_req_nmax
+             968     1                      item  = item_save(n)
+             969     1                      file  = file_save(n)
+             970     1                      unit  = unit_save(n)
+             971     1                      ktype = ktype_save(n)
+             972     1                      otype = output_type_save(n)
+             973     1               
+             974     1                      write(ADM_LOG_FID,'(1x,A16,A,A16,A,A16,A,A16,A,I8)')      item (1:16), &
+             975     1                                                                           ":", file (1:16), &
+             976     1                                                                           ":", unit (1:16), &
+             977     1                                                                           ":", otype(1:16), &
+             978     1                                                                           ":", step_save(n)
+             979     1               
+             980     1                      write(ADM_LOG_FID,'(17x,A,A16,A,I016,A,L04,A,L04,A,L04,A,L04)') ":", ktype(1:16),           &
+             981     1                                                                                      ":", kmax_save(n),          &
+             982     1                                                                                      ":", out_prelev_save   (n), &
+             983     1                                                                                      ":", out_vintrpl_save  (n), &
+             984     1                                                                                      ":", opt_wgrid_save    (n), &
+             985     1                                                                                      ":", opt_lagintrpl_save(n)
+             986     1               
+             987     2                      if ( .NOT. flag_save(n) ) then ! not stored yet or never
+             988     2                         write(ADM_LOG_FID,*) '+++ this variable is requested but not stored yet. check!'
+             989     3                         if ( check_flag ) then
+             990     3                            write(ADM_LOG_FID,*) 'xxx history check_flag is on. stop!'
+             991     3                            call ADM_proc_stop
+             992     3                         endif
+             993     2                      endif
+             994     1                   enddo
+             995                     
+             996                         write(ADM_LOG_FID,*) '============================================================================'
+             997                         write(ADM_LOG_FID,*)
+             998                     
+             999                         return
+            1000                       end subroutine history_outlist
+            1001                     
+            1002                       !-----------------------------------------------------------------------------
+            1003                       subroutine history_timeinfo
+            1004                         use mod_misc, only: &
+            1005                            MISC_get_available_fid
+            1006                         use mod_adm, only: &
+            1007                            ADM_prc_me,         &
+            1008                            ADM_prc_run_master
+            1009                         use mod_time, only: &
+            1010                            TIME_DTL
+            1011                         implicit none
+            1012                     
+            1013                         integer :: fid
+            1014                         integer :: n, k
+            1015                         !---------------------------------------------------------------------------
+            1016                     
+            1017     1                   if ( ADM_prc_me == ADM_prc_run_master ) then
+            1018     1                      fid = MISC_get_available_fid()
+            1019     1                      open( unit   = fid,                               &
+            1020     1                            file   = trim(output_path)//'history.info', &
+            1021     1                            form   = 'formatted',                       &
+            1022     1                            status = 'replace'                          )
+            1023     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 2
+                                   <<<      ksumstr: 2
+                                   <<< Loop-information  End >>>
+            1024     2                         do n = 1, HIST_req_nmax
+            1025     2                            write(fid,'(I8,F16.2)') tmax_save(n), step_save(n)*TIME_DTL
+            1026     2                            write(fid,'(I8)')       kmax_save(n)
+            1027     3   s    s                   do k = 1, kmax_save(n)
+            1028     3   m    m                      write(fid,'(F16.4)') zlev_save(ksumstr(n)+k-1)
+            1029     3   p    v                   enddo
+            1030     2                            write(fid,'(I8)')       1
+            1031     2                            write(fid,'(A32)')      trim(file_save(n))
+            1032     2                         enddo
+            1033     1               
+            1034     1                      close(fid)
+            1035     1                   endif
+            1036                     
+            1037                         return
+            1038                       end subroutine history_timeinfo
+            1039                     
+            1040                       !-----------------------------------------------------------------------------
+            1041                       subroutine get_log_pres  ! Y.Niwa add 071130
+            1042                         !
+            1043                         use mod_adm, only : &
+            1044                              ADM_gall,  &
+            1045                              ADM_kall,  &
+            1046                              ADM_kmax,  &
+            1047                              ADM_kmin,  &
+            1048                              ADM_lall,  &
+            1049                              ADM_GALL_PL, &
+            1050                              ADM_LALL_PL, &
+            1051                              ADM_KNONE
+            1052                         use mod_cnvvar, only :  &
+            1053                              cnvvar_p2d
+            1054                         use mod_runconf, only : &
+            1055                              nqmax => TRC_VMAX
+            1056                         use mod_thrmdyn, only :    &
+            1057                              thrmdyn_tempre,   &
+            1058                              thrmdyn_qd
+            1059                         use mod_vmtr, only :        &
+            1060                              VMTR_GSGAM2
+            1061                         use mod_sfcvar, only :    &
+            1062                              sfcvar_get,          &
+            1063                              I_PRE_SFC
+            1064                         use mod_prgvar, only :     &
+            1065                              prgvar_get
+            1066                         !
+            1067                         implicit none
+            1068                         !
+            1069                         integer :: l, nq, ij, kk, k
+            1070                         real(8) :: rhog(ADM_gall,ADM_kall,ADM_lall)
+            1071                         real(8) :: rhogvx(ADM_gall,ADM_kall,ADM_lall)
+            1072                         real(8) :: rhogvy(ADM_gall,ADM_kall,ADM_lall)
+            1073                         real(8) :: rhogvz(ADM_gall,ADM_kall,ADM_lall)
+            1074                         real(8) :: rhogw(ADM_gall,ADM_kall,ADM_lall)
+            1075                         real(8) :: rhoge(ADM_gall,ADM_kall,ADM_lall)
+            1076                         real(8) :: rhogq(ADM_gall,ADM_kall,ADM_lall,nqmax)
+            1077                         real(8) :: rhogq_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL,nqmax)
+            1078                         !
+            1079                         real(8) :: q(ADM_gall,ADM_kall,nqmax)
+            1080                         real(8) :: rho(ADM_gall,ADM_kall)
+            1081                         real(8) :: pre(ADM_gall,ADM_kall)
+            1082                         real(8) :: tem(ADM_gall,ADM_kall)
+            1083                         real(8) :: rgrho(ADM_gall,ADM_kall)
+            1084                         real(8) :: ein(ADM_gall,ADM_kall)
+            1085                         real(8) :: qd(ADM_gall,ADM_kall)
+            1086                         real(8) :: v2d_pl(ADM_GALL_PL,ADM_KNONE,ADM_LALL_PL)
+            1087                         real(8) :: v3d_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+            1088                         real(8) :: v3d2_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+            1089                         real(8) :: v3d3_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+            1090                         real(8) :: v3d4_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+            1091                         real(8) :: v3d5_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+            1092                         real(8) :: v3d6_pl(ADM_GALL_PL,ADM_kall,ADM_LALL_PL)
+            1093                         real(8) :: pre_sfc(ADM_gall,ADM_KNONE,ADM_lall)
+            1094                         integer, parameter :: num = 0
+            1095                     
+            1096                         real(8) :: lpres_sfc(ADM_gall,ADM_lall)
+            1097                         real(8) :: lpres(ADM_gall,ADM_kall)
+            1098                     
+            1099                         call prgvar_get(         &
+            1100                              rhog,   v3d_pl,   &  !--- out
+            1101                              rhogvx, v3d2_pl,  &  !--- out
+            1102                              rhogvy, v3d3_pl,  &  !--- out
+            1103                              rhogvz, v3d4_pl,  &  !--- out
+            1104                              rhogw,  v3d5_pl,  &  !--- out
+            1105                              rhoge,  v3d6_pl,  &  !--- out
+            1106                              rhogq,  rhogq_pl, &  !--- out
+            1107                              num )                !--- in
+            1108                     
+            1109                         call sfcvar_get(           &
+            1110                              pre_sfc, v2d_pl,      &  !--- out
+            1111                              vid = I_PRE_SFC       &  !--- in
+            1112                              )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+            1113        pp    s          lpres_sfc(:,:) = log(pre_sfc(:,ADM_KNONE,:))
+            1114                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+            1115        pp    v          cnvpre_fac1(:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+            1116        pp    v          cnvpre_fac2(:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1117        pp    s          cnvpre_klev(:,:,:) = -1
+            1118                     
+            1119                         !--- calculation of tem, pre, and th
+            1120     1                   do l=1, ADM_lall
+            1121     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1122     1  pp   6v             rgrho(:,:) = 1.0d0/rhog(:,:,l)
+            1123     1   p   6v             ein(:,:) = rhoge(:,:,l) * rgrho(:,:)
+            1124     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1125     2  pp                  do nq=1, nqmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1126     2  pp   8v                q(:,:,nq) = rhogq(:,:,l,nq) * rgrho(:,:)
+            1127     2   p                  enddo
+            1128     1               
+            1129     1                      call thrmdyn_qd( ADM_gall, qd, q )
+            1130     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1131     1  pp   6v             rho(:,:) = rhog(:,:,l)/VMTR_GSGAM2(:,:,l)
+            1132     1                      call thrmdyn_tempre( &
+            1133     1                           ADM_gall,       &
+            1134     1                           tem,            &  !--- out
+            1135     1                           pre,            &  !--- out
+            1136     1                           ein,            &  !--- in
+            1137     1                           rho,            &  !--- in
+            1138     1                           qd,             &  !--- in
+            1139     1                           q )                !--- in
+            1140     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+            1141     1  pp    s             lpres(:,:) = log(pre(:,:))
+            1142     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1143     2  pp                  do kk=1, npreslev
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 18
+                                   <<<      cnvpre_klev: 6, cnvpre_fac1: 6
+                                   <<<      cnvpre_fac2: 6
+                                   <<< Loop-information  End >>>
+            1144     3  pp                     do ij=1, ADM_gall
+            1145     4   p                        if(lpres_sfc(ij,l) < pres_levs_ln(kk)) then
+            1146     4                               !cnvpre_klev(ij,kk,l) = -1
+            1147     4   p                        else
+            1148     5   p   8                       do k=ADM_kmin, ADM_kmax
+            1149     5   p   8                          if( pres_levs_ln(kk) > lpres(ij,k) ) exit
+            1150     5   p   8                       enddo
+            1151     4               
+            1152     4   p                           if( k == ADM_kmin )     k = ADM_kmin + 1 ! extrapolation
+            1153     4   p                           if( k == ADM_kmax + 1 ) k = ADM_kmax     ! extrapolation
+            1154     4               
+            1155     4   p                           cnvpre_klev(ij,kk,l) = k
+            1156     4   p                           cnvpre_fac1(ij,kk,l) = ( lpres(ij,k) - pres_levs_ln(kk) ) / ( lpres(ij,k) - lpres(ij,k-1) )
+            1157     4   p                           cnvpre_fac2(ij,kk,l) = ( pres_levs_ln(kk) - lpres(ij,k-1) ) / ( lpres(ij,k) - lpres(ij,k-1) )
+            1158     4               
+            1159     4   p                        endif
+            1160     3   p                     enddo
+            1161     2   p                  enddo
+            1162     1               
+            1163     1                   enddo
+            1164                     
+            1165                         return
+            1166                       end subroutine get_log_pres
+            1167                     
+            1168                     end module mod_history
+            1169                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_history)
+   jwd8220o-i  "nhm/share/mod_history.f90", line 31: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(history_in)
+   jwd8201o-i  "nhm/share/mod_history.f90", line 673: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_history.f90", line 674: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_history.f90", line 683: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "nhm/share/mod_history.f90", line 694: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "nhm/share/mod_history.f90", line 695: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_history.f90", line 698: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_history.f90", line 704: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_history.f90", line 706: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_history.f90", line 722: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_history.f90", line 732: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "nhm/share/mod_history.f90", line 735: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(history_out)
+   jwd8201o-i  "nhm/share/mod_history.f90", line 850: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "nhm/share/mod_history.f90", line 851: Division is changed to multiplication by reciprocal.
+   jwd8201o-i  "nhm/share/mod_history.f90", line 858: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "nhm/share/mod_history.f90", line 859: Division is changed to multiplication by reciprocal.
+  Module subprogram name(get_log_pres)
+   jwd8206o-i  "nhm/share/mod_history.f90", line 1156: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "nhm/share/mod_history.f90", line 1157: Division is changed to multiplication by reciprocal.
+
+ Procedure information
+   Lines      : 1169
+   Statements : 707
+   Stack(byte): 23840
+   Prefetch num: 54
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1169
+   Total statements : 707
+   Total stack(byte): 23840
+   Total prefetch num: 54
+

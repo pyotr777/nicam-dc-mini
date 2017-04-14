@@ -1,0 +1,1292 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 16:47:35 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_calendar.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_calendar.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_calendar"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! Calendar module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module contains subroutines w.r.t. the calender.
+               7                     !!         Orginal code is from CCSR/NIES/AGCM5.4.01, Modified by M.Satoh
+               8                     !!
+               9                     !! @author H.Tomita
+              10                     !!
+              11                     !! @par History
+              12                     !! @li      2004-02-18 (H.Tomita) Imported from the NICAM-subset model
+              13                     !! @li      2004-05-31 (      )   Sub[calenar_ss2yh] belongs to "public".
+              14                     !! @li      2007-03-23 (Y.Niwa)   calendar_daymo, private --> public
+              15                     !!
+              16                     !<
+              17                     module mod_calendar
+              18                       !-----------------------------------------------------------------------------
+              19                       !
+              20                       !++ Used modules
+              21                       !
+              22                       !-----------------------------------------------------------------------------
+              23                       implicit none
+              24                       private
+              25                       !-----------------------------------------------------------------------------
+              26                       !
+              27                       !++ Public procedure
+              28                       !
+              29                       public :: calendar_setup
+              30                       public :: calendar_ointvl
+              31                       public :: calendar_ss2cc
+              32                       public :: calendar_ssaft
+              33                       public :: calendar_secdy
+              34                       public :: calendar_ss2ds
+              35                       public :: calendar_ss2yd
+              36                       public :: calendar_ym2dd
+              37                       public :: calendar_ds2ss
+              38                       public :: calendar_dayyr
+              39                       public :: calendar_ss2yh
+              40                       public :: calendar_xx2ss
+              41                       public :: calendar_yh2ss
+              42                       public :: calendar_PERPR
+              43                       public :: calendar_dd2ym
+              44                       public :: calendar_daymo  ! 07/03/23 Y.Niwa [add]
+              45                     
+              46                       !-----------------------------------------------------------------------------
+              47                       !
+              48                       !++ Public parameters & variables
+              49                       !
+              50                       !-----------------------------------------------------------------------------
+              51                       !
+              52                       !++ Private procedure
+              53                       !
+              54                       !-----------------------------------------------------------------------------
+              55                       !
+              56                       !++ Private parameters & variables
+              57                       !
+              58                       integer, private :: isecdy, isechr, jy, jy4, jcent, jcent4
+              59                       integer, private :: idays0, idy, ileap, id, m, idayyr, jyear, jmonth
+              60                       !
+              61                       !--- flag of automatic or not
+              62                       logical, private, save ::  oauto = .true.
+              63                       !<---                      yr=0-999     : 360day
+              64                       !<---                      yr=1000-1899 : 365day
+              65                       !<---                      yr=1900-     : gregorian
+              66                       !
+              67                       !--- flag of the gregorian calendar or not
+              68                       logical, private, save :: ogrego = .true.
+              69                       !
+              70                       !--- number of days in a month
+              71                       integer, private, save :: monday ( 12,2 )
+              72                       data   monday /                            &
+              73                            31,28,31,30,31,30,31,31,30,31,30,31,  &
+              74                            31,29,31,30,31,30,31,31,30,31,30,31 /
+              75                       !
+              76                       !--- flag of ideal calender (n day per month)
+              77                       logical, private, save :: oideal = .false.
+              78                       !------ 1 month = x days in the ideal case
+              79                       integer, private, save :: idaymo = 30
+              80                       !------ 1 year = x months in the ideal case
+              81                       integer, private, save :: imonyr = 12
+              82                       !
+              83                       !--- flag of perpetual or not
+              84                       logical, private, save :: operpt = .false.
+              85                       !------ perpetual date(year)
+              86                       integer, private, save :: iyrpp  = 0
+              87                       !------ perpetual date(month)
+              88                       integer, private, save :: imonpp = 3
+              89                       !------ perpetual date(day)
+              90                       integer, private, save :: idaypp = 21
+              91                       !
+              92                       !--- 1 minute = x sec.
+              93                       integer, private, save :: isecmn = 60
+              94                       !--- 1 hour = x minutes
+              95                       integer, private, save :: iminhr = 60
+              96                       !--- 1 day = x hours
+              97                       integer, private, save :: ihrday = 24
+              98                       !
+              99                       logical, private, save :: ooperz = .true.
+             100                     
+             101                       !-----------------------------------------------------------------------------
+             102                     contains
+             103                     
+             104                       !-----------------------------------------------------------------------------
+             105                       !>
+             106                       !> Description of the subroutine calendar_setup
+             107                       !>
+             108                       subroutine calendar_setup
+             109                         use mod_adm, only: &
+             110                            ADM_LOG_FID, &
+             111                            ADM_CTL_FID, &
+             112                            ADM_proc_stop
+             113                         implicit none
+             114                     
+             115                         namelist  / NM_CALENDAR /  &
+             116                              oauto ,             &
+             117                              ogrego,             &
+             118                              oideal,             &
+             119                              operpt,             &
+             120                              idaymo,             &
+             121                              imonyr,             &
+             122                              iyrpp,              &
+             123                              imonpp,             &
+             124                              idaypp,             &
+             125                              isecmn,             &
+             126                              iminhr,             &
+             127                              ihrday
+             128                     
+             129                         integer :: ierr
+             130                         !---------------------------------------------------------------------------
+             131                     
+             132                         !--- read parameters
+             133                         write(ADM_LOG_FID,*)
+             134                         write(ADM_LOG_FID,*) '+++ Module[calendar]/Category[common share]'
+             135                         rewind(ADM_CTL_FID)
+             136                         read(ADM_CTL_FID,nml=NM_CALENDAR,iostat=ierr)
+             137     1                   if ( ierr < 0 ) then
+             138     1                      write(ADM_LOG_FID,*) '*** NM_CALENDAR is not specified. use default.'
+             139     1                   elseif( ierr > 0 ) then
+             140     1                      write(*,          *) 'xxx Not appropriate names in namelist NM_CALENDAR. STOP.'
+             141     1                      write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist NM_CALENDAR. STOP.'
+             142     1                      call ADM_proc_stop
+             143     1                   endif
+             144                         write(ADM_LOG_FID,NM_CALENDAR)
+             145                     
+             146                         return
+             147                       end subroutine calendar_setup
+             148                     
+             149                       !-----------------------------------------------------------------------------
+             150                       !>
+             151                       !> Description of the subroutine calendar_perpt
+             152                       !> fixed date
+             153                       !>
+             154                       subroutine calendar_perpt( &
+             155                            iyear ,               & !--- in : year
+             156                            imonth,               & !--- in : month
+             157                            iday                  & !--- in : day
+             158                            )
+             159                         implicit none
+             160                     
+             161                         integer, intent(in) :: iyear
+             162                         integer, intent(in) :: imonth
+             163                         integer, intent(in) :: iday
+             164                         !---------------------------------------------------------------------------
+             165                     
+             166                         operpt = .true.
+             167                         iyrpp  = iyear
+             168                         imonpp = imonth
+             169                         idaypp = iday
+             170                     
+             171                         return
+             172                       end subroutine calendar_perpt
+             173                     
+             174                       !-----------------------------------------------------------------------------
+             175                       !>
+             176                       !> Description of the subroutine calendar_PERPR
+             177                       !> calendar, refer to fixed date
+             178                       !>
+             179                       subroutine calendar_PERPR( &
+             180                            IYEAR ,               & !--- OUT
+             181                            IMONTH,               & !--- OUT
+             182                            IDAY,                 & !--- OUT
+             183                            OOPERP                & !--- OUT
+             184                            )
+             185                         implicit none
+             186                     
+             187                         integer, intent(out) :: IYEAR
+             188                         integer, intent(out) :: IMONTH
+             189                         integer, intent(out) :: IDAY
+             190                         logical, intent(out) :: OOPERP
+             191                         !---------------------------------------------------------------------------
+             192                     
+             193                         OOPERP = OPERPT
+             194                         IYEAR  = IYRPP
+             195                         IMONTH = IMONPP
+             196                         IDAY   = IDAYPP
+             197                     
+             198                         return
+             199                       end subroutine calendar_PERPR
+             200                     
+             201                       !-----------------------------------------------------------------------------
+             202                       !>
+             203                       !> Description of the subroutine calendar_perpo
+             204                       !> fixed date(on/off)
+             205                       !>
+             206                       subroutine calendar_perpo( &
+             207                            ooperp                &
+             208                            )
+             209                         implicit none
+             210                     
+             211                         logical, intent(in) :: ooperp !--- in : flag of perpetual
+             212                         !---------------------------------------------------------------------------
+             213                     
+             214                         ooperz = ooperp
+             215                     
+             216                         return
+             217                       end subroutine calendar_perpo
+             218                     
+             219                       !-----------------------------------------------------------------------------
+             220                       !>
+             221                       !> Description of the subroutine calendar_daymo
+             222                       !> calendar, no.of day in a month
+             223                       !>
+             224                       subroutine calendar_daymo(&
+             225                            ndaymo,              & !--- OUT : day
+             226                            iyear,               & !--- IN : year
+             227                            imonth               & !--- IN : month
+             228                            )
+             229                         implicit none
+             230                     
+             231                         integer, intent(out) :: ndaymo
+             232                         integer, intent(in) :: iyear
+             233                         integer, intent(in) :: imonth
+             234                         !---------------------------------------------------------------------------
+             235                     
+             236     1                   if ( oauto ) then
+             237     2                      if ( iyear >= 1900 ) then
+             238     2                         ogrego = .true.
+             239     2                      else
+             240     2                         ogrego = .false.
+             241     3                         if ( iyear >= 1000 ) then
+             242     3                            oideal = .false.
+             243     3                         else
+             244     3                            oideal = .true.
+             245     3                            idaymo = 30
+             246     3                            imonyr = 12
+             247     3                         endif
+             248     2                      endif
+             249     1                   endif
+             250                     
+             251     1                   if ( ogrego ) then
+             252     2                      if ( ocleap( iyear ) ) then
+             253     2                         ndaymo = monday( imonth,2 )
+             254     2                      else
+             255     2                         ndaymo = monday( imonth,1 )
+             256     2                      endif
+             257     1                   elseif ( .not. oideal ) then
+             258     1                      ndaymo = monday( imonth,1 )
+             259     1                   else
+             260     1                      ndaymo = idaymo
+             261     1                   endif
+             262                     
+             263                         return
+             264                       end subroutine calendar_daymo
+             265                     
+             266                       !-----------------------------------------------------------------------------
+             267                       !>
+             268                       !> Description of the subroutine calendar_dayyr
+             269                       !> calendar, no.of day in an year
+             270                       !>
+             271                       subroutine calendar_dayyr(&
+             272                            ndayyr,              & !-- OUT : day
+             273                            iyear                & !---IN : year
+             274                            )
+             275                         implicit none
+             276                     
+             277                         integer, intent(out) :: ndayyr
+             278                         integer, intent(in) :: iyear
+             279                         !---------------------------------------------------------------------------
+             280                     
+             281     1                   if ( oauto ) then
+             282     2                      if ( iyear >= 1900 ) then
+             283     2                         ogrego = .true.
+             284     2                      else
+             285     2                         ogrego = .false.
+             286     3                         if ( iyear >= 1000 ) then
+             287     3                            oideal = .false.
+             288     3                         else
+             289     3                            oideal = .true.
+             290     3                            idaymo = 30
+             291     3                            imonyr = 12
+             292     3                         endif
+             293     2                      endif
+             294     1                   endif
+             295                     
+             296     1                   if ( ogrego ) then
+             297     2                      if ( ocleap( iyear ) ) then
+             298     2                         ndayyr = 366
+             299     2                      else
+             300     2                         ndayyr = 365
+             301     2                      endif
+             302     1                   elseif ( .not. oideal ) then
+             303     1                      ndayyr = 365
+             304     1                   else
+             305     1                      ndayyr = idaymo*imonyr
+             306     1                   endif
+             307                     
+             308                         return
+             309                       end subroutine calendar_dayyr
+             310                     
+             311                       !-----------------------------------------------------------------------------
+             312                       !>
+             313                       !> Description of the subroutine calendar_monyr
+             314                       !> calendar, no.of month in an year
+             315                       !>
+             316                       subroutine calendar_monyr( &
+             317                            nmonyr,               & !--- OUT : month
+             318                            iyear                 & !--- IN : year
+             319                            )
+             320                         implicit none
+             321                     
+             322                         integer, intent(out) :: nmonyr
+             323                         integer, intent(in) :: iyear
+             324                         !---------------------------------------------------------------------------
+             325                     
+             326     1                   if ( oauto  ) then
+             327     1                      nmonyr = 12
+             328     1                   else
+             329     1                      nmonyr = imonyr
+             330     1                   endif
+             331                     
+             332                         return
+             333                       end subroutine calendar_monyr
+             334                     
+             335                       !-----------------------------------------------------------------------------
+             336                       !>
+             337                       !> Description of the subroutine calendar_secdy
+             338                       !> calendar, no.of sec. in a day
+             339                       !>
+             340                       subroutine calendar_secdy( &
+             341                            nsecdy                &
+             342                            )
+             343                         implicit none
+             344                     
+             345                         integer, intent(out) :: nsecdy !--- OUT : sec
+             346                         !---------------------------------------------------------------------------
+             347                     
+             348                         nsecdy = isecmn*iminhr*ihrday
+             349                     
+             350                         return
+             351                       end subroutine calendar_secdy
+             352                     
+             353                       !-----------------------------------------------------------------------------
+             354                       !>
+             355                       !> Description of the subroutine calendar_secmi
+             356                       !> calendar, no of sec. in a minute
+             357                       !>
+             358                       subroutine calendar_secmi( &
+             359                            nsecmi                & !--- OUT
+             360                            )
+             361                         implicit none
+             362                     
+             363                         integer, intent(out) :: nsecmi
+             364                         !---------------------------------------------------------------------------
+             365                     
+             366                         nsecmi = isecmn
+             367                     
+             368                         return
+             369                       end subroutine calendar_secmi
+             370                     
+             371                       !-----------------------------------------------------------------------------
+             372                       !>
+             373                       !> Description of the subroutine calendar_sechr
+             374                       !> calendar, no.of sec. in an hour
+             375                       !>
+             376                       subroutine calendar_sechr( &
+             377                            nsechr                &
+             378                            )
+             379                         implicit none
+             380                     
+             381                         integer, intent(out) :: nsechr
+             382                         !---------------------------------------------------------------------------
+             383                     
+             384                         nsechr = isecmn*iminhr
+             385                     
+             386                         return
+             387                       end subroutine calendar_sechr
+             388                     
+             389                       !-----------------------------------------------------------------------------
+             390                       !>
+             391                       !> Description of the subroutine calendar_ss2ds
+             392                       !> calendar, sec. -> ddss
+             393                       !>
+             394                       subroutine calendar_ss2ds( &
+             395                            idays ,               & !--- OUT
+             396                            rsec  ,               & !--- OUT
+             397                            dsec                  & !--- IN
+             398                            )
+             399                         implicit none
+             400                     
+             401                         integer, intent(out) :: idays
+             402                         real(8), intent(out) :: rsec
+             403                         real(8), intent(in) :: dsec
+             404                         !---------------------------------------------------------------------------
+             405                     
+             406                         isecdy = isecmn*iminhr*ihrday
+             407                         idays  = int( dsec/dble (isecdy) ) + 1
+             408                         rsec   = dsec - dble (idays-1)*dble (isecdy)
+             409                     
+             410     1                   if ( nint( rsec ) >= isecdy ) then
+             411     1                      idays = idays + 1
+             412     1                      rsec  = rsec - dble(isecdy)
+             413     1                   endif
+             414                     
+             415                         return
+             416                       end subroutine calendar_ss2ds
+             417                     
+             418                       !-----------------------------------------------------------------------------
+             419                       !>
+             420                       !> Description of the subroutine calendar_ds2ss
+             421                       !> calendar, ddss -> sec.
+             422                       !>
+             423                       subroutine calendar_ds2ss( &
+             424                            dsec  ,               & !--- OUT
+             425                            idays ,               & !--- IN
+             426                            rsec                  & !--- IN
+             427                            )
+             428                         implicit none
+             429                     
+             430                         real(8), intent(out) :: dsec
+             431                         integer, intent(in) :: idays
+             432                         real(8), intent(in) :: rsec
+             433                         !---------------------------------------------------------------------------
+             434                     
+             435                         isecdy = isecmn*iminhr*ihrday
+             436                         dsec   = dble (idays-1)*dble (isecdy) + dble (rsec)
+             437                     
+             438                         return
+             439                       end subroutine calendar_ds2ss
+             440                     
+             441                       !-----------------------------------------------------------------------------
+             442                       !>
+             443                       !> Description of the subroutine calendar_rs2hm
+             444                       !> calendar, sec. -> hhmmss
+             445                       !>
+             446                       subroutine calendar_rs2hm( &
+             447                            ihour ,               & !--- OUT
+             448                            imin  ,               & !--- OUT
+             449                            isec  ,               & !--- OUT
+             450                            rsec                  & !--- IN
+             451                            )
+             452                         implicit none
+             453                     
+             454                         integer, intent(out) :: ihour
+             455                         integer, intent(out) :: imin
+             456                         integer, intent(out) :: isec
+             457                         real(8), intent(in) :: rsec
+             458                         !---------------------------------------------------------------------------
+             459                     
+             460                         isechr = isecmn*iminhr
+             461                         ihour  = int ( rsec / dble(isechr ) )
+             462                         imin   = int ( ( rsec - dble(ihour*isechr) )/dble(isecmn) )
+             463                         isec   = nint( rsec - dble(ihour*isechr) - dble(imin*isecmn) )
+             464                     
+             465     1                   if ( isec >= isecmn ) then
+             466     1                      imin  = imin + 1
+             467     1                      isec  = isec - isecmn
+             468     1                   endif
+             469                     
+             470     1                   if ( imin == iminhr ) then
+             471     1                      ihour = ihour + 1
+             472     1                      imin  = imin  - iminhr
+             473     1                   endif
+             474                     
+             475                         return
+             476                       end subroutine calendar_rs2hm
+             477                     
+             478                       !-----------------------------------------------------------------------------
+             479                       !>
+             480                       !> Description of the subroutine calendar_hm2rs
+             481                       !> calendar, hhmmss -> sec.
+             482                       !>
+             483                       subroutine calendar_hm2rs( &
+             484                            rsec  ,               & !--- OUT
+             485                            ihour ,               & !--- IN
+             486                            imin  ,               & !--- IN
+             487                            isec                  & !--- IN
+             488                            )
+             489                         implicit none
+             490                     
+             491                         real(8), intent(out) :: rsec
+             492                         integer, intent(in) :: ihour
+             493                         integer, intent(in) :: imin
+             494                         integer, intent(in) :: isec
+             495                         !---------------------------------------------------------------------------
+             496                     
+             497                         rsec = real( ihour*isecmn*iminhr + imin*isecmn + isec, kind=8 )
+             498                     
+             499                         return
+             500                       end subroutine calendar_hm2rs
+             501                     
+             502                       !-----------------------------------------------------------------------------
+             503                       !>
+             504                       !> Description of the subroutine calendar_dd2ym
+             505                       !> calendar, day -> yymmdd
+             506                       !>
+             507                       subroutine calendar_dd2ym( &
+             508                            iyear ,               & !--- OUT
+             509                            imonth,               & !--- OUT
+             510                            iday  ,               & !--- OUT
+             511                            idays                 & !--- IN
+             512                            )
+             513                         implicit none
+             514                     
+             515                         integer, intent(out) :: iyear
+             516                         integer, intent(out) :: imonth
+             517                         integer, intent(out) :: iday
+             518                         integer, intent(in) :: idays
+             519                         !---------------------------------------------------------------------------
+             520                     
+             521     1                   if ( oauto  ) then
+             522     2                      if ( idays >= 693961 ) then       !" 1900*365+1900/4-19+5
+             523     2                         ogrego = .true.
+             524     2                      else
+             525     2                         ogrego = .false.
+             526     3                         if ( idays >= 1000*365 ) then
+             527     3                            oideal = .false.
+             528     3                         else
+             529     3                            oideal = .true.
+             530     3                            idaymo = 30
+             531     3                            imonyr = 12
+             532     3                         endif
+             533     2                      endif
+             534     1                   endif
+             535                     
+             536     1                   if ( operpt .and. ooperz ) then
+             537     1                      iyear  = iyrpp
+             538     1                      imonth = imonpp
+             539     1                      iday   = idaypp
+             540     1               
+             541     1                      return
+             542     1                   endif
+             543                     
+             544     1                   if ( ogrego ) then
+             545     1                      jy     = int(dble(idays)/365.24d0)
+             546     1               1100   continue
+             547     1                      jy4    = (jy+3)/4
+             548     1                      jcent  = (jy+99)/100
+             549     1                      jcent4 = (jy+399)/400
+             550     1                      idays0 = jy*365+jy4-jcent+jcent4
+             551     2                      if ( idays <= idays0 ) then
+             552     2                         jy = jy -1
+             553     2                         if ( jy >= 0 ) goto 1100
+             554     2                      endif
+             555     1                      iyear = jy
+             556     1                      idy   = idays - idays0
+             557     2                      if ( ocleap( iyear ) ) then
+             558     2                         ileap  = 2
+             559     2                      else
+             560     2                         ileap  = 1
+             561     2                      endif
+             562     1                   elseif ( .not. oideal ) then
+             563     1                      iyear = idays/365
+             564     1                      idy   = idays - iyear*365
+             565     1                      ileap = 1
+             566     1                   endif
+             567                     
+             568     1                   if ( ogrego .or. .not. oideal ) then
+             569     1                      id = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+             570     2       f              do m = 1, 12
+             571     2       f                 id = id + monday(m,ileap)
+             572     3       f                 if ( idy <= id ) then
+             573     3       f                    imonth = m
+             574     3       f                    iday   = idy-id+monday(m,ileap)
+             575     3       f                    goto 3190
+             576     3       f                 endif
+             577     2       f              enddo
+             578     1               3190   continue
+             579     1                   else
+             580     1                      idayyr = idaymo*imonyr
+             581     1                      iyear  = ( idays-1 ) / idayyr
+             582     1                      imonth = ( idays-1 - iyear*idayyr )/idaymo+1
+             583     1                      iday   = idays - iyear*idayyr - (imonth-1)*idaymo
+             584     1                   endif
+             585                     
+             586                         return
+             587                       end subroutine calendar_dd2ym
+             588                     
+             589                       !-----------------------------------------------------------------------------
+             590                       !>
+             591                       !> Description of the subroutine calendar_ym2dd
+             592                       !> calendar, yymmdd -> day
+             593                       !>
+             594                       subroutine calendar_ym2dd( &
+             595                            idays ,               & !--- OUT
+             596                            iyear ,               & !--- IN
+             597                            imonth,               & !--- IN
+             598                            iday                  & !--- IN
+             599                            )
+             600                         implicit none
+             601                     
+             602                         integer, intent(out) :: idays
+             603                         integer, intent(in) :: iyear
+             604                         integer, intent(in) :: imonth
+             605                         integer, intent(in) :: iday
+             606                         !---------------------------------------------------------------------------
+             607                     
+             608     1                   if ( oauto  ) then
+             609     2                      if ( iyear >= 1900 ) then
+             610     2                         ogrego = .true.
+             611     2                      else
+             612     2                         ogrego = .false.
+             613     3                         if ( iyear >= 1000 ) then
+             614     3                            oideal = .false.
+             615     3                         else
+             616     3                            oideal = .true.
+             617     3                            idaymo = 30
+             618     3                            imonyr = 12
+             619     3                         endif
+             620     2                      endif
+             621     1                   endif
+             622                     
+             623     1                   if ( ogrego .or. .not. oideal ) then
+             624     2                      if ( imonth > 0 ) then
+             625     2                         jyear  = iyear + (imonth-1)/12
+             626     2                         jmonth = mod(imonth-1,12)+1
+             627     2                      else
+             628     2                         jyear  = iyear - (-imonth)/12 - 1
+             629     2                         jmonth = 12-mod(-imonth,12)
+             630     2                      endif
+             631     1                   endif
+             632                     
+             633     1                   if ( ogrego ) then
+             634     1                      jy4    = (jyear+3)/4
+             635     1                      jcent  = (jyear+99)/100
+             636     1                      jcent4 = (jyear+399)/400
+             637     1                      idays0 = jyear*365+jy4-jcent+jcent4
+             638     2                      if ( ocleap( jyear ) ) then
+             639     2                         ileap = 2
+             640     2                      else
+             641     2                         ileap = 1
+             642     2                      endif
+             643     1                   elseif ( .not. oideal ) then
+             644     1                      idays0 = jyear*365
+             645     1                      ileap  = 1
+             646     1                   endif
+             647                     
+             648     1                   if ( ogrego .or. .not. oideal ) then
+             649     1                      id = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             650     2  pp  10s             do m = 1, jmonth-1
+             651     2   p  10s                id = id + monday(m,ileap)
+             652     2   p  10s             enddo
+             653     1                   else
+             654     1                      idays0 = iyear*idaymo*imonyr
+             655     1                      id     = (imonth-1)*idaymo
+             656     1                   endif
+             657                     
+             658                         idays = idays0 + id + iday
+             659                     
+             660                         return
+             661                       end subroutine calendar_ym2dd
+             662                     
+             663                       !-----------------------------------------------------------------------------
+             664                       !>
+             665                       !> Description of the subroutine calendar_ym2yd
+             666                       !> calendar, yymmdd -> yydd
+             667                       !>
+             668                       subroutine calendar_ym2yd( &
+             669                            idaysy,               & !--- OUT
+             670                            iyear ,               & !--- IN
+             671                            imonth,               & !--- IN
+             672                            iday                  & !--- IN
+             673                            )
+             674                         implicit none
+             675                     
+             676                         integer, intent(out) :: idaysy
+             677                         integer, intent(in) :: iyear
+             678                         integer, intent(in) :: imonth
+             679                         integer, intent(in) :: iday
+             680                         !---------------------------------------------------------------------------
+             681                     
+             682     1                   if ( oauto  ) then
+             683     2                      if ( iyear >= 1900 ) then
+             684     2                         ogrego = .true.
+             685     2                      else
+             686     2                         ogrego = .false.
+             687     3                         if ( iyear >= 1000 ) then
+             688     3                            oideal = .false.
+             689     3                         else
+             690     3                            oideal = .true.
+             691     3                            idaymo = 30
+             692     3                            imonyr = 12
+             693     3                         endif
+             694     2                      endif
+             695     1                   endif
+             696                     
+             697     1                   if ( ogrego .or. .not. oideal ) then
+             698     2                      if ( imonth > 0 ) then
+             699     2                         jyear  = iyear + (imonth-1)/12
+             700     2                         jmonth = mod(imonth-1,12)+1
+             701     2                      else
+             702     2                         jyear  = iyear - (-imonth)/12 - 1
+             703     2                         jmonth = 12-mod(-imonth,12)
+             704     2                      endif
+             705     1                   endif
+             706                     
+             707     1                   if ( ogrego ) then
+             708     2                      if ( ocleap( jyear ) ) then
+             709     2                         ileap = 2
+             710     2                      else
+             711     2                         ileap = 1
+             712     2                      endif
+             713     1                   elseif ( .not. oideal ) then
+             714     1                      ileap  = 1
+             715     1                   endif
+             716                     
+             717     1                   if ( ogrego .or. .not. oideal ) then
+             718     1                      id = 0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1778
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             719     2  pp  10s             do m = 1, jmonth-1
+             720     2   p  10s                id = id + monday(m,ileap)
+             721     2   p  10s             enddo
+             722     1                   else
+             723     1                      id     = (imonth-1)*idaymo
+             724     1                   endif
+             725                     
+             726                         idaysy = id + iday
+             727                     
+             728                         return
+             729                       end subroutine calendar_ym2yd
+             730                     
+             731                       !-----------------------------------------------------------------------------
+             732                       !>
+             733                       !> Description of the subroutine calendar_ss2yh
+             734                       !> calendar, sec. -> date
+             735                       !>
+             736                       subroutine calendar_ss2yh( &
+             737                            idate ,               & !--- OUT
+             738                            dsec                  & !--- IN
+             739                            )
+             740                         implicit none
+             741                     
+             742                         integer, intent(out) :: idate(6) ! yymmddhhmmss
+             743                         real(8), intent(in) :: dsec      ! time
+             744                     
+             745                         integer    idays             ! serial no.of day
+             746                         real(8)    rsec              ! no. of sec. in a day
+             747                         !---------------------------------------------------------------------------
+             748                     
+             749                         call calendar_ss2ds &
+             750                              ( idays , rsec  , &
+             751                              dsec            )
+             752                     
+             753                         call calendar_dd2ym &
+             754                              ( idate(1), idate(2), idate(3), &
+             755                              idays                        )
+             756                     
+             757                         call calendar_rs2hm &
+             758                              ( idate(4), idate(5), idate(6), &
+             759                              rsec                          )
+             760                     
+             761                         return
+             762                       end subroutine calendar_ss2yh
+             763                     
+             764                       !-----------------------------------------------------------------------------
+             765                       !>
+             766                       !> Description of the subroutine calendar_yh2ss
+             767                       !> calendar, date -> sec.
+             768                       !>
+             769                       subroutine calendar_yh2ss( &
+             770                            dsec  ,               & !--- OUT
+             771                            idate                 & !--- IN
+             772                            )
+             773                         implicit none
+             774                     
+             775                         real(8), intent(out) :: dsec    ! time
+             776                         integer, intent(in) :: idate(6) ! yymmddhhmmss
+             777                     
+             778                         integer    idays             ! serial no.of day
+             779                         real(8)    rsec              ! no. of sec. in a day
+             780                         !---------------------------------------------------------------------------
+             781                     
+             782                         call calendar_ym2dd &
+             783                              ( idays   , &
+             784                              idate(1), idate(2), idate(3) )
+             785                     
+             786                         call calendar_hm2rs &
+             787                              ( rsec    , &
+             788                              idate(4), idate(5), idate(6) )
+             789                     
+             790                         call calendar_ds2ss &
+             791                              ( dsec  , &
+             792                              idays , rsec   )
+             793                     
+             794                         return
+             795                       end subroutine calendar_yh2ss
+             796                     
+             797                       !-----------------------------------------------------------------------------
+             798                       !>
+             799                       !> Description of the subroutine calendar_dd2yd
+             800                       !> calendar, day -> yydd
+             801                       !>
+             802                       subroutine calendar_dd2yd( &
+             803                            iyear ,               & !--- OUT
+             804                            idaysy,               & !--- OUT
+             805                            idays                 & !--- IN
+             806                            )
+             807                         implicit none
+             808                     
+             809                         integer, intent(out) :: iyear
+             810                         integer, intent(out) :: idaysy
+             811                         integer, intent(in) :: idays
+             812                     
+             813                         integer :: imonth, iday
+             814                         !---------------------------------------------------------------------------
+             815                     
+             816                         call calendar_dd2ym &
+             817                              ( iyear , imonth, iday  , &
+             818                              idays                   )
+             819                     
+             820                         call calendar_ym2yd &
+             821                              ( idaysy, &
+             822                              iyear , imonth, iday    )
+             823                     
+             824                         return
+             825                       end subroutine calendar_dd2yd
+             826                     
+             827                       !-----------------------------------------------------------------------------
+             828                       !>
+             829                       !> Description of the subroutine calendar_ss2yd
+             830                       !> calendar, sec. -> yydd
+             831                       !>
+             832                       subroutine calendar_ss2yd( &
+             833                            iyear ,               & !--- OUT
+             834                            idaysy,               & !--- OUT
+             835                            dsec                  & !--- IN
+             836                            )
+             837                         implicit none
+             838                     
+             839                         integer, intent(out) :: iyear
+             840                         integer, intent(out) :: idaysy
+             841                         real(8), intent(in) :: dsec
+             842                     
+             843                         integer :: imonth, iday
+             844                         !---------------------------------------------------------------------------
+             845                     
+             846                         call calendar_ss2ym &
+             847                              ( iyear , imonth, iday  , &
+             848                              dsec                    )
+             849                     
+             850                         call calendar_ym2yd &
+             851                              ( idaysy, &
+             852                              iyear , imonth, iday    )
+             853                     
+             854                         return
+             855                       end subroutine calendar_ss2yd
+             856                     
+             857                       !-----------------------------------------------------------------------------
+             858                       !>
+             859                       !> Description of the subroutine calendar_ss2ym
+             860                       !> calendar, sec. -> yymmdd
+             861                       !>
+             862                       subroutine calendar_ss2ym( &
+             863                            iyear ,               & !--- OUT
+             864                            imonth,               & !--- OUT
+             865                            iday  ,               & !--- OUT
+             866                            dsec                  & !--- IN
+             867                            )
+             868                         implicit none
+             869                     
+             870                         integer, intent(out) :: iyear
+             871                         integer, intent(out) :: imonth
+             872                         integer, intent(out) :: iday
+             873                         real(8), intent(in) :: dsec
+             874                     
+             875                         integer :: idays
+             876                         real(8) :: rsec
+             877                         !---------------------------------------------------------------------------
+             878                     
+             879                         call calendar_ss2ds &
+             880                              ( idays , rsec  , &
+             881                              dsec            )
+             882                     
+             883                         call calendar_dd2ym &
+             884                              ( iyear , imonth, iday  , &
+             885                              idays                  )
+             886                     
+             887                         return
+             888                       end subroutine calendar_ss2ym
+             889                     
+             890                       !-----------------------------------------------------------------------------
+             891                       !>
+             892                       !> Description of the subroutine calendar_xx2ss
+             893                       !> calendar, hour ->sec.
+             894                       !>
+             895                       subroutine calendar_xx2ss( &
+             896                            ddsec ,               & !--- OUT
+             897                            rtdur ,               & !--- IN
+             898                            hunit,                & !--- IN
+             899                            dsec                 & !--- IN
+             900                            )
+             901                         implicit none
+             902                     
+             903                         real(8), intent(out) :: ddsec
+             904                         real(8), intent(in) :: rtdur
+             905                         character, intent(in) :: hunit *(*)
+             906                         real(8), intent(in) :: dsec
+             907                     
+             908                         character(len=10) :: hunitx
+             909                         integer :: isecmi, isechr, isecdy
+             910                         integer :: iyear, imonth, iday, ndaymo, ndayyr
+             911                         !---------------------------------------------------------------------------
+             912                     
+             913                         hunitx = hunit
+             914                     
+             915     1                   if      ( hunitx(1:1) == 's' .or. hunitx(1:1) == 'S' ) then
+             916     1                      ddsec = dble (rtdur)
+             917     1                   elseif ( hunitx(1:2) == 'mi' .or. hunitx(1:2) == 'MI' ) then
+             918     1                      call calendar_secmi( isecmi )
+             919     1                      ddsec = dble (rtdur)*dble (isecmi)
+             920     1                   elseif ( hunitx(1:1) == 'h' .or. hunitx(1:1) == 'H' ) then
+             921     1                      call calendar_sechr( isechr )
+             922     1                      ddsec = dble (rtdur)*dble (isechr)
+             923     1                   elseif ( hunitx(1:1) == 'd' .or. hunitx(1:1) == 'D' ) then
+             924     1                      call calendar_secdy( isecdy )
+             925     1                      ddsec = dble (rtdur)*dble (isecdy)
+             926     1                   elseif ( hunitx(1:2) == 'mo' .or. hunitx(1:2) == 'MO' ) then
+             927     1                      call calendar_ss2ym &
+             928     1                           ( iyear , imonth, iday  , &
+             929     1                           dsec                    )
+             930     1                      call calendar_daymo &
+             931     1                           ( ndaymo, &
+             932     1                           iyear , imonth  )
+             933     1                      call calendar_secdy( isecdy )
+             934     1                      ddsec = dble (rtdur)*dble (ndaymo)*dble (isecdy)
+             935     1                   elseif ( hunitx(1:1) == 'y' .or. hunitx(1:1) == 'Y' ) then
+             936     1                      call calendar_ss2ym &
+             937     1                           ( iyear , imonth, iday  , &
+             938     1                           dsec                    )
+             939     1                      call calendar_dayyr &
+             940     1                           ( ndayyr, &
+             941     1                           iyear   )
+             942     1                      call calendar_secdy( isecdy )
+             943     1                      ddsec = dble (rtdur)*dble (ndayyr)*dble (isecdy)
+             944     1                   else
+             945     1                      write (6,*) ' ### cxx2ss: invalid unit : ', hunit, &
+             946     1                           ' [sec] assumed'
+             947     1                      ddsec = rtdur
+             948     1                   endif
+             949                     
+             950                         return
+             951                       end subroutine calendar_xx2ss
+             952                     
+             953                       !-----------------------------------------------------------------------------
+             954                       !>
+             955                       !> Description of the subroutine calendar_cc2yh
+             956                       !> calendar, character -> date
+             957                       !>
+             958                       subroutine calendar_cc2yh( &
+             959                            itime ,               & !--- OUT
+             960                            htime                 & !--- IN
+             961                            )
+             962                         implicit none
+             963                     
+             964                         integer, intent(out) :: itime ( 6 )
+             965                         character, intent(in) :: htime *(*)
+             966                     
+             967                         integer :: i
+             968                         !---------------------------------------------------------------------------
+             969                     
+             970                         read ( htime, '( i4.4,1x,i2.2,1x,i2.2,1x,i2.2,1x,i2.2,1x,i2.2 )' ) (itime(i),i=1,6)
+             971                     
+             972                         return
+             973                       end subroutine calendar_cc2yh
+             974                     
+             975                       !-----------------------------------------------------------------------------
+             976                       !>
+             977                       !> Description of the subroutine calendar_yh2cc
+             978                       !> calendar, date -> character
+             979                       !>
+             980                       subroutine calendar_yh2cc( &
+             981                            htime ,               & !--- OUT
+             982                            itime                 & !--- IN
+             983                            )
+             984                         implicit none
+             985                     
+             986                         character, intent(out) :: htime *(*)
+             987                         integer, intent(in) :: itime ( 6 )
+             988                     
+             989                         integer :: i
+             990                         !---------------------------------------------------------------------------
+             991                     
+             992                         write( htime, '( i4.4,"/",i2.2,"/",i2.2,"-",i2.2,":",i2.2,":",i2.2 )' ) (itime(i),i=1,6)
+             993                     
+             994                         return
+             995                       end subroutine calendar_yh2cc
+             996                     
+             997                       !-----------------------------------------------------------------------------
+             998                       !>
+             999                       !> Description of the subroutine calendar_ss2cc
+            1000                       !> calendar, sec. -> character
+            1001                       !>
+            1002                       subroutine calendar_ss2cc( &
+            1003                            htime ,               & !--- OUT
+            1004                            dsec                  & !--- IN
+            1005                            )
+            1006                         implicit none
+            1007                     
+            1008                         character, intent(out) :: htime *(*)
+            1009                         real(8), intent(in) :: dsec
+            1010                     
+            1011                         integer :: itime(6), i
+            1012                         !---------------------------------------------------------------------------
+            1013                     
+            1014                         call calendar_ss2yh &
+            1015                              ( itime , &
+            1016                              dsec   )
+            1017                     
+            1018                         write ( htime, '( i4.4,"/",i2.2,"/",i2.2,"-",i2.2,":",i2.2,":",i2.2 )' ) (itime(i),i=1,6)
+            1019                     
+            1020                         return
+            1021                       end subroutine calendar_ss2cc
+            1022                     
+            1023                       !-----------------------------------------------------------------------------
+            1024                       !>
+            1025                       !> Description of the function %NAME
+            1026                       !> calendar :bissextile or not
+            1027                       !> @return ocleap
+            1028                       !>
+            1029                       function ocleap( &
+            1030                            iyear       & !--- IN
+            1031                            )
+            1032                         implicit none
+            1033                     
+            1034                         logical :: ocleap
+            1035                         integer, intent(in) :: iyear
+            1036                     
+            1037                         integer :: iy, iycen, icent
+            1038                         !---------------------------------------------------------------------------
+            1039                     
+            1040                         iy     = mod(iyear,4)
+            1041                         iycen  = mod(iyear,100)
+            1042                         icent  = mod(iyear/100,4)
+            1043                     
+            1044     1                   if ( iy == 0 .and. ( iycen /= 0 .or. icent == 0 ) ) then
+            1045     1                      ocleap = .true.
+            1046     1                   else
+            1047     1                      ocleap = .false.
+            1048     1                   endif
+            1049                     
+            1050                         return
+            1051                       end function ocleap
+            1052                     
+            1053                       !-----------------------------------------------------------------------------
+            1054                       !>
+            1055                       !> Description of the subroutine calendar_ssaft
+            1056                       !> calendar, time advancing
+            1057                       !>
+            1058                       subroutine calendar_ssaft( &
+            1059                            dseca ,               & !--- OUT
+            1060                            dsec  ,               & !--- IN
+            1061                            raftr ,               & !--- IN
+            1062                            hunit                 & !--- IN
+            1063                            )
+            1064                         implicit none
+            1065                     
+            1066                         real(8), intent(out) :: dseca
+            1067                         real(8), intent(in) :: dsec
+            1068                         real(8), intent(in) :: raftr
+            1069                         character, intent(in) :: hunit *(*)
+            1070                     
+            1071                         integer :: idays, iyear, imonth, iday
+            1072                         real(8) :: rsec
+            1073                         real(8) :: ddtime
+            1074                         !---------------------------------------------------------------------------
+            1075                     
+            1076     1                   if ( hunit(1:1) == 'y' .or. hunit(1:1) == 'Y' &
+            1077     1                        .or. hunit(1:1) == 'mo' .or. hunit(1:2) == 'MO' ) then
+            1078     1                      call calendar_ss2ds &
+            1079     1                           ( idays , rsec  , &
+            1080     1                           dsec            )
+            1081     1                      call calendar_dd2ym &
+            1082     1                           ( iyear , imonth, iday  , &
+            1083     1                           idays                  )
+            1084     2                      if ( hunit(1:1) == 'y' .or. hunit(1:1) == 'Y' ) then
+            1085     2                         iyear  = iyear  + int(raftr)
+            1086     2                      elseif ( hunit(1:2) == 'mo' .or. hunit(1:2) == 'MO' ) then
+            1087     2                         imonth = imonth + int(raftr)
+            1088     2                      endif
+            1089     1                      call calendar_ym2dd &
+            1090     1                           ( idays , &
+            1091     1                           iyear , imonth, iday   )
+            1092     1                      call calendar_ds2ss &
+            1093     1                           ( dseca , &
+            1094     1                           idays , rsec    )
+            1095     1                   else
+            1096     1                      call calendar_xx2ss &
+            1097     1                           ( ddtime, &
+            1098     1                           raftr , hunit , dsec  )
+            1099     1                      dseca = dsec + ddtime
+            1100     1                   endif
+            1101                     
+            1102                         return
+            1103                       end subroutine calendar_ssaft
+            1104                     
+            1105                       !-----------------------------------------------------------------------------
+            1106                       !>
+            1107                       !> Description of the function %NAME
+            1108                       !> time step passed ?
+            1109                       !> @return calendar_ointvl
+            1110                       !>
+            1111                       function   calendar_ointvl( &
+            1112                            dtime ,                & !--- IN
+            1113                            dtprev ,               & !--- IN
+            1114                            dtorgn,                & !--- IN
+            1115                            rintv ,                & !--- IN
+            1116                            htunit                 & !--- IN
+            1117                            )
+            1118                         implicit none
+            1119                     
+            1120                         logical :: calendar_ointvl
+            1121                         real(8), intent(in) :: dtime
+            1122                         real(8), intent(in) :: dtprev
+            1123                         real(8), intent(in) :: dtorgn
+            1124                         real(8), intent(in) :: rintv
+            1125                         character, intent(in) :: htunit *(*)
+            1126                     
+            1127                         real(8) :: ddtime
+            1128                         character(len=5) :: hunit
+            1129                         integer :: iyear, imon, iday, iyearp, imonp, idayp
+            1130                         integer :: iy, imo
+            1131                         integer :: nmonyr, ndayyr, ndaymo
+            1132                         real(8) :: ry, rmo
+            1133                         !---------------------------------------------------------------------------
+            1134                     
+            1135                         hunit = htunit
+            1136                     
+            1137     1                   if ( dtime == dtprev ) then
+            1138     1                      calendar_ointvl = .true.
+            1139     1                      return
+            1140     1                   endif
+            1141                         !
+            1142                         calendar_ointvl = .false.
+            1143                         call calendar_ss2ym &
+            1144                              ( iyear , imon  , iday  , &
+            1145                              dtime                   )
+            1146                         call calendar_ss2ym &
+            1147                              ( iyearp, imonp , idayp , &
+            1148                              dtprev                  )
+            1149                         call calendar_xx2ss &
+            1150                              ( ddtime, &
+            1151                              rintv , hunit , dtime )
+            1152                     
+            1153     1                   if ( dtime >= dtorgn ) then
+            1154     2                      if      ( hunit(1:1) == 'y' .or. hunit(1:1) == 'Y' ) then
+            1155     2                         call calendar_monyr( nmonyr, iyear )
+            1156     2                         call calendar_dayyr( ndayyr, iyear )
+            1157     2                         ry = dble( iyear - iyearp )                  &
+            1158     2                            + dble( imon  - imonp  ) / dble( nmonyr ) &
+            1159     2                            + dble( iday  - idayp  ) / dble( ndayyr )
+            1160     3                         if ( ry >= rintv ) then
+            1161     3                            calendar_ointvl = .true.
+            1162     3                         endif
+            1163     2                      elseif ( hunit(1:2) == 'mo' .or. hunit(1:2) == 'MO' ) then
+            1164     2                         imo = 0
+            1165     3   s    s                do iy = iyearp, iyear-1
+            1166     3   s    s                   call calendar_monyr( nmonyr, iy )
+            1167     3   s    s                   imo = imo + nmonyr
+            1168     3   s    s                enddo
+            1169     2                         call calendar_daymo( ndaymo, iyear, imon )
+            1170     2                         rmo = dble( imon - imonp + imo ) &
+            1171     2                             + dble( iday - idayp ) / dble( ndaymo )
+            1172     3                         if ( rmo >= rintv ) then
+            1173     3                            calendar_ointvl = .true.
+            1174     3                         endif
+            1175     2                      elseif (      calendar_dgaus((dtime -dtorgn)/ddtime)  &
+            1176     2                           > calendar_dgaus((dtprev-dtorgn)/ddtime) ) then
+            1177     2                         calendar_ointvl = .true.
+            1178     2                      endif
+            1179     1                   endif
+            1180                     
+            1181                         return
+            1182                       end function calendar_ointvl
+            1183                     
+            1184                       !-----------------------------------------------------------------------------
+            1185                       !>
+            1186                       !> Description of the function %NAME
+            1187                       !> dicard gaussian
+            1188                       !> @return calendar_dgaus
+            1189                       !>
+            1190                       function calendar_dgaus( &
+            1191                             dx                 & !--- IN
+            1192                             )
+            1193                         implicit none
+            1194                     
+            1195                         real(8) :: calendar_dgaus
+            1196                         real(8), intent(in) :: dx
+            1197                         !---------------------------------------------------------------------------
+            1198                     
+            1199                         calendar_dgaus = aint(dx) + aint(dx - aint(dx) + 1.d0) - 1.d0
+            1200                     
+            1201                       end function calendar_dgaus
+            1202                     
+            1203                     end module mod_calendar
+            1204                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_calendar)
+   jwd8220o-i  "share/mod_calendar.f90", line 17: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(calendar_monyr)
+   jwd2008i-i  "share/mod_calendar.f90", line 316: Dummy argument 'iyear' not used in this subprogram.
+  Module subprogram name(calendar_dd2ym)
+   jwd8206o-i  "share/mod_calendar.f90", line 545: Division is changed to multiplication by reciprocal.
+  Module subprogram name(calendar_xx2ss)
+   jwd8209o-i  "share/mod_calendar.f90", line 934: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_calendar.f90", line 943: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(calendar_dgaus)
+   jwd8209o-i  "share/mod_calendar.f90", line 1199: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 1204
+   Statements : 612
+   Stack(byte): 10288
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1204
+   Total statements : 612
+   Total stack(byte): 10288
+   Total prefetch num: 0
+

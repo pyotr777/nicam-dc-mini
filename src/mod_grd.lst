@@ -1,0 +1,1724 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 16:50:43 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_grd.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_grd.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_grd"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! Grid system module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module is for the management of the icosahedral grid system
+               7                     !!
+               8                     !! @author  H.Tomita
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2004-02-17 (H.Tomita)  Imported from igdc-4.33
+              12                     !! @li      2009-01-23 (H.Tomita)  extend the vertical grid method, introducing "hflat".
+              13                     !! @li      2009-03-10 (H.Tomita)  1. add sub[GRD_gen_plgrid]
+              14                     !!                                    ( This subroutine generates
+              15                     !!                                      the pole grids from the regular region grids. )
+              16                     !!                                 2. support direct access of grid file without pole data.
+              17                     !!                                    sub[GRD_input_hgrid,GRD_output_hgrid].
+              18                     !!                                 3. add 'da_access_hgrid' in the namelist.
+              19                     !! @li      2009-03-10 (H.Tomita)  add error handling in GRD_input_hgrid.
+              20                     !! @li      2009-05-27 (M.Hara)    1. bug fix of error handling in GRD_input_hgrid.
+              21                     !!                                 2. remove "optional" declaration from
+              22                     !!                                    da_access in GRD_input_hgrid and GRD_output_hgrid.
+              23                     !! @li      2011-07-22 (T.Ohno)    add parameters
+              24                     !!                                 1.GRD_grid_type 'ON_SPHERE' / 'ON_PLANE'
+              25                     !!                                 2.hgrid_comm_flg
+              26                     !!                                   the grid data should be communicated or not. ( default:.true. )
+              27                     !!                                 3.triangle_size
+              28                     !!                                   scale factor when GRD_grid_type is 'ON_PLANE'
+              29                     !! @li      2011-09-03 (H.Yashiro) New I/O
+              30                     !! @li      2012-05-25 (H.Yashiro) Avoid irregal ISEND/IRECV comm.
+              31                     !! @li      2012-10-20 (R.Yoshida) Topography for Jablonowski test
+              32                     !!
+              33                     !<
+              34                     module mod_grd
+              35                       !-----------------------------------------------------------------------------
+              36                       !
+              37                       !++ Used modules
+              38                       !
+              39                       use mpi
+              40                       use mod_adm, only: &
+              41                          ADM_LOG_FID, &
+              42                          ADM_NSYS,    &
+              43                          ADM_MAXFNAME
+              44                       !-----------------------------------------------------------------------------
+              45                       implicit none
+              46                       private
+              47                       !-----------------------------------------------------------------------------
+              48                       !
+              49                       !++ Public procedure
+              50                       !
+              51                       public :: GRD_setup
+              52                       public :: GRD_output_hgrid
+              53                       public :: GRD_input_hgrid
+              54                       public :: GRD_scaling
+              55                       public :: GRD_output_vgrid
+              56                       public :: GRD_input_vgrid
+              57                       public :: GRD_gen_plgrid
+              58                     
+              59                       !-----------------------------------------------------------------------------
+              60                       !
+              61                       !++ Public parameters & variables
+              62                       !
+              63                     
+              64                       !====== Horizontal direction ======
+              65                       !
+              66                       !------ Scaling factor for length, e.g., earth's radius.
+              67                       real(8), public,  save :: GRD_rscale
+              68                       !
+              69                       !------ Indentifiers for the directions in the Cartesian coordinate.
+              70                       integer, public, parameter :: GRD_XDIR=1
+              71                       integer, public, parameter :: GRD_YDIR=2
+              72                       integer, public, parameter :: GRD_ZDIR=3
+              73                       !
+              74                       !------ Grid points ( CELL CENTER )
+              75                       real(8), public, allocatable, save :: GRD_x   (:,:,:,:)
+              76                       real(8), public, allocatable, save :: GRD_x_pl(:,:,:,:)
+              77                       !<-----
+              78                       !<-----         GRD_x(1:ADM_gall,          &  --- horizontal
+              79                       !<-----               1:ADM_KNONE,         &  --- vertical
+              80                       !<-----               1:ADM_lall,          &  --- local region
+              81                       !<-----               GRD_XDIR:GRD_ZDIR)      --- three components
+              82                       !<-----
+              83                       !<-----         GRD_x_pl(1:ADM_gall_pl,    &  --- horizontal
+              84                       !<-----                  1:ADM_KNONE,      &  --- vertical
+              85                       !<-----                  1:ADM_lall_pl,    &  --- pole regions
+              86                       !<-----                  GRD_XDIR:GRD_ZDIR)   --- three components
+              87                       !<-----           ___
+              88                       !<-----         /     \
+              89                       !<-----        <   p   >
+              90                       !<-----         \ ___ /
+              91                       !<-----
+              92                     
+              93                       !------ Grid points ( CELL CORNER )
+              94                       real(8), public, allocatable, save :: GRD_xt   (:,:,:,:,:)
+              95                       real(8), public, allocatable, save :: GRD_xt_pl(:,:,:,:)
+              96                       !<-----
+              97                       !<-----         GRD_xt(1:ADM_gall,         &  --- horizontal
+              98                       !<-----                1:ADM_KNONE,        &  --- vertical
+              99                       !<-----                1:ADM_lall,         &  --- local region
+             100                       !<-----                ADM_TI:ADM_TJ,      &  --- upper or lower triangle.
+             101                       !<-----                GRD_XDIR:GRD_ZDIR)     --- three components
+             102                       !<-----
+             103                       !<-----         GRD_xt_pl(1:ADM_gall_pl,   &  --- horizontal
+             104                       !<-----                  1:ADM_KNONE,      &  --- vertical
+             105                       !<-----                  1:ADM_lall_pl,    &  --- pole regions
+             106                       !<-----                  GRD_XDIR:GRD_ZDIR)   --- three components
+             107                       !<-----          p___p
+             108                       !<-----         /     \
+             109                       !<-----        p       p
+             110                       !<-----         \ ___ /
+             111                       !<-----          p   p
+             112                     
+             113                       real(8), public, allocatable, save :: GRD_e   (:,:,:) ! unscaled GRD_x (=unit vector)
+             114                       real(8), public, allocatable, save :: GRD_e_pl(:,:,:)
+             115                     
+             116                       !====== Vertical direction ======
+             117                       !
+             118                       !------ Top height
+             119                       real(8), public, save              :: GRD_htop
+             120                       !<----- unit : [m]
+             121                       !
+             122                       !------ xi coordinate
+             123                       real(8), public, allocatable, save :: GRD_gz(:)
+             124                       !
+             125                       !------ xi coordinate at the half point
+             126                       real(8), public, allocatable, save :: GRD_gzh(:)
+             127                       !
+             128                       !------ d(xi)
+             129                       real(8), public, allocatable, save :: GRD_dgz(:)
+             130                       !
+             131                       !------ d(xi) at the half point
+             132                       real(8), public, allocatable, save :: GRD_dgzh(:)
+             133                       !
+             134                       !------ 1/dgz, 1/dgzh   ( add by kgoto )
+             135                       real(8), public, allocatable, save ::  GRD_rdgz (:)
+             136                       real(8), public, allocatable, save ::  GRD_rdgzh(:)
+             137                     
+             138                       !------ Topography & vegitation
+             139                       integer, public,         parameter :: GRD_ZSFC    = 1
+             140                       integer, public,         parameter :: GRD_ZSD     = 2
+             141                       integer, public,         parameter :: GRD_VEGINDX = 3
+             142                       real(8), public, allocatable, save :: GRD_zs   (:,:,:,:)
+             143                       real(8), public, allocatable, save :: GRD_zs_pl(:,:,:,:)
+             144                       !<-----
+             145                       !<-----         GRD_zs(1:ADM_gall,       &
+             146                       !<-----                ADM_KNONE,        & <- one layer data
+             147                       !<-----                1:ADM_lall,       &
+             148                       !<-----                GRD_ZSFC:GRD_VEGINDX))
+             149                       !<-----
+             150                       !<-----         GRD_zs_pl(1:ADM_gall_pl, &
+             151                       !<-----                   ADM_KNONE,     & <- one layer data
+             152                       !<-----                   1:ADM_lall_pl, &
+             153                       !<-----                   GRD_ZSFC:GRD_VEGINDX))
+             154                       !<-----
+             155                       !
+             156                       !------ z coordinate ( actual height )
+             157                       integer, public,         parameter :: GRD_Z  = 1
+             158                       integer, public,         parameter :: GRD_ZH = 2
+             159                       real(8), public, allocatable, save :: GRD_vz   (:,:,:,:)
+             160                       real(8), public, allocatable, save :: GRD_vz_pl(:,:,:,:)
+             161                       !<-----
+             162                       !<-----         GRD_vz(1:ADM_gall,     &
+             163                       !<-----                1:ADM_kall,     &
+             164                       !<-----                1:ADM_lall,     &
+             165                       !<-----                GRD_Z:GRD_ZH))
+             166                       !<-----         GRD_vz_pl(1:ADM_gall_pl, &
+             167                       !<-----                   1:ADM_kall,    &
+             168                       !<-----                   1:ADM_lall_pl, &
+             169                       !<-----                   GRD_Z:GRD_ZH))
+             170                       !<-----
+             171                       !
+             172                       !------ Vertical interpolation factors
+             173                       real(8), public, allocatable, save :: GRD_afac(:)
+             174                       real(8), public, allocatable, save :: GRD_bfac(:)
+             175                       real(8), public, allocatable, save :: GRD_cfac(:)
+             176                       real(8), public, allocatable, save :: GRD_dfac(:)
+             177                       !
+             178                       ! [add] T.Ohno 110722
+             179                       character(ADM_NSYS),  public, save :: GRD_grid_type = 'ON_SPHERE'
+             180                       !                                                     'ON_PLANE'
+             181                     
+             182                       !-----------------------------------------------------------------------------
+             183                       !
+             184                       !++ Private procedure
+             185                       !
+             186                       !-----------------------------------------------------------------------------
+             187                       !
+             188                       !++ Private parameters & variables
+             189                       !
+             190                       character(len=ADM_MAXFNAME), private, save :: hgrid_fname     = ''       ! Horizontal grid file
+             191                     
+             192                       character(len=ADM_MAXFNAME), private, save :: topo_fname      = ''       ! Topographical data file
+             193                       character(len=ADM_MAXFNAME), private, save :: toposd_fname    = ''       ! Standard deviation of topog. data file
+             194                       character(len=ADM_MAXFNAME), private, save :: vegeindex_fname = ''       ! Vegetation index data file
+             195                     
+             196                       character(len=ADM_MAXFNAME), private, save :: vgrid_fname     = ''       ! Vertical grid file
+             197                       character(len=ADM_NSYS),     private, save :: vgrid_scheme    = 'LINEAR' ! Vertical coordinate scheme
+             198                       real(8),                     private, save :: h_efold         = 10000.D0 ! [m]
+             199                       real(8),                     private, save :: hflat           =  -999.D0 ! [m]
+             200                     
+             201                       logical,                     private, save :: hgrid_comm_flg  = .true.   ! [add] T.Ohno 110722
+             202                       real(8),                     private, save :: triangle_size   = 0.D0     ! [add] T.Ohno 110722 length of sides of triangle
+             203                     
+             204                       logical,                     private, save :: da_access_hgrid    = .false.
+             205                       logical,                     private, save :: topo_direct_access = .false.  ! [add] H.Yashiro 20110819
+             206                       character(len=ADM_NSYS),     private, save :: hgrid_io_mode      = 'LEGACY' ! [add] H.Yashiro 20110819
+             207                       character(len=ADM_NSYS),     private, save :: topo_io_mode       = 'LEGACY' ! [add] H.Yashiro 20110819
+             208                     
+             209                       logical,                     private, save :: output_vgrid       = .false.
+             210                     
+             211                       !-----------------------------------------------------------------------------
+             212                     contains
+             213                     
+             214                       !-----------------------------------------------------------------------------
+             215                       !>
+             216                       !> Setup routine for grid module.
+             217                       !>    1. set the horizontal grid
+             218                       !>    2. set the vertical grid
+             219                       !>    3. set the topograph
+             220                       !>
+             221                       subroutine GRD_setup
+             222                         use mod_adm, only :  &
+             223                              ADM_CTL_FID,    &
+             224                              ADM_PRC_PL,     &
+             225                              ADM_lall_pl,    &
+             226                              ADM_gall_pl,    &
+             227                              ADM_TI,         &
+             228                              ADM_TJ,         &
+             229                              ADM_GSLF_PL,    &
+             230                              ADM_KNONE,      &
+             231                              ADM_VNONE,      &
+             232                              ADM_prc_me,     &
+             233                              ADM_lall,       &
+             234                              ADM_kall,       &
+             235                              ADM_gmin,       &
+             236                              ADM_gmax,       &
+             237                              ADM_gall,       &
+             238                              ADM_gall_1d,    &
+             239                              ADM_kmin,       &
+             240                              ADM_kmax,       &
+             241                              ADM_prc_run_master,&
+             242                              ADM_proc_stop
+             243                         use mod_cnst, only : &
+             244                              CNST_ERADIUS
+             245                         use mod_comm, only :  &
+             246                              COMM_data_transfer, &
+             247                              COMM_var ! [add] H.Yashiro 20110819
+             248                         implicit none
+             249                     
+             250                         namelist / GRDPARAM / &
+             251                             vgrid_fname,     & !--- vertical grid file-name
+             252                             hgrid_fname,     & !--- horizontal grid basename
+             253                             topo_fname,      & !--- topography basename
+             254                             toposd_fname,    & !--- standard deviation of topography basename
+             255                             vegeindex_fname, & !--- vegetation index basename
+             256                             vgrid_scheme,    & !--- verical grid scheme
+             257                             h_efold,         & !--- efolding height for hybrid vertical grid.
+             258                             hflat,           &
+             259                             output_vgrid,    & !--- output verical grid file?
+             260                             hgrid_comm_flg,  & !--- communicate GRD_x           ! [add] T.Ohno 110722
+             261                             triangle_size,   & !--- length of sides of triangle ! [add] T.Ohno 110722
+             262                             GRD_grid_type,   & !--- grid type                   ! [add] T.Ohno 110722
+             263                             da_access_hgrid, &
+             264                             hgrid_io_mode,   & !--- io type(hgrid) [add] H.Yashiro 20110819
+             265                             topo_io_mode       !--- io type(topo)  [add] H.Yashiro 20110819
+             266                     
+             267                         integer :: n,k,l
+             268                         integer :: ierr
+             269                     
+             270                         integer :: kflat, K0
+             271                         real(8) :: htop
+             272                     
+             273                         real(8) :: fac_scale ! [add] T.Ohno 110722
+             274                     
+             275                         integer :: nstart,nend
+             276                         integer :: i,j,suf
+             277                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+             278                         !---------------------------------------------------------------------------
+             279                     
+             280                         !--- read parameters
+             281                         write(ADM_LOG_FID,*)
+             282                         write(ADM_LOG_FID,*) '+++ Module[grd]/Category[common share]'
+             283                         rewind(ADM_CTL_FID)
+             284                         read(ADM_CTL_FID,nml=GRDPARAM,iostat=ierr)
+             285     1                   if ( ierr < 0 ) then
+             286     1                      write(ADM_LOG_FID,*) '*** GRDPARAM is not specified. use default.'
+             287     1                   elseif( ierr > 0 ) then
+             288     1                      write(*,          *) 'xxx Not appropriate names in namelist GRDPARAM. STOP.'
+             289     1                      write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist GRDPARAM. STOP.'
+             290     1                      call ADM_proc_stop
+             291     1                   endif
+             292                         write(ADM_LOG_FID,GRDPARAM)
+             293                     
+             294                         K0 = ADM_KNONE
+             295                     
+             296                         !
+             297                         !--- < setting the horizontal grid > ---
+             298                         !
+             299                         !------ allocation and intitialization of horizontal grid points
+             300                         !------ ( cell CENTER )
+             301                         allocate( GRD_x   (ADM_gall,   K0,ADM_lall,   GRD_XDIR:GRD_ZDIR) )
+             302                         allocate( GRD_x_pl(ADM_gall_pl,K0,ADM_lall_pl,GRD_XDIR:GRD_ZDIR) )
+             303                     
+             304                         !------ allocation and intitialization of horizontal grid points
+             305                         !------  ( cell CORNER )
+             306                         allocate( GRD_xt   (ADM_gall,   K0,ADM_lall,   ADM_TI:ADM_TJ,GRD_XDIR:GRD_ZDIR) )
+             307                         allocate( GRD_xt_pl(ADM_gall_pl,K0,ADM_lall_pl,              GRD_XDIR:GRD_ZDIR) )
+             308                     
+             309                         !--- reading the horzontal grid (unit sphere) and
+             310                         !--- scaled by earth radius
+             311                         call GRD_input_hgrid( hgrid_fname,  & ![IN]
+             312                                               .true.,       & ![IN]
+             313                                               hgrid_io_mode ) ![IN]
+             314                     
+             315                         !--- data transfer for GRD_x
+             316                         !--- note : do not communicate GRD_xt
+             317                         if( hgrid_comm_flg ) call COMM_data_transfer(GRD_x,GRD_x_pl) ! [mod] T.Ohno 110722
+             318                     
+             319                         ! save unscaled grid points as the unit vector
+             320                         allocate( GRD_e   (ADM_gall,   ADM_lall,   GRD_XDIR:GRD_ZDIR) )
+             321                         allocate( GRD_e_pl(ADM_gall_pl,ADM_lall_pl,GRD_XDIR:GRD_ZDIR) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             322        pp   8v          GRD_e   (:,:,:) = GRD_x   (:,K0,:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 4
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             323        pp   8v          GRD_e_pl(:,:,:) = GRD_x_pl(:,K0,:,:)
+             324                     
+             325                         ! [mod] T.Ohno 110722 ==>
+             326     1                   if ( trim(GRD_grid_type) == 'ON_PLANE' ) then
+             327     1                      fac_scale = triangle_size
+             328     1                   else
+             329     1                      fac_scale = CNST_ERADIUS
+             330     1                   endif
+             331                     
+             332                         call GRD_scaling(fac_scale)
+             333                         ! [mod] T.Ohno 110722 <==
+             334                     
+             335                     
+             336                         !------ allocation, initialization, and
+             337                         !------ reading of surface height, standard deviation, vegetation index
+             338                         allocate(GRD_zs   (ADM_gall,   K0,ADM_lall,   GRD_ZSFC:GRD_VEGINDX))
+             339                         allocate(GRD_zs_pl(ADM_gall_pl,K0,ADM_lall_pl,GRD_ZSFC:GRD_VEGINDX))
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             340        pp    v          GRD_zs   (:,:,:,:) = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             341        pp    v          GRD_zs_pl(:,:,:,:) = 0.D0
+             342                     
+             343                         ! -> [add] R.Yoshida 20121020
+             344     1                   if ( trim(topo_fname) == 'Jablonowski' ) then
+             345     1                      call GRD_jbw_init_topo
+             346     1                   elseif ( trim(topo_fname) == 'Mountainwave' ) then
+             347     1                      call GRD_mwave_init_topo
+             348     1                   else
+             349     1                      call GRD_input_topograph(topo_fname,GRD_ZSFC)
+             350     1                   endif
+             351                         ! <- [add] R.Yoshida 20121020
+             352                     
+             353                         call GRD_input_topograph(toposd_fname,   GRD_ZSD)
+             354                         call GRD_input_topograph(vegeindex_fname,GRD_VEGINDX)
+             355                     
+             356                         !--- data transfer for GRD_zs
+             357     1                   if (topo_direct_access) then ! [add] H.Yashiro 20110819
+             358     1                      call COMM_var( GRD_zs, GRD_zs_pl, K0, 3, comm_type=2, NSval_fix=.true. )
+             359     1                   else
+             360     1                      call COMM_data_transfer(GRD_zs,GRD_zs_pl)
+             361     1                   endif
+             362                     
+             363                         !
+             364                         !--- < setting the vertical coordinate > ---
+             365                         !
+             366     1                   if( ADM_kall /= ADM_KNONE ) then
+             367     1               
+             368     1                      !------ allocation of vertical grid.
+             369     1                      allocate( GRD_gz   (ADM_kall) )
+             370     1                      allocate( GRD_gzh  (ADM_kall) )
+             371     1                      allocate( GRD_dgz  (ADM_kall) )
+             372     1                      allocate( GRD_dgzh (ADM_kall) )
+             373     1                      allocate( GRD_rdgz (ADM_kall) )
+             374     1                      allocate( GRD_rdgzh(ADM_kall) )
+             375     1               
+             376     1                      !------ input the vertical grid.
+             377     1                      call GRD_input_vgrid(vgrid_fname)
+             378     1               
+             379     1                      !------ calculation of grid intervals ( cell center )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 843
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             380     2  pp   8v             do k = ADM_kmin-1, ADM_kmax
+             381     2   p   8v                GRD_dgz(k) = GRD_gzh(k+1) - GRD_gzh(k)
+             382     2   p   8v             enddo
+             383     1                      GRD_dgz(ADM_kmax+1) = GRD_dgz(ADM_kmax)
+             384     1               
+             385     1                      !------ calculation of grid intervals ( cell wall )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 843
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             386     2  pp   8v             do k = ADM_kmin, ADM_kmax+1
+             387     2   p   8v                GRD_dgzh(k) = GRD_gz(k) - GRD_gz(k-1)
+             388     2   p   8v             enddo
+             389     1                      GRD_dgzh(ADM_kmin-1) = GRD_dgzh(ADM_kmin)
+             390     1               
+             391     1                      !------ calculation of 1/dgz and 1/dgzh
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 327
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             392     2  pp   4v             do k = 1, ADM_kall
+             393     2   p   4v                GRD_rdgz (k) = 1.D0 / grd_dgz (k)
+             394     2   p   4v                GRD_rdgzh(k) = 1.D0 / grd_dgzh(k)
+             395     2   p   4v             enddo
+             396     1               
+             397     1                      !------ hight top
+             398     1                      GRD_htop = GRD_gzh(ADM_kmax+1) - GRD_gzh(ADM_kmin)
+             399     1               
+             400     1                      !--- < vertical interpolation factor > ---
+             401     1                      allocate( GRD_afac(ADM_kall) )
+             402     1                      allocate( GRD_bfac(ADM_kall) )
+             403     1                      allocate( GRD_cfac(ADM_kall) )
+             404     1                      allocate( GRD_dfac(ADM_kall) )
+             405     1               
+             406     1                      !------ From the cell center value to the cell wall value
+             407     1                      !------     A(k-1/2) = ( afac(k) A(k) + bfac(k) * A(k-1) ) / 2
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 552
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             408     2  pp   6v             do k = ADM_kmin, ADM_kmax+1
+             409     2   p   6v                GRD_afac(k) = 2.D0 * ( GRD_gzh(k) - GRD_gz(k-1) ) &
+             410     2                                            / ( GRD_gz (k) - GRD_gz(k-1) )
+             411     2   p   6v             enddo
+             412     1                      GRD_afac(ADM_kmin-1) = 2.D0
+             413     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             414     1  pp   8v             GRD_bfac(:) = 2.D0 - GRD_afac(:)
+             415     1               
+             416     1                      !------ From the cell wall value to the cell center value
+             417     1                      !------     A(k) = ( cfac(k) A(k+1/2) + dfac(k) * A(k-1/2) ) / 2
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 552
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             418     2  pp   6v             do k = ADM_kmin, ADM_kmax
+             419     2   p   6v                GRD_cfac(k) = 2.D0 * ( GRD_gz (k  ) - GRD_gzh(k) ) &
+             420     2                                            / ( GRD_gzh(k+1) - GRD_gzh(k) )
+             421     2   p   6v             enddo
+             422     1                      GRD_cfac(ADM_kmin-1) = 2.D0
+             423     1                      GRD_cfac(ADM_kmax+1) = 0.D0
+             424     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1334
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             425     1  pp   8v             GRD_dfac(:) = 2.D0 - GRD_cfac(:)
+             426     1               
+             427     1                      !------ allocation, initilization, and setting the z-coordinate
+             428     1                      allocate( GRD_vz   ( ADM_gall,   ADM_kall,ADM_lall,   GRD_Z:GRD_ZH) )
+             429     1                      allocate( GRD_vz_pl( ADM_gall_pl,ADM_kall,ADM_lall_pl,GRD_Z:GRD_ZH) )
+             430     1               
+             431     2                      select case(trim(vgrid_scheme))
+             432     2                      case('LINEAR')
+             433     2                         !--- linear transfromation : (Gal-Chen & Sommerville(1975)
+             434     2                         !---     gz = H(z-zs)/(H-zs) -> z = (H-zs)/H * gz + zs
+             435     2                         kflat = -1
+             436     3                         if ( hflat > 0.D0 ) then !--- default : -999.0
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 14
+                                   <<<      GRD_gzh: 14
+                                   <<< Loop-information  End >>>
+             437     4       8                    do k = ADM_kmin+1, ADM_kmax+1
+             438     5       8                       if ( hflat < GRD_gzh(k) ) then
+             439     5       8                          kflat = k
+             440     5       8                          exit
+             441     5       8                       endif
+             442     4       8                    enddo
+             443     3                         endif
+             444     2               
+             445     3                         if ( kflat == -1 ) then
+             446     3                            kflat = ADM_kmax + 1
+             447     3                            htop  = GRD_htop
+             448     3                         else
+             449     3                            htop = GRD_gzh(kflat) - GRD_gzh(ADM_kmin)
+             450     3                         endif
+             451     2               
+             452     2                         K0 = ADM_KNONE
+             453     2                         nstart = suf(ADM_gmin,ADM_gmin)
+             454     2                         nend   = suf(ADM_gmax,ADM_gmax)
+             455     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             456     3  pp                     do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_gz: 8, GRD_gzh: 8
+                                   <<< Loop-information  End >>>
+             457     4  pp                        do k = ADM_kmin-1, kflat
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 116
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             458     5  pp   8v                      do n = nstart,nend
+             459     5   p   8v                         GRD_vz(n,k,l,GRD_Z ) = GRD_zs(n,K0,l,GRD_ZSFC) &
+             460     5                                                       + ( htop - GRD_zs(n,K0,l,GRD_ZSFC) ) / htop * GRD_gz(k)
+             461     5   p   8v                         GRD_vz(n,k,l,GRD_ZH) = GRD_zs(n,K0,l,GRD_ZSFC) &
+             462     5                                                       + ( htop - GRD_zs(n,K0,l,GRD_ZSFC) ) / htop * GRD_gzh(k)
+             463     5   p   8v                      enddo
+             464     4   p                        enddo
+             465     3               
+             466     4   p                        if ( kflat < ADM_kmax+1 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_gz: 8, GRD_gzh: 8
+                                   <<< Loop-information  End >>>
+             467     5  pp                           do k = kflat+1, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 196
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             468     6  pp   8v                         do n = nstart, nend
+             469     6   p   8v                            GRD_vz(n,k,l,GRD_Z ) = GRD_gz (k)
+             470     6   p   8v                            GRD_vz(n,k,l,GRD_ZH) = GRD_gzh(k)
+             471     6   p   8v                         enddo
+             472     5   p                           enddo
+             473     4   p                        endif
+             474     3   p                     enddo
+             475     2               
+             476     3                         if ( ADM_prc_me == ADM_prc_pl ) then
+             477     3                            n = ADM_GSLF_PL
+             478     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             479     4  pp                        do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 119
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             480     5  pp   4v                      do k = ADM_kmin-1, kflat
+             481     5   p   4v                         GRD_vz_pl(n,k,l,GRD_Z)  = GRD_zs_pl(n,K0,l,GRD_ZSFC) &
+             482     5                                                          + ( htop - GRD_zs_pl(n,K0,l,GRD_ZSFC) ) / htop * GRD_gz(k)
+             483     5   p   4v                         GRD_vz_pl(n,k,l,GRD_ZH) = GRD_zs_pl(n,K0,l,GRD_ZSFC) &
+             484     5                                                          + ( htop - GRD_zs_pl(n,K0,l,GRD_ZSFC) ) / htop * GRD_gzh(k)
+             485     5   p   4v                      enddo
+             486     4               
+             487     5   p                           if ( kflat < ADM_kmax+1 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 696
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             488     6  pp   6v                         do k = kflat+1, ADM_kmax+1
+             489     6   p   6v                            GRD_vz_pl(n,k,l,GRD_Z ) = GRD_gz (k)
+             490     6   p   6v                            GRD_vz_pl(n,k,l,GRD_ZH) = GRD_gzh(k)
+             491     6   p   6v                         enddo
+             492     5   p                           endif
+             493     4   p                        enddo
+             494     3                         endif
+             495     2               
+             496     2                      case('HYBRID')
+             497     2                         !--------- Hybrid transformation : like as Simmons & Buridge(1981)
+             498     2                         K0 = ADM_KNONE
+             499     2                         nstart = suf(ADM_gmin,ADM_gmin)
+             500     2                         nend   = suf(ADM_gmax,ADM_gmax)
+             501     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             502     3  pp                     do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 16
+                                   <<<      GRD_gz: 8, GRD_gzh: 8
+                                   <<< Loop-information  End >>>
+             503     4  pp                        do k = ADM_kmin-1, ADM_kmax+1
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 13
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             504     5  pp   8v                      do n = nstart,nend
+             505     5   p   8v                         GRD_vz(n,k,l,GRD_Z)  = GRD_gz(k)                              &
+             506     5                                                       + GRD_zs(n,K0,l,ADM_VNONE)               &
+             507     5                                                       * sinh( (GRD_htop-GRD_gz(k)) / h_efold ) &
+             508     5                                                       / sinh(  GRD_htop            / h_efold )
+             509     5   p   8v                         GRD_vz(n,k,l,GRD_ZH) = GRD_gzh(k)                              &
+             510     5                                                       + GRD_zs(n,K0,l,ADM_VNONE)                &
+             511     5                                                       * sinh( (GRD_htop-GRD_gzh(k)) / h_efold ) &
+             512     5                                                       / sinh(  GRD_htop             / h_efold )
+             513     5   p   8v                      enddo
+             514     4   p                        enddo
+             515     3   p                     enddo
+             516     2               
+             517     3                         if ( ADM_prc_me == ADM_prc_pl ) then
+             518     3                            n = ADM_GSLF_PL
+             519     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             520     4  pp                        do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 13
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             521     5  pp   4v                      do k = ADM_kmin-1, ADM_kmax+1
+             522     5   p   4v                         GRD_vz_pl(n,k,l,GRD_Z)  = GRD_gz(k)                              &
+             523     5                                                          + GRD_zs_pl(n,K0,l,ADM_VNONE)            &
+             524     5                                                          * sinh( (GRD_htop-GRD_gz(k)) / h_efold ) &
+             525     5                                                          / sinh(  GRD_htop            / h_efold )
+             526     5   p   4v                         GRD_vz_pl(n,k,l,GRD_ZH) = GRD_gzh(k)                              &
+             527     5                                                          + GRD_zs_pl(n,K0,l,ADM_VNONE)             &
+             528     5                                                          * sinh( (GRD_htop-GRD_gzh(k)) / h_efold ) &
+             529     5                                                          / sinh(  GRD_htop             / h_efold )
+             530     5   p   4v                      enddo
+             531     4   p                        enddo
+             532     3                         endif
+             533     2               
+             534     2                      endselect
+             535     1               
+             536     1                      call COMM_data_transfer(GRD_vz,GRD_vz_pl)
+             537     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             538     1  pp   6s             GRD_vz(suf(1,ADM_gall_1d),:,:,:) = GRD_vz(suf(ADM_gmin,ADM_gmin),:,:,:)
+             539     1   p   6s             GRD_vz(suf(ADM_gall_1d,1),:,:,:) = GRD_vz(suf(ADM_gmin,ADM_gmin),:,:,:)
+             540     1                   endif
+             541                     
+             542                         !--- output information about grid.
+             543     1                   if ( ADM_kall /= ADM_KNONE ) then
+             544     1                      write(ADM_LOG_FID,*)
+             545     1                      write(ADM_LOG_FID,'(5x,A)')             '|======      Vertical Coordinate [m]      ======|'
+             546     1                      write(ADM_LOG_FID,'(5x,A)')             '|                                               |'
+             547     1                      write(ADM_LOG_FID,'(5x,A)')             '|          -GRID CENTER-       -GRID INTERFACE- |'
+             548     1                      write(ADM_LOG_FID,'(5x,A)')             '|  k        gz     d(gz)      gzh    d(gzh)   k |'
+             549     1                      write(ADM_LOG_FID,'(5x,A)')             '|                                               |'
+             550     1                      k = ADM_kmax + 1
+             551     1                      write(ADM_LOG_FID,'(5x,A,I3,2F10.1,A)') '|',k,GRD_gz(k),GRD_dgz(k), '                        | dummy'
+             552     1                      write(ADM_LOG_FID,'(5x,A,2F10.1,I4,A)') '|                      ',GRD_gzh(k),GRD_dgzh(k),k,' | TOA'
+             553     1                      k = ADM_kmax
+             554     1                      write(ADM_LOG_FID,'(5x,A,I3,2F10.1,A)') '|',k,GRD_gz(k),GRD_dgz(k), '                        | kmax'
+             555     1                      write(ADM_LOG_FID,'(5x,A,2F10.1,I4,A)') '|                      ',GRD_gzh(k),GRD_dgzh(k),k,' |'
+             556     2   s    s             do k = ADM_kmax-1, ADM_kmin+1, -1
+             557     2   m    m             write(ADM_LOG_FID,'(5x,A,I3,2F10.1,A)') '|',k,GRD_gz(k),GRD_dgz(k), '                        |'
+             558     2   m    m             write(ADM_LOG_FID,'(5x,A,2F10.1,I4,A)') '|                      ',GRD_gzh(k),GRD_dgzh(k),k,' |'
+             559     2   p    v             enddo
+             560     1                      k = ADM_kmin
+             561     1                      write(ADM_LOG_FID,'(5x,A,I3,2F10.1,A)') '|',k,GRD_gz(k),GRD_dgz(k), '                        | kmin'
+             562     1                      write(ADM_LOG_FID,'(5x,A,2F10.1,I4,A)') '|                      ',GRD_gzh(k),GRD_dgzh(k),k,' | ground'
+             563     1                      k = ADM_kmin-1
+             564     1                      write(ADM_LOG_FID,'(5x,A,I3,2F10.1,A)') '|',k,GRD_gz(k),GRD_dgz(k), '                        | dummy'
+             565     1                      write(ADM_LOG_FID,'(5x,A)')             '|===============================================|'
+             566     1               
+             567     1                      write(ADM_LOG_FID,*)
+             568     1                      write(ADM_LOG_FID,*) '--- Vertical layer scheme = ', trim(vgrid_scheme)
+             569     2                      if ( vgrid_scheme == 'HYBRID' ) then
+             570     2                         write(ADM_LOG_FID,*) '--- e-folding height = ', h_efold
+             571     2                      endif
+             572     1               
+             573     2                      if ( output_vgrid ) then
+             574     3                         if ( ADM_prc_me == ADM_prc_run_master ) then
+             575     3                            call GRD_output_vgrid('./vgrid_used.dat')
+             576     3                         endif
+             577     2                      endif
+             578     1                   else
+             579     1                      write(ADM_LOG_FID,*)
+             580     1                      write(ADM_LOG_FID,*) '--- vartical layer = 1'
+             581     1                   endif
+             582                     
+             583                         return
+             584                       end subroutine GRD_setup
+             585                     
+             586                       !-----------------------------------------------------------------------------
+             587                       !>
+             588                       !> Description of the subroutine GRD_scaling
+             589                       !>
+             590                       subroutine GRD_scaling( fact )
+             591                         implicit none
+             592                     
+             593                         real(8), intent(in) :: fact !--- IN : scaling factor
+             594                         !---------------------------------------------------------------------------
+             595                     
+             596                         ! [mod] T.Ohno 110722 ==>
+             597     1                   if ( trim(GRD_grid_type) == 'ON_PLANE' ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             598     1  pp   8v             GRD_x    (:,:,:,:)   = GRD_x    (:,:,:,:)   * fact
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             599     1  pp   8v             GRD_x_pl (:,:,:,:)   = GRD_x_pl (:,:,:,:)   * fact
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             600     1  pp   8v             GRD_xt   (:,:,:,:,:) = GRD_xt   (:,:,:,:,:) * fact
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             601     1  pp   8v             GRD_xt_pl(:,:,:,:)   = GRD_xt_pl(:,:,:,:)   * fact
+             602     1                   else
+             603     1                      !--- setting the sphere radius
+             604     1                      GRD_rscale = fact
+             605     1               
+             606     1                      !--- scaling by using GRD_rscale
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             607     1  pp   8v             GRD_x    (:,:,:,:)   = GRD_x    (:,:,:,:)   * GRD_rscale
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             608     1  pp   8v             GRD_x_pl (:,:,:,:)   = GRD_x_pl (:,:,:,:)   * GRD_rscale
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             609     1  pp   8v             GRD_xt   (:,:,:,:,:) = GRD_xt   (:,:,:,:,:) * GRD_rscale
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             610     1  pp   8v             GRD_xt_pl(:,:,:,:)   = GRD_xt_pl(:,:,:,:)   * GRD_rscale
+             611     1                   endif
+             612                         ! [mod] T.Ohno 110722 <==
+             613                     
+             614                         return
+             615                       end subroutine GRD_scaling
+             616                     
+             617                       !-----------------------------------------------------------------------------
+             618                       !>
+             619                       !> Description of the subroutine GRD_output_hgrid
+             620                       !>
+             621                       subroutine GRD_output_hgrid( &
+             622                            basename,      &
+             623                            output_vertex, &
+             624                            io_mode        )
+             625                         use mod_misc, only: &
+             626                            MISC_make_idstr,&
+             627                            MISC_get_available_fid
+             628                         use mod_adm, only: &
+             629                            ADM_proc_stop, &
+             630                            ADM_prc_tab,   &
+             631                            ADM_prc_me,    &
+             632                            ADM_TI,        &
+             633                            ADM_TJ,        &
+             634                            ADM_gall,      &
+             635                            ADM_lall,      &
+             636                            ADM_KNONE
+             637                         use mod_fio, only: & ! [add] H.Yashiro 20110819
+             638                            FIO_output, &
+             639                            FIO_HMID,   &
+             640                            FIO_REAL8
+             641                         implicit none
+             642                     
+             643                         character(len=*), intent(in) :: basename      ! output basename
+             644                         logical,          intent(in) :: output_vertex ! output flag of B-grid
+             645                         character(len=*), intent(in) :: io_mode       ! io_mode
+             646                     
+             647                         character(len=ADM_MAXFNAME) :: fname
+             648                         character(len=FIO_HMID)     :: desc = 'HORIZONTAL GRID FILE'
+             649                     
+             650                         integer :: fid
+             651                         integer :: rgnid, l, K0
+             652                         !---------------------------------------------------------------------------
+             653                     
+             654                         K0 = ADM_KNONE
+             655                     
+             656     1                   if ( io_mode == 'ADVANCED' ) then
+             657     1               
+             658     1                      call FIO_output( GRD_x(:,:,:,GRD_XDIR),                           &
+             659     1                                       basename, desc, "",                              &
+             660     1                                      "grd_x_x", "GRD_x (X_DIR)", "",                   &
+             661     1                                      "NIL", FIO_REAL8, "ZSSFC1", K0, K0, 1, 0.D0, 0.D0 )
+             662     1                      call FIO_output( GRD_x(:,:,:,GRD_YDIR),                           &
+             663     1                                       basename, desc, '',                              &
+             664     1                                      'grd_x_y', 'GRD_x (Y_DIR)', '',                   &
+             665     1                                      'NIL', FIO_REAL8, 'ZSSFC1', K0, K0, 1, 0.D0, 0.D0 )
+             666     1                      call FIO_output( GRD_x(:,:,:,GRD_ZDIR),                           &
+             667     1                                       basename, desc, '',                              &
+             668     1                                      'grd_x_z', 'GRD_x (Z_DIR)', '',                   &
+             669     1                                      'NIL', FIO_REAL8, 'ZSSFC1', K0, K0, 1, 0.D0, 0.D0 )
+             670     1               
+             671     2                      if ( output_vertex ) then
+             672     2                         call FIO_output( GRD_xt(:,:,:,ADM_TI,GRD_XDIR),                   &
+             673     2                                          basename, desc, '',                              &
+             674     2                                         'grd_xt_ix', 'GRD_xt (TI,X_DIR)', '',             &
+             675     2                                         'NIL', FIO_REAL8, 'ZSSFC1', K0, K0, 1, 0.D0, 0.D0 )
+             676     2                         call FIO_output( GRD_xt(:,:,:,ADM_TJ,GRD_XDIR),                   &
+             677     2                                          basename, desc, '',                              &
+             678     2                                         'grd_xt_jx', 'GRD_xt (TJ,X_DIR)', '',             &
+             679     2                                         'NIL', FIO_REAL8, 'ZSSFC1', K0, K0, 1, 0.D0, 0.D0 )
+             680     2                         call FIO_output( GRD_xt(:,:,:,ADM_TI,GRD_YDIR),                   &
+             681     2                                          basename, desc, '',                              &
+             682     2                                         'grd_xt_iy', 'GRD_xt (TI,Y_DIR)', '',             &
+             683     2                                         'NIL', FIO_REAL8, 'ZSSFC1', K0, K0, 1, 0.D0, 0.D0 )
+             684     2                         call FIO_output( GRD_xt(:,:,:,ADM_TJ,GRD_YDIR),                   &
+             685     2                                          basename, desc, '',                              &
+             686     2                                         'grd_xt_jy', 'GRD_xt (TJ,Y_DIR)', '',             &
+             687     2                                         'NIL', FIO_REAL8, 'ZSSFC1', K0, K0, 1, 0.D0, 0.D0 )
+             688     2                         call FIO_output( GRD_xt(:,:,:,ADM_TI,GRD_ZDIR),                   &
+             689     2                                          basename, desc, '',                              &
+             690     2                                         'grd_xt_iz', 'GRD_xt (TI,Z_DIR)', '',             &
+             691     2                                         'NIL', FIO_REAL8, 'ZSSFC1', K0, K0, 1, 0.D0, 0.D0 )
+             692     2                         call FIO_output( GRD_xt(:,:,:,ADM_TJ,GRD_ZDIR),                   &
+             693     2                                          basename, desc, '',                              &
+             694     2                                         'grd_xt_jz', 'GRD_xt (TJ,Z_DIR)', '',             &
+             695     2                                         'NIL', FIO_REAL8, 'ZSSFC1', K0, K0, 1, 0.D0, 0.D0 )
+             696     2                      endif
+             697     1               
+             698     1                   elseif( io_mode == 'LEGACY' ) then
+             699     1               
+             700     2                      do l = 1, ADM_lall
+             701     2                         rgnid = ADM_prc_tab(l,ADM_prc_me)
+             702     2                         call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             703     2               
+             704     2                         fid = MISC_get_available_fid()
+             705     2                         open( unit = fid, &
+             706     2                              file=trim(fname),   &
+             707     2                              form='unformatted', &
+             708     2                              access='direct',    &
+             709     2                              recl=ADM_gall*8     )
+             710     2               
+             711     2                            write(fid,rec=1) GRD_x(:,K0,l,GRD_XDIR)
+             712     2                            write(fid,rec=2) GRD_x(:,K0,l,GRD_YDIR)
+             713     2                            write(fid,rec=3) GRD_x(:,K0,l,GRD_ZDIR)
+             714     3                            if ( output_vertex ) then
+             715     3                               write(fid,rec=4) GRD_xt(:,K0,l,ADM_TI,GRD_XDIR)
+             716     3                               write(fid,rec=5) GRD_xt(:,K0,l,ADM_TI,GRD_YDIR)
+             717     3                               write(fid,rec=6) GRD_xt(:,K0,l,ADM_TI,GRD_ZDIR)
+             718     3                               write(fid,rec=7) GRD_xt(:,K0,l,ADM_TJ,GRD_XDIR)
+             719     3                               write(fid,rec=8) GRD_xt(:,K0,l,ADM_TJ,GRD_YDIR)
+             720     3                               write(fid,rec=9) GRD_xt(:,K0,l,ADM_TJ,GRD_ZDIR)
+             721     3                            endif
+             722     2                         close(fid)
+             723     2                      enddo
+             724     1                   else
+             725     1                      write(ADM_LOG_FID,*) 'Invalid io_mode!'
+             726     1                      call ADM_proc_stop
+             727     1                   endif
+             728                     
+             729                         return
+             730                       end subroutine GRD_output_hgrid
+             731                     
+             732                       !-----------------------------------------------------------------------------
+             733                       !>
+             734                       !> Description of the subroutine GRD_input_hgrid
+             735                       !>
+             736                       subroutine GRD_input_hgrid( &
+             737                            basename,     &
+             738                            input_vertex, &
+             739                            io_mode       )
+             740                         use mod_misc, only: &
+             741                            MISC_make_idstr,       &
+             742                            MISC_get_available_fid
+             743                         use mod_adm, only: &
+             744                            ADM_proc_stop, &
+             745                            ADM_prc_tab,   &
+             746                            ADM_prc_me,    &
+             747                            ADM_TI,        &
+             748                            ADM_TJ,        &
+             749                            ADM_gall,      &
+             750                            ADM_lall,      &
+             751                            ADM_KNONE
+             752                         use mod_fio, only : & ! [add] H.Yashiro 20110819
+             753                            FIO_input
+             754                         implicit none
+             755                     
+             756                         character(len=*), intent(in) :: basename     ! input basename
+             757                         logical,          intent(in) :: input_vertex ! flag of B-grid input
+             758                         character(len=*), intent(in) :: io_mode      ! io_mode
+             759                     
+             760                         character(len=ADM_MAXFNAME) :: fname
+             761                     
+             762                         integer :: fid, ierr
+             763                         integer :: rgnid, l, K0
+             764                         !---------------------------------------------------------------------------
+             765                     
+             766                         K0 = ADM_KNONE
+             767                     
+             768     1                   if ( io_mode == 'ADVANCED' ) then
+             769     1               
+             770     1                      call FIO_input(GRD_x(:,:,:,GRD_XDIR),basename,'grd_x_x','ZSSFC1',K0,K0,1)
+             771     1                      call FIO_input(GRD_x(:,:,:,GRD_YDIR),basename,'grd_x_y','ZSSFC1',K0,K0,1)
+             772     1                      call FIO_input(GRD_x(:,:,:,GRD_ZDIR),basename,'grd_x_z','ZSSFC1',K0,K0,1)
+             773     2                      if ( input_vertex ) then
+             774     2                         call FIO_input(GRD_xt(:,:,:,ADM_TI,GRD_XDIR),basename, &
+             775     2                                        'grd_xt_ix','ZSSFC1',K0,K0,1            )
+             776     2                         call FIO_input(GRD_xt(:,:,:,ADM_TJ,GRD_XDIR),basename, &
+             777     2                                        'grd_xt_jx','ZSSFC1',K0,K0,1            )
+             778     2                         call FIO_input(GRD_xt(:,:,:,ADM_TI,GRD_YDIR),basename, &
+             779     2                                        'grd_xt_iy','ZSSFC1',K0,K0,1            )
+             780     2                         call FIO_input(GRD_xt(:,:,:,ADM_TJ,GRD_YDIR),basename, &
+             781     2                                        'grd_xt_jy','ZSSFC1',K0,K0,1            )
+             782     2                         call FIO_input(GRD_xt(:,:,:,ADM_TI,GRD_ZDIR),basename, &
+             783     2                                        'grd_xt_iz','ZSSFC1',K0,K0,1            )
+             784     2                         call FIO_input(GRD_xt(:,:,:,ADM_TJ,GRD_ZDIR),basename, &
+             785     2                                        'grd_xt_jz','ZSSFC1',K0,K0,1            )
+             786     2                      endif
+             787     1               
+             788     1                   elseif( io_mode == 'LEGACY' ) then
+             789     1               
+             790     2                      do l = 1, ADM_lall
+             791     2                         rgnid = ADM_prc_tab(l,ADM_prc_me)
+             792     2                         call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             793     2               
+             794     2                         fid = MISC_get_available_fid()
+             795     2                         open( unit   = fid,           &
+             796     2                               file   = trim(fname),   &
+             797     2                               form   = 'unformatted', &
+             798     2                               access = 'direct',      &
+             799     2                               recl   = ADM_gall*8,    &
+             800     2                               status = 'old',         &
+             801     2                               iostat = ierr           )
+             802     2               
+             803     3                            if ( ierr /= 0 ) then
+             804     3                               write(ADM_LOG_FID,*) 'xxx Error occured in reading grid file.', trim(fname)
+             805     3                               call ADM_proc_stop
+             806     3                            endif
+             807     2               
+             808     2                            read(fid,rec=1) GRD_x(:,K0,l,GRD_XDIR)
+             809     2                            read(fid,rec=2) GRD_x(:,K0,l,GRD_YDIR)
+             810     2                            read(fid,rec=3) GRD_x(:,K0,l,GRD_ZDIR)
+             811     3                            if ( input_vertex ) then
+             812     3                               read(fid,rec=4) GRD_xt(:,K0,l,ADM_TI,GRD_XDIR)
+             813     3                               read(fid,rec=5) GRD_xt(:,K0,l,ADM_TI,GRD_YDIR)
+             814     3                               read(fid,rec=6) GRD_xt(:,K0,l,ADM_TI,GRD_ZDIR)
+             815     3                               read(fid,rec=7) GRD_xt(:,K0,l,ADM_TJ,GRD_XDIR)
+             816     3                               read(fid,rec=8) GRD_xt(:,K0,l,ADM_TJ,GRD_YDIR)
+             817     3                               read(fid,rec=9) GRD_xt(:,K0,l,ADM_TJ,GRD_ZDIR)
+             818     3                            endif
+             819     2                         close(fid)
+             820     2                      enddo
+             821     1               
+             822     1                   else
+             823     1                      write(ADM_LOG_FID,*) 'Invalid io_mode!'
+             824     1                      call ADM_proc_stop
+             825     1                   endif
+             826                     
+             827                         call GRD_gen_plgrid
+             828                     
+             829                         return
+             830                       end subroutine GRD_input_hgrid
+             831                     
+             832                       !-----------------------------------------------------------------------------
+             833                       !>
+             834                       !> Description of the subroutine GRD_input_vgrid
+             835                       !>
+             836                       subroutine GRD_input_vgrid( fname )
+             837                         use mod_misc, only: &
+             838                            MISC_get_available_fid
+             839                         use mod_adm, only: &
+             840                            ADM_LOG_FID,  &
+             841                            ADM_vlayer,   &
+             842                            ADM_proc_stop
+             843                         implicit none
+             844                     
+             845                         character(len=ADM_MAXFNAME), intent(in) :: fname ! vertical grid file name
+             846                     
+             847                         integer :: num_of_layer
+             848                         integer :: fid, ierr
+             849                         !---------------------------------------------------------------------------
+             850                     
+             851                         fid = MISC_get_available_fid()
+             852                         open( unit   = fid,           &
+             853                               file   = trim(fname),   &
+             854                               status = 'old',         &
+             855                               form   = 'unformatted', &
+             856                               iostat = ierr           )
+             857                     
+             858     1                      if ( ierr /= 0 ) then
+             859     1                         write(ADM_LOG_FID,*) 'xxx No vertical grid file.'
+             860     1                         call ADM_proc_stop
+             861     1                      endif
+             862                     
+             863                            read(fid) num_of_layer
+             864                     
+             865     1                      if ( num_of_layer /= ADM_vlayer ) then
+             866     1                         write(ADM_LOG_FID,*) 'xxx inconsistency in number of vertical layers.'
+             867     1                         call ADM_proc_stop
+             868     1                      endif
+             869                     
+             870                            read(fid) GRD_gz
+             871                            read(fid) GRD_gzh
+             872                     
+             873                         close(fid)
+             874                     
+             875                         return
+             876                       end subroutine GRD_input_vgrid
+             877                     
+             878                       !-----------------------------------------------------------------------------
+             879                       !>
+             880                       !> Description of the subroutine GRD_output_vgrid
+             881                       !>
+             882                       subroutine GRD_output_vgrid( fname )
+             883                         use mod_misc, only: &
+             884                            MISC_get_available_fid
+             885                         use mod_adm, only: &
+             886                            ADM_vlayer
+             887                         implicit none
+             888                     
+             889                         character(len=*), intent(in) :: fname
+             890                     
+             891                         integer :: fid
+             892                         !---------------------------------------------------------------------------
+             893                     
+             894                         fid = MISC_get_available_fid()
+             895                         open(fid,file=trim(fname),form='unformatted')
+             896                            write(fid) ADM_vlayer
+             897                            write(fid) GRD_gz
+             898                            write(fid) GRD_gzh
+             899                         close(fid)
+             900                     
+             901                         return
+             902                       end subroutine GRD_output_vgrid
+             903                     
+             904                       !-----------------------------------------------------------------------------
+             905                       !>
+             906                       !> Description of the subroutine GRD_input_topograph
+             907                       !>
+             908                       subroutine GRD_input_topograph( &
+             909                            basename, &
+             910                            i_var     )
+             911                         use mod_misc,  only: &
+             912                            MISC_make_idstr,&
+             913                            MISC_get_available_fid
+             914                         use mod_adm, only: &
+             915                            ADM_LOG_FID, &
+             916                            ADM_prc_tab, &
+             917                            ADM_prc_me,  &
+             918                            ADM_PRC_PL,  &
+             919                            ADM_lall,    &
+             920                            ADM_gall,    &
+             921                            ADM_KNONE
+             922                         use mod_fio, only: &
+             923                            FIO_input
+             924                         implicit none
+             925                     
+             926                         character(len=*), intent(in) :: basename
+             927                         integer,          intent(in) :: i_var
+             928                     
+             929                         character(len=16) :: varname(3)
+             930                         data varname / 'topo', 'topo_stddev', 'vegeindex' /
+             931                     
+             932                         character(len=128) :: fname
+             933                         integer            :: ierr
+             934                         integer            :: l, rgnid, fid
+             935                         !---------------------------------------------------------------------------
+             936                     
+             937     1                   if ( topo_io_mode == 'ADVANCED' ) then
+             938     1                      topo_direct_access = .true.
+             939     1               
+             940     1                      call FIO_input(GRD_zs(:,:,:,i_var),basename,varname(i_var),'ZSSFC1',1,1,1)
+             941     1               
+             942     1                   elseif( topo_io_mode == 'LEGACY' ) then
+             943     1               
+             944     2                      if ( topo_direct_access ) then !--- direct access ( defalut )
+             945     3                         do l = 1, ADM_lall
+             946     3                            rgnid = ADM_prc_tab(l,ADM_prc_me)
+             947     3                            call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             948     3                            fid = MISC_get_available_fid()
+             949     3               
+             950     3                            open( fid,                    &
+             951     3                                  file   = trim(fname),   &
+             952     3                                  form   = 'unformatted', &
+             953     3                                  access = 'direct',      &
+             954     3                                  recl   = ADM_gall*8,    &
+             955     3                                  status = 'old'          )
+             956     3               
+             957     3                               read(fid,rec=1) GRD_zs(:,ADM_KNONE,l,i_var)
+             958     3               
+             959     3                            close(fid)
+             960     3                         enddo
+             961     2                      else !--- sequential access
+             962     3                         do l = 1, ADM_lall
+             963     3                            rgnid = ADM_prc_tab(l,ADM_prc_me)
+             964     3                            call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             965     3                            fid = MISC_get_available_fid()
+             966     3               
+             967     3                            open(fid,file=trim(fname),status='old',form='unformatted',iostat=ierr)
+             968     4                               if ( ierr /= 0 ) then
+             969     4                                  write(ADM_LOG_FID,*) 'Msg : Sub[GRD_input_topograph]/Mod[grid]'
+             970     4                                  write(ADM_LOG_FID,*) '   *** No topographical file. Number :', i_var
+             971     4                                  return
+             972     4                               endif
+             973     3               
+             974     3                               read(fid) GRD_zs(:,ADM_KNONE,l,i_var)
+             975     3                            close(fid)
+             976     3                         enddo
+             977     2               
+             978     3                         if ( ADM_prc_me == ADM_prc_pl ) then
+             979     3                            fname = trim(basename)//'.pl'
+             980     3                            fid = MISC_get_available_fid()
+             981     3               
+             982     3                            open(fid,file=trim(fname),status='old',form='unformatted')
+             983     3                               read(fid) GRD_zs_pl(:,:,:,i_var)
+             984     3                            close(fid)
+             985     3                         endif
+             986     2                      endif !--- direct/sequencial
+             987     1               
+             988     1                   endif !--- io_mode
+             989                     
+             990                         return
+             991                       end subroutine GRD_input_topograph
+             992                     
+             993                       !-----------------------------------------------------------------------------
+             994                       !>
+             995                       !> Description of the subroutine GRD_gen_plgrid
+             996                       !>
+             997                       subroutine GRD_gen_plgrid
+             998                         use mod_adm, only: &
+             999                           ADM_rgn_nmax,       &
+            1000                           ADM_rgn_vnum,       &
+            1001                           ADM_rgn_vtab,       &
+            1002                           ADM_rgn2prc,        &
+            1003                           ADM_RID,            &
+            1004                           ADM_VLINK_NMAX,     &
+            1005                           ADM_COMM_RUN_WORLD, &
+            1006                           ADM_prc_tab,        &
+            1007                           ADM_prc_me,         &
+            1008                           ADM_prc_npl,        &
+            1009                           ADM_prc_spl,        &
+            1010                           ADM_TI,             &
+            1011                           ADM_TJ,             &
+            1012                           ADM_N,              &
+            1013                           ADM_S,              &
+            1014                           ADM_NPL,            &
+            1015                           ADM_SPL,            &
+            1016                           ADM_lall,           &
+            1017                           ADM_gall_1d,        &
+            1018                           ADM_gmax,           &
+            1019                           ADM_gmin,           &
+            1020                           ADM_KNONE,          &
+            1021                           ADM_GSLF_PL
+            1022                         use mod_comm, only: &
+            1023                           COMM_var
+            1024                         implicit none
+            1025                     
+            1026                         integer :: prctab   (ADM_VLINK_NMAX)
+            1027                         integer :: rgntab   (ADM_VLINK_NMAX)
+            1028                         integer :: sreq     (ADM_VLINK_NMAX)
+            1029                         integer :: rreq     (ADM_VLINK_NMAX)
+            1030                         logical :: send_flag(ADM_VLINK_NMAX)
+            1031                     
+            1032                     !    real(8) :: v_pl(GRD_XDIR:GRD_ZDIR,ADM_VLINK_NMAX)
+            1033                         real(8) :: vsend_pl(GRD_XDIR:GRD_ZDIR,ADM_VLINK_NMAX) ! [mod] H.Yashiro 20120525
+            1034                         real(8) :: vrecv_pl(GRD_XDIR:GRD_ZDIR,ADM_VLINK_NMAX) ! [mod] H.Yashiro 20120525
+            1035                     
+            1036                         integer :: istat(MPI_STATUS_SIZE)
+            1037                         integer :: n, l, ierr
+            1038                     
+            1039                         integer :: suf, i, j
+            1040                         suf(i,j) = ADM_gall_1d * ((j)-1) + (i)
+            1041                         !---------------------------------------------------------------------------
+            1042                     
+            1043                         !--- control volume points at the north pole
+            1044     1       8           do l = ADM_rgn_nmax, 1, -1
+            1045     2       8              if ( ADM_rgn_vnum(ADM_N,l) == ADM_VLINK_NMAX ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 640
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1046     3  pp   6s                do n = 1, ADM_VLINK_NMAX
+            1047     3   p   6s                   rgntab(n) = ADM_rgn_vtab(ADM_RID,ADM_N,l,n)
+            1048     3   p   6s                   prctab(n) = ADM_rgn2prc(rgntab(n))
+            1049     3   p   6s                enddo
+            1050     2       8                 exit
+            1051     2       8              endif
+            1052     1       8           enddo
+            1053                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+            1054        pp    s          send_flag(:) = .false.
+            1055                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 2
+                                   <<<      rgntab: 2
+                                   <<< Loop-information  End >>>
+            1056     1                   do n = 1, ADM_VLINK_NMAX
+            1057     2       2              do l = 1, ADM_lall
+            1058     3       2                 if ( ADM_prc_tab(l,ADM_prc_me) == rgntab(n) ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+            1059     3       6                    vsend_pl(:,n) = GRD_xt(suf(ADM_gmin,ADM_gmax),ADM_KNONE,l,ADM_TJ,:) ! [mod] H.Yashiro 20120525
+            1060     3               
+            1061     3       2                    call MPI_ISEND( vsend_pl(:,n),        & ! [mod] H.Yashiro 20120525
+            1062     3                                            3,                    &
+            1063     3                                            MPI_DOUBLE_PRECISION, &
+            1064     3                                            ADM_prc_npl-1,        &
+            1065     3                                            rgntab(n),            &
+            1066     3                                            ADM_COMM_RUN_WORLD,   &
+            1067     3                                            sreq(n),              &
+            1068     3                                            ierr                  )
+            1069     3               
+            1070     3       2                    send_flag(n) = .true.
+            1071     3       2                 endif
+            1072     2       2              enddo
+            1073     1                   enddo
+            1074                     
+            1075     1                   if ( ADM_prc_me == ADM_prc_npl ) then
+            1076     2   s   8s             do n = 1, ADM_VLINK_NMAX
+            1077     2   m   8s                call MPI_IRECV( vrecv_pl(:,n),        & ! [mod] H.Yashiro 20120525
+            1078     2                                         3,                    &
+            1079     2                                         MPI_DOUBLE_PRECISION, &
+            1080     2                                         prctab(n)-1,          &
+            1081     2                                         rgntab(n),            &
+            1082     2                                         ADM_COMM_RUN_WORLD,   &
+            1083     2                                         rreq(n),              &
+            1084     2                                         ierr                  )
+            1085     2   p   8s             enddo
+            1086     1                   endif
+            1087                     
+            1088     1   s   8s          do n = 1, ADM_VLINK_NMAX
+            1089     2   p   8s             if ( send_flag(n) ) then
+            1090     2   m   8s                call MPI_WAIT(sreq(n),istat,ierr)
+            1091     2   p   8s             endif
+            1092     1   p   8s          enddo
+            1093                     
+            1094     1                   if ( ADM_prc_me == ADM_prc_npl ) then
+            1095     2       4              do n = 1, ADM_VLINK_NMAX
+            1096     2       4                 call MPI_WAIT(rreq(n),istat,ierr)
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+            1097     2      12                 GRD_xt_pl(n+1,ADM_KNONE,ADM_NPL,:) = vrecv_pl(:,n) ! [mod] H.Yashiro 20120525
+            1098     2       4              enddo
+            1099     1                   endif
+            1100                     
+            1101                         !--- control volume points at the sourth pole
+            1102     1       8           do l = 1, ADM_rgn_nmax
+            1103     2       8              if ( ADM_rgn_vnum(ADM_S,l) == ADM_VLINK_NMAX ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 640
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1104     3  pp   6s                do n = 1, ADM_VLINK_NMAX
+            1105     3   p   6s                   rgntab(n) = ADM_rgn_vtab(ADM_RID,ADM_S,l,n)
+            1106     3   p   6s                   prctab(n) = ADM_rgn2prc(rgntab(n))
+            1107     3   p   6s                enddo
+            1108     2       8                 exit
+            1109     2       8              endif
+            1110     1       8           enddo
+            1111                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+            1112        pp    s          send_flag(:) = .false.
+            1113                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 2
+                                   <<<      rgntab: 2
+                                   <<< Loop-information  End >>>
+            1114     1                   do n = 1, ADM_VLINK_NMAX
+            1115     2       2              do l =1, ADM_lall
+            1116     3       2                 if (ADM_prc_tab(l,ADM_prc_me) == rgntab(n) ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+            1117     3       6                    vsend_pl(:,n) = GRD_xt(suf(ADM_gmax,ADM_gmin),ADM_KNONE,l,ADM_TI,:) ! [mod] H.Yashiro 20120525
+            1118     3       2                    call MPI_ISEND( vsend_pl(:,n),        & ! [mod] H.Yashiro 20120525
+            1119     3                                            3,                    &
+            1120     3                                            MPI_DOUBLE_PRECISION, &
+            1121     3                                            ADM_prc_spl-1,        &
+            1122     3                                            rgntab(n),            &
+            1123     3                                            ADM_COMM_RUN_WORLD,   &
+            1124     3                                            sreq(n),              &
+            1125     3                                            ierr                  )
+            1126     3               
+            1127     3       2                    send_flag(n) = .true.
+            1128     3       2                 endif
+            1129     2       2              enddo
+            1130     1                   enddo
+            1131                     
+            1132     1                   if ( ADM_prc_me == ADM_prc_spl ) then
+            1133     2   s   8s             do n = 1, ADM_VLINK_NMAX
+            1134     2   m   8s                call MPI_IRECV( vrecv_pl(:,n),        & ! [mod] H.Yashiro 20120525
+            1135     2                                         3,                    &
+            1136     2                                         MPI_DOUBLE_PRECISION, &
+            1137     2                                         prctab(n)-1,          &
+            1138     2                                         rgntab(n),            &
+            1139     2                                         ADM_COMM_RUN_WORLD,   &
+            1140     2                                         rreq(n),              &
+            1141     2                                         ierr                  )
+            1142     2   p   8s             enddo
+            1143     1                   endif
+            1144                     
+            1145     1   s   8s          do n = 1, ADM_VLINK_NMAX
+            1146     2   p   8s             if ( send_flag(n) ) then
+            1147     2   m   8s                call MPI_WAIT(sreq(n),istat,ierr)
+            1148     2   p   8s             endif
+            1149     1   p   8s          enddo
+            1150                     
+            1151     1                   if ( ADM_prc_me == ADM_prc_spl ) then
+            1152     2       4              do n = 1, ADM_VLINK_NMAX
+            1153     2       4                 call MPI_WAIT(rreq(n),istat,ierr)
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    FULL UNROLLING
+                                   <<< Loop-information  End >>>
+            1154     2      12                 GRD_xt_pl(n+1,ADM_KNONE,ADM_SPL,:) = vrecv_pl(:,n) ! [mod] H.Yashiro 20120525
+            1155     2       4              enddo
+            1156     1                   endif
+            1157                     
+            1158                         !--- grid point communication
+            1159                         call COMM_var(GRD_x,GRD_x_pl,ADM_KNONE,3,comm_type=2,NSval_fix=.false.)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1160        pp   8s          GRD_xt_pl(ADM_GSLF_PL,:,:,:) = GRD_x_pl(ADM_GSLF_PL,:,:,:)
+            1161                     
+            1162                         return
+            1163                       end subroutine GRD_gen_plgrid
+            1164                     
+            1165                       !-----------------------------------------------------------------------------
+            1166                       ! [ADD] R.Yoshida 20121020
+            1167                       ! imported from ENDGame UK Met.office.
+            1168                       !-----------------------------------------------------------------------------
+            1169                       subroutine GRD_jbw_init_topo()
+            1170                         use mod_misc, only : &
+            1171                            MISC_get_latlon
+            1172                         use mod_adm, only :  &
+            1173                            ADM_lall,         &
+            1174                            ADM_gall,         &
+            1175                            ADM_gall_pl,      &
+            1176                            ADM_lall_pl,      &
+            1177                            ADM_KNONE,        &
+            1178                            ADM_prc_me,       &
+            1179                            ADM_prc_pl,       &
+            1180                            ADM_LOG_FID
+            1181                         use mod_cnst, only: &
+            1182                            CNST_PI,      &
+            1183                            CNST_ERADIUS, &
+            1184                            CNST_EOHM,    &
+            1185                            CNST_EGRAV,   &
+            1186                            CNST_RAIR
+            1187                         implicit none
+            1188                     
+            1189                         real(8), parameter :: u00 = 35.D0
+            1190                     
+            1191                         real(8) :: cs32ev, f1, f2
+            1192                         real(8) :: lat, lon
+            1193                         real(8) :: rsurf  (ADM_gall   ,ADM_lall   ) ! surface height in ICO-grid
+            1194                         real(8) :: rsurf_p(ADM_gall_pl,ADM_lall_pl) ! surface height in ICO-grid for pole region
+            1195                     
+            1196                         integer :: n, l, k0
+            1197                         !---------------------------------------------------------------------------
+            1198                     
+            1199                         k0 = ADM_KNONE
+            1200                     
+            1201                         cs32ev = ( cos( (1.D0-0.252D0) * CNST_PI * 0.5D0 ) )**1.5D0
+            1202                     
+            1203                         ! for globe
+            1204     1                   do l = 1, ADM_lall
+            1205     2       2           do n = 1, ADM_gall
+            1206     2       2              call MISC_get_latlon( lat, lon,               &
+            1207     2                                            GRD_x(n,k0,l,GRD_XDIR), &
+            1208     2                                            GRD_x(n,k0,l,GRD_YDIR), &
+            1209     2                                            GRD_x(n,k0,l,GRD_ZDIR)  )
+            1210     2               
+            1211     2       2              f1 = 10.D0/63.D0 - 2.D0 * sin(lat)**6 * ( cos(lat)**2 + 1.D0/3.D0 )
+            1212     2       2              f2 = 1.6D0 * cos(lat)**3 * ( sin(lat)**2 + 2.D0/3.D0 ) - 0.25D0 * CNST_PI
+            1213     2               
+            1214     2       2              rsurf(n,l) = u00 * cs32ev * ( f1*u00*cs32ev + f2*CNST_ERADIUS*CNST_EOHM ) / CNST_EGRAV
+            1215     2       2           enddo
+            1216     1                   enddo
+            1217                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1218     1  pp               do l=1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 286
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1219     2  pp   8v          do n=1, ADM_gall
+            1220     2   p   8v             GRD_zs(n,k0,l,GRD_ZSFC) = rsurf(n,l)
+            1221     2   p   8v          enddo
+            1222     1   p               enddo
+            1223                     
+            1224                         ! for pole region
+            1225     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+            1226     2                      do l = 1, ADM_lall_pl
+            1227     3       2              do n = 1, ADM_gall_pl
+            1228     3       2                 call MISC_get_latlon( lat, lon,                  &
+            1229     3                                               GRD_x_pl(n,k0,l,GRD_XDIR), &
+            1230     3                                               GRD_x_pl(n,k0,l,GRD_YDIR), &
+            1231     3                                               GRD_x_pl(n,k0,l,GRD_ZDIR)  )
+            1232     3               
+            1233     3       2                 f1 = 10.D0/63.D0 - 2.D0 * sin(lat)**6 * ( cos(lat)**2 + 1.D0/3.D0 )
+            1234     3       2                 f2 = 1.6D0 * cos(lat)**3 * ( sin(lat)**2 + 2.D0/3.D0 ) - 0.25D0 * CNST_PI
+            1235     3               
+            1236     3       2                 rsurf_p(n,l) = u00 * cs32ev * ( f1*u00*cs32ev + f2*CNST_ERADIUS*CNST_EOHM ) / CNST_EGRAV
+            1237     3       2              enddo
+            1238     2                      enddo
+            1239     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1240     2  pp                  do l=1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 286
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1241     3  pp   8v             do n=1, ADM_gall_pl
+            1242     3   p   8v                GRD_zs_pl(n,k0,l,GRD_ZSFC) = rsurf_p(n,l)
+            1243     3   p   8v             enddo
+            1244     2   p                  enddo
+            1245     1                   endif
+            1246                     
+            1247                         write(ADM_LOG_FID,*) 'Msg : Sub[GRD_input_topograph]/Mod[grid]'
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1248             8v          write(ADM_LOG_FID, '("   *** Topography for JBW: -- MAX: ",F9.3,2X,"MIN: ",F9.3)') &
+            1249                                maxval(GRD_zs(:,:,:,GRD_ZSFC)), minval(GRD_zs(:,:,:,GRD_ZSFC))
+            1250                     
+            1251                         return
+            1252                       end subroutine GRD_jbw_init_topo
+            1253                     
+            1254                       !-----------------------------------------------------------------------------
+            1255                       ! [ADD] R.Yoshida 20130328
+            1256                       ! mountain of dcmip 2012 setting
+            1257                       !-----------------------------------------------------------------------------
+            1258                       subroutine GRD_mwave_init_topo()
+            1259                         use mod_misc, only : &
+            1260                            MISC_get_latlon
+            1261                         use mod_adm, only :  &
+            1262                            ADM_lall,         &
+            1263                            ADM_gall,         &
+            1264                            ADM_gall_pl,      &
+            1265                            ADM_lall_pl,      &
+            1266                            ADM_KNONE,        &
+            1267                            ADM_prc_me,       &
+            1268                            ADM_prc_pl,       &
+            1269                            ADM_LOG_FID
+            1270                         use mod_cnst, only: &
+            1271                            CNST_PI
+            1272                         implicit none
+            1273                     
+            1274                         ! <DCMIP-13>
+            1275                         real(8),parameter :: FAI_M   =0.d0
+            1276                         real(8),parameter :: H_ZERO  = 250.d0
+            1277                         real(8),parameter :: QSI  = 4000.d0
+            1278                         real(8),parameter :: a_ref  = 6371220.0D0
+            1279                         real(8),parameter :: X_reduce  = 500.d0
+            1280                         real(8),parameter :: HALF_WIDTH = 5000.0d0
+            1281                     
+            1282                         real(8) :: dist_m, aa, bb, LAMBDA_M
+            1283                         real(8) :: lat, lon
+            1284                         integer :: n, l, K0
+            1285                         !---------------------------------------------------------------------------
+            1286                     
+            1287                         LAMBDA_M=CNST_PI/4.d0
+            1288                         K0 = ADM_KNONE
+            1289                     
+            1290                         ! for globe
+            1291     1                   do l=1, ADM_lall
+            1292     2       2           do n=1, ADM_gall
+            1293     2       2              call MISC_get_latlon( lat, lon,              &
+            1294     2                                            GRD_x(n,K0,l,GRD_XDIR), &
+            1295     2                                            GRD_x(n,K0,l,GRD_YDIR), &
+            1296     2                                            GRD_x(n,K0,l,GRD_ZDIR)  )
+            1297     2               
+            1298     2       2               dist_m = (a_ref/X_reduce)*acos (sin (FAI_M)*sin (lat)  &
+            1299     2                                   +cos (FAI_M)*cos (lat)*cos (lon-LAMBDA_M))
+            1300     2               
+            1301     2       2               aa = exp(- (dist_m)**2.0 / HALF_WIDTH**2.0d0)
+            1302     2       2               bb = cos(CNST_PI*dist_m/QSI)**2.0d0
+            1303     2       2               GRD_zs(n,ADM_KNONE,l,GRD_ZSFC) = H_ZERO * aa * bb   ! equation (76) in dcmip reference
+            1304     2       2           enddo
+            1305     1                   enddo
+            1306                     
+            1307                         ! for pole region
+            1308     1                   if ( ADM_prc_me==ADM_prc_pl ) then
+            1309     2                      do l=1, ADM_lall_pl
+            1310     3       2              do n=1, ADM_gall_pl
+            1311     3       2                 call MISC_get_latlon( lat, lon,              &
+            1312     3                                               GRD_x(n,K0,l,GRD_XDIR), &
+            1313     3                                               GRD_x(n,K0,l,GRD_YDIR), &
+            1314     3                                               GRD_x(n,K0,l,GRD_ZDIR)  )
+            1315     3               
+            1316     3       2                  dist_m = (a_ref/X_reduce)*acos (sin (FAI_M)*sin (lat)&
+            1317     3                                      +cos (FAI_M)*cos (lat)*cos (lon-LAMBDA_M))
+            1318     3               
+            1319     3       2                  aa = exp(- (dist_m)**2.0 / HALF_WIDTH**2.0d0)
+            1320     3       2                  bb = cos(CNST_PI*dist_m/QSI)**2.0d0
+            1321     3       2                  GRD_zs_pl(n,ADM_KNONE,l,GRD_ZSFC) = H_ZERO * aa * bb   ! equation (76) in dcmip reference
+            1322     3       2              enddo
+            1323     2                      enddo
+            1324     1                   endif
+            1325                     
+            1326                         write(ADM_LOG_FID,*) 'Msg : Sub[GRD_input_topograph]/Mod[grid]'
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1327             8v          write (ADM_LOG_FID, '("   *** Topography for mwave: -- MAX: ",F9.3,2X,"MIN: ",F9.3)') &
+            1328                                maxval(GRD_zs(:,:,:,GRD_ZSFC)), minval(GRD_zs(:,:,:,GRD_ZSFC))
+            1329                         return
+            1330                       end subroutine GRD_mwave_init_topo
+            1331                     
+            1332                     end module mod_grd
+            1333                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_grd)
+   jwd8220o-i  "share/mod_grd.f90", line 34: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(GRD_setup)
+   jwd8209o-i  "share/mod_grd.f90", line 409: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_grd.f90", line 419: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "share/mod_grd.f90", line 458: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "share/mod_grd.f90", line 459: Division is changed to multiplication by reciprocal.
+   jwd8201o-i  "share/mod_grd.f90", line 480: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "share/mod_grd.f90", line 480: Division is changed to multiplication by reciprocal.
+   jwd8201o-i  "share/mod_grd.f90", line 503: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "share/mod_grd.f90", line 504: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "share/mod_grd.f90", line 504: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "share/mod_grd.f90", line 505: Division is changed to multiplication by reciprocal.
+   jwd8206o-i  "share/mod_grd.f90", line 509: Division is changed to multiplication by reciprocal.
+   jwd8201o-i  "share/mod_grd.f90", line 521: Invariant expression within loop is moved outside loop.
+   jwd8206o-i  "share/mod_grd.f90", line 522: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_grd.f90", line 522: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_grd.f90", line 526: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_grd.f90", line 526: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(GRD_jbw_init_topo)
+   jwd8213o-i  "share/mod_grd.f90", line 1201: Exponentiation method is changed.
+   jwd8209o-i  "share/mod_grd.f90", line 1201: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_grd.f90", line 1211: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_grd.f90", line 1212: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_grd.f90", line 1214: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_grd.f90", line 1233: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_grd.f90", line 1234: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_grd.f90", line 1236: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(GRD_mwave_init_topo)
+   jwd8206o-i  "share/mod_grd.f90", line 1301: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_grd.f90", line 1301: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_grd.f90", line 1302: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_grd.f90", line 1302: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_grd.f90", line 1319: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_grd.f90", line 1319: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_grd.f90", line 1320: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_grd.f90", line 1320: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 1333
+   Statements : 657
+   Stack(byte): 22288
+   Prefetch num: 66
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1333
+   Total statements : 657
+   Total stack(byte): 22288
+   Total prefetch num: 66
+

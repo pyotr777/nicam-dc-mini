@@ -1,0 +1,399 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 16:47:34 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_cnst.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_cnst.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_cnst"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! Constant definition module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module defines constant numbers.
+               7                     !!
+               8                     !! @author H.Tomita
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2004-02-17 (H.Tomita) Imported from igdc-4.33
+              12                     !! @li      2009-09-28 (      )   add CNST_undef2 for 2 byte integer
+              13                     !!
+              14                     !<
+              15                     module mod_cnst
+              16                       !-----------------------------------------------------------------------------
+              17                       !
+              18                       !++ Used modules
+              19                       !
+              20                       !-----------------------------------------------------------------------------
+              21                       implicit none
+              22                       private
+              23                       !-----------------------------------------------------------------------------
+              24                       !
+              25                       !++ Public procedure
+              26                       !
+              27                       public :: CNST_setup
+              28                     
+              29                       !-----------------------------------------------------------------------------
+              30                       !
+              31                       !++ Public parameters & variables
+              32                       !
+              33                       !======  Earth parameters ======
+              34                       !
+              35                       !------ Radius of the Earth
+              36                     !  real(8), public, save :: CNST_ERADIUS  = 6.37122D+6 [mod] 20120704 H.Yashiro
+              37                       real(8), public, save :: CNST_ERADIUS = 6371000.D0
+              38                       !<----- unit : [m]
+              39                       !
+              40                       !------ Angular velocity of the Earth
+              41                     !  real(8), public, save :: CNST_EOHM     = 7.292D-5 [mod] 20120704 H.Yashiro
+              42                       real(8), public, save :: CNST_EOHM = 7.292115D-5
+              43                       !<----- unit : [/s]
+              44                       !
+              45                       !------ Gravitational accerlaration of the Earth
+              46                     !  real(8), public, save :: CNST_EGRAV    = 9.80616D0 [mod] 20120704 H.Yashiro
+              47                       real(8), public, save :: CNST_EGRAV    = 9.79764D0
+              48                       !<----- unit : [m/s^2]
+              49                       !
+              50                       !====== Gas parameters ======
+              51                       !
+              52                       !------ Gas constant of air
+              53                       real(8), public, save :: CNST_RAIR     = 287.04D0
+              54                       !
+              55                       !------ Gas constant of vapor
+              56                       real(8), public, save :: CNST_RVAP     = 461.50D0
+              57                       !
+              58                       !------ Specific heat of air (consant pressure)
+              59                       real(8), public, save :: CNST_CP       = 1004.6D0
+              60                       !
+              61                       !------ Specific heat of vapor (consant pressure)
+              62                     !  real(8), public, save :: CNST_CPV      = 1850.0D0 [mod] 20120704 H.Yashiro
+              63                       real(8), public, save :: CNST_CPV      = 1846.0D0
+              64                       !
+              65                       !------ Specific heat of water
+              66                       real(8), public, save :: CNST_CL   = 4218.0D0
+              67                       !
+              68                       !------ Specific heat of ice
+              69                       real(8), public, save :: CNST_CI   = 2006.0D0
+              70                       !
+              71                       !------ Specific heat of air (consant volume)
+              72                       real(8), public, save :: CNST_CV
+              73                       !<----- calculated in sub[CNST_setup].
+              74                       !
+              75                       !------ Specific heat of vapor (consant volume)
+              76                       real(8), public, save :: CNST_CVV
+              77                       !<----- calculated in sub[CNST_setup].
+              78                       !
+              79                       !------ cp/cv
+              80                       real(8), public, save :: CNST_GAMMA
+              81                       !<----- calculated in sub[CNST_setup].
+              82                       !
+              83                       !------ R/cp
+              84                       real(8), public, save :: CNST_KAPPA
+              85                       !<----- calculated in sub[CNST_setup].
+              86                       !
+              87                       !------ dry lapse rate [K/m]
+              88                       real(8), public, save :: CNST_LAPS
+              89                       !<----- calculated in sub[CNST_setup].
+              90                       !
+              91                       !------ molecular weight ( water/air )
+              92                       real(8), public, save :: CNST_EPSV
+              93                       !<----- calculated in sub[CNST_setup].
+              94                       !
+              95                       !------ 1/epsv-1
+              96                       real(8), public, save :: CNST_EPSVT
+              97                       !<----- calculated in sub[CNST_setup].
+              98                       !
+              99                       !------ Density of water
+             100                       real(8), public, save :: CNST_DWATR = 1000.D0
+             101                       !
+             102                       !------ Saturate pressure of water vapor at 0C
+             103                       real(8), public, save :: CNST_PSAT0 = 610.7D0
+             104                       !<----- unit : [Pa]
+             105                       !
+             106                       !------ Latent heat of vaporizaion at 0C
+             107                     !  real(8), public, save :: CNST_LH0   = 2.5008D+6 [mod] 20120704 H.Yashiro
+             108                       real(8), public, save :: CNST_LH0   = 2.501D+6
+             109                       !
+             110                       !------ Latent heat of vaporizaion at 0K
+             111                       real(8), public, save :: CNST_LH00
+             112                       !<----- calculated in sub[CNST_setup].
+             113                       !
+             114                       !------ Latent heat of sublimation at 0C
+             115                     !  real(8), public, save :: CNST_LHS0  = 2.8342D+6 [mod] 20120704 H.Yashiro
+             116                       real(8), public, save :: CNST_LHS0  = 2.834D+6
+             117                       !
+             118                       !------ Latent heat of sublimation at 0K
+             119                       real(8), public, save :: CNST_LHS00
+             120                       !<----- calculated in sub[CNST_setup].
+             121                       !
+             122                       !------ Latent heat of fusion at 0C
+             123                       real(8), public, save :: CNST_LHF0
+             124                       !<----- calculated in sub[CNST_setup].
+             125                       !
+             126                       !------ latent heat of fusion at 0K
+             127                       real(8), public, save :: CNST_LHF00
+             128                       !<----- calculated in sub[CNST_setup].
+             129                       !
+             130                       !------ Latent heat of melting
+             131                       real(8), public, save :: CNST_EMELT = 3.40D+5
+             132                       !
+             133                       !------ Melting temperature of water
+             134                       real(8), public, save :: CNST_TMELT = 273.15D0
+             135                       !
+             136                       !------ Freeze point of sea
+             137                       real(8), public, save :: CNST_TFRZS  = 271.35D0
+             138                       !
+             139                       !------ Wet-bulb temp. rain/snow
+             140                       real(8), public, save :: CNST_TQICE = 273.15D0
+             141                       !
+             142                       !------ Stefan-Boltzman constant
+             143                       real(8), public, save :: CNST_STB   = 5.67D-8
+             144                       !
+             145                       !------ Karman constant
+             146                       real(8), public, save :: CNST_KARMAN = 0.4D0
+             147                       !
+             148                       !------ Surface pressure
+             149                       real(8), public, save :: CNST_PRES0    = 101325.0D0
+             150                       !
+             151                       !------ Surface temperature
+             152                       real(8), public, save :: CNST_TEMS0    = 300.0D0
+             153                       !
+             154                       !------ Standard pressure
+             155                       real(8), public, save :: CNST_PRE00    = 1.0D+5
+             156                       !
+             157                       !------ Standard temperature
+             158                       real(8), public, save :: CNST_TEM00    = 273.15D0
+             159                       !
+             160                       !------ Standard density
+             161                       real(8), public, save :: CNST_RHO00
+             162                       !<----- calculated in sub[CNST_setup].
+             163                       !
+             164                       !====== Misc. constants ======
+             165                       !
+             166                       !------ Definition of PI
+             167                       real(8), public, save :: CNST_PI = 3.14159265358979323846D0
+             168                       !
+             169                       !------ Allowable minimum value
+             170                       real(8), public, parameter :: CNST_EPS_ZERO = 1.0D-99
+             171                       !
+             172                       !------ Allowable maximum value
+             173                       real(8), public, parameter :: CNST_MAX_REAL = 1.0D+99
+             174                       !
+             175                       !------ Missing value
+             176                       real(8), public, parameter :: CNST_VMISS    = 0.0D0
+             177                       !
+             178                       !------ Undefined value
+             179                       real(8), public, parameter :: CNST_UNDEF    = -99.9D+33
+             180                       !
+             181                       !------ Undefined value
+             182                       real(4), public, parameter :: CNST_UNDEF4   = -99.9E+33
+             183                       !
+             184                       !------ Undefined value
+             185                       integer(4), public, parameter :: CNST_UNDEF2   = -32768
+             186                     
+             187                       !-----------------------------------------------------------------------------
+             188                       !
+             189                       !++ Private procedures
+             190                       !
+             191                       !-----------------------------------------------------------------------------
+             192                       !
+             193                       !++ Private parameters & variables
+             194                       !
+             195                       !-----------------------------------------------------------------------------
+             196                     contains
+             197                     
+             198                       !-----------------------------------------------------------------------------
+             199                       !>
+             200                       !> Description of the subroutine CNST_setup
+             201                       !>
+             202                       subroutine CNST_setup
+             203                         use mod_adm, only: &
+             204                            ADM_LOG_FID, &
+             205                            ADM_CTL_FID, &
+             206                            ADM_proc_stop
+             207                         implicit none
+             208                     
+             209                         !--- Parameters to be controled
+             210                         real(8) :: earth_radius      !--- Earth radius
+             211                         real(8) :: earth_angvel      !--- Anguler velocity of the earth
+             212                         real(8) :: earth_gravity     !--- Gravitational accelaration
+             213                         real(8) :: gas_cnst          !--- Gas constant of dry air
+             214                         real(8) :: gas_cnst_vap      !--- Gas constant of water vapour
+             215                         real(8) :: specific_heat_pre !--- Specific heat of air( const pre )
+             216                         real(8) :: specific_heat_pre_vap !--- Specific heat of water vapour ( const pre )
+             217                         real(8) :: latent_heat_vap   !--- latent heat of vaporization LH0 ( 0 deg )
+             218                         real(8) :: latent_heat_sub   !--- latent heat of sublimation LHS0 ( 0 deg )
+             219                     
+             220                         namelist / CNSTPARAM / &
+             221                              earth_radius,     & !--- earth radius
+             222                              earth_angvel,     & !--- anguler velocity of the earth
+             223                              earth_gravity,    & !--- gravitational accelaration
+             224                              gas_cnst,         & !--- gas constant of dry air ( Rd )
+             225                              gas_cnst_vap,     & !--- gas constant of water vapour
+             226                              specific_heat_pre,& !--- specific heat of air ( Cp )
+             227                              specific_heat_pre_vap,&  !--- specific heat of water vapour
+             228                              latent_heat_vap,  &
+             229                              latent_heat_sub
+             230                     
+             231                         integer :: ierr
+             232                         !---------------------------------------------------------------------------
+             233                     
+             234                         !--- initialization of controled parameters
+             235                         earth_radius = CNST_ERADIUS
+             236                         earth_angvel = CNST_EOHM
+             237                         earth_gravity   = CNST_EGRAV
+             238                         gas_cnst    = CNST_RAIR
+             239                         gas_cnst_vap = CNST_RVAP
+             240                         specific_heat_pre      = CNST_CP
+             241                         specific_heat_pre_vap  = CNST_CPV
+             242                         latent_heat_vap = CNST_LH0
+             243                         latent_heat_sub = CNST_LHS0
+             244                     
+             245                         !--- read parameters
+             246                         write(ADM_LOG_FID,*)
+             247                         write(ADM_LOG_FID,*) '+++ Module[cnst]/Category[common share]'
+             248                         rewind(ADM_CTL_FID)
+             249                         read(ADM_CTL_FID,nml=CNSTPARAM,iostat=ierr)
+             250     1                   if ( ierr < 0 ) then
+             251     1                      write(ADM_LOG_FID,*) '*** CNSTPARAM is not specified. use default.'
+             252     1                   elseif( ierr > 0 ) then
+             253     1                      write(*,          *) 'xxx Not appropriate names in namelist CNSTPARAM. STOP.'
+             254     1                      write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist CNSTPARAM. STOP.'
+             255     1                      call ADM_proc_stop
+             256     1                   endif
+             257                         write(ADM_LOG_FID,CNSTPARAM)
+             258                     
+             259                         CNST_ERADIUS = earth_radius
+             260                         CNST_EOHM    = earth_angvel
+             261                         CNST_EGRAV   = earth_gravity
+             262                         CNST_RAIR    = gas_cnst
+             263                         CNST_RVAP    = gas_cnst_vap
+             264                         CNST_CP      = specific_heat_pre
+             265                         CNST_CPV     = specific_heat_pre_vap
+             266                         CNST_LH0     = latent_heat_vap
+             267                         CNST_LHS0    = latent_heat_sub
+             268                     
+             269                         !--- calculate other parameters
+             270                         CNST_PI    = 4.D0 * atan( 1.D0 )
+             271                     
+             272                         CNST_CV    = CNST_CP - CNST_RAIR
+             273                         CNST_GAMMA = CNST_CP / CNST_CV
+             274                         CNST_KAPPA = CNST_RAIR / CNST_CP
+             275                         CNST_RHO00 = CNST_PRE00 / CNST_RAIR / CNST_TEM00
+             276                         CNST_LAPS  = CNST_EGRAV / CNST_CP
+             277                     
+             278                         CNST_CVV   = CNST_CPV - CNST_RVAP
+             279                         CNST_EPSV  = CNST_RAIR / CNST_RVAP
+             280                         CNST_EPSVT = 1.0D0/CNST_EPSV - 1.0D0
+             281                     
+             282                         CNST_LH00  = CNST_LH0  - ( CNST_CPV - CNST_CL ) * CNST_TEM00
+             283                         CNST_LHS00 = CNST_LHS0 - ( CNST_CPV - CNST_CI ) * CNST_TEM00
+             284                         CNST_LHF0  = CNST_LHS0 - CNST_LH0
+             285                         CNST_LHF00 = CNST_LHF0 - ( CNST_CL - CNST_CI ) * CNST_TEM00 ! bugfix: CNST_LHS0 -> CNST_LHF0
+             286                     
+             287                         write(ADM_LOG_FID,*)
+             288                         write(ADM_LOG_FID,*) '====== Physical Constants ======'
+             289                         write(ADM_LOG_FID,*) '--- The circluar constant PI                 : ', CNST_PI
+             290                         write(ADM_LOG_FID,*) '--- Allowable minimum value                  : ', CNST_EPS_ZERO
+             291                         write(ADM_LOG_FID,*) '--- Allowable maximum value                  : ', CNST_MAX_REAL
+             292                         write(ADM_LOG_FID,*) '--- Missing value                            : ', CNST_VMISS
+             293                         write(ADM_LOG_FID,*) '--- Radius of the Earth                      : ', CNST_ERADIUS
+             294                         write(ADM_LOG_FID,*) '--- Angular velocity of the Earth            : ', CNST_EOHM
+             295                         write(ADM_LOG_FID,*) '--- Gravitational accerlaration of the Earth : ', CNST_EGRAV
+             296                         write(ADM_LOG_FID,*) '--- Gas constant of air                      : ', CNST_RAIR
+             297                         write(ADM_LOG_FID,*) '--- Gas constant of vapor                    : ', CNST_RVAP
+             298                         write(ADM_LOG_FID,*) '--- Specific heat of air (consant pressure)  : ', CNST_CP
+             299                         write(ADM_LOG_FID,*) '--- Specific heat of air (consant volume)    : ', CNST_CV
+             300                         write(ADM_LOG_FID,*) '--- Rair/Cp                                  : ', CNST_KAPPA
+             301                         write(ADM_LOG_FID,*) '--- Surface pressure                         : ', CNST_PRES0
+             302                         write(ADM_LOG_FID,*) '--- Standard pressure                        : ', CNST_PRE00
+             303                         write(ADM_LOG_FID,*) '--- Standard temperature                     : ', CNST_TEM00
+             304                         write(ADM_LOG_FID,*) '--- Standard density                         : ', CNST_RHO00
+             305                         write(ADM_LOG_FID,*) '--- Specific heat of vapor (consant pressure): ', CNST_CPV
+             306                         write(ADM_LOG_FID,*) '--- Specific heat of vapor (consant volume)  : ', CNST_CVV
+             307                         write(ADM_LOG_FID,*) '--- Specific heat of water                   : ', CNST_CL
+             308                         write(ADM_LOG_FID,*) '--- Specific heat of ice                     : ', CNST_CI
+             309                         write(ADM_LOG_FID,*) '--- Mocular weight                           : ', CNST_EPSV
+             310                         write(ADM_LOG_FID,*) '--- 1/epsv-1                                 : ', CNST_EPSVT
+             311                         write(ADM_LOG_FID,*) '--- Density of water                         : ', CNST_DWATR
+             312                         write(ADM_LOG_FID,*) '--- Saturate pressure of water vapor at 0C   : ', CNST_PSAT0
+             313                         write(ADM_LOG_FID,*) '--- Latent heat of vaporizaion at 0C         : ', CNST_LH0
+             314                         write(ADM_LOG_FID,*) '--- Latent heat of vaporizaion at 0K         : ', CNST_LH00
+             315                         write(ADM_LOG_FID,*) '--- Latent heat of sublimation at 0C         : ', CNST_LHS0
+             316                         write(ADM_LOG_FID,*) '--- Latent heat of sublimation at 0K         : ', CNST_LHS00
+             317                         write(ADM_LOG_FID,*) '--- Latent heat of fusion at 0C              : ', CNST_LHF0
+             318                         write(ADM_LOG_FID,*) '--- Latent heat of fusion at 0K              : ', CNST_LHF00
+             319                         write(ADM_LOG_FID,*) '--- Latent heat of melt                      : ', CNST_EMELT
+             320                         write(ADM_LOG_FID,*) '--- Melting temperature of water             : ', CNST_TMELT
+             321                         write(ADM_LOG_FID,*) '--- Freeze point of sea                      : ', CNST_TFRZS
+             322                         write(ADM_LOG_FID,*) '--- Wet-bulb temperature rain/snow           : ', CNST_TQICE
+             323                         write(ADM_LOG_FID,*) '--- Stefan-Boltzman constant                 : ', CNST_STB
+             324                         write(ADM_LOG_FID,*) '--- Karman constant                          : ', CNST_KARMAN
+             325                         write(ADM_LOG_FID,*) '--- Cp/Cv                                    : ', CNST_GAMMA
+             326                     
+             327                         return
+             328                       end subroutine CNST_setup
+             329                     
+             330                     end module mod_cnst
+             331                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_cnst)
+   jwd8220o-i  "share/mod_cnst.f90", line 15: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(CNST_setup)
+   jwd8209o-i  "share/mod_cnst.f90", line 275: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_cnst.f90", line 282: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_cnst.f90", line 283: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_cnst.f90", line 285: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+
+ Procedure information
+   Lines      : 331
+   Statements : 146
+   Stack(byte): 5728
+   Prefetch num: 0
+
+ Total information
+   Procedures       : 1
+   Total lines      : 331
+   Total statements : 146
+   Total stack(byte): 5728
+   Total prefetch num: 0
+

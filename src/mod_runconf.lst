@@ -1,0 +1,1098 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:02:36 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : nhm/share/mod_runconf.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_runconf.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_runconf"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! run configuration module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         admin modlue for 3D-model
+               7                     !!
+               8                     !! @author H.Tomita
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2004-02-17 (H.Tomita)   Imported from igdc-4.34
+              12                     !! @li      2005-10-28 (M.Satoh)    add ISCCP parameter
+              13                     !! @li      2005-12-27 (M.Satoh)    introduce RAD_DIV_NUM
+              14                     !! @li      2006-04-19 (H.Tomita)   Add 'DRY' option.
+              15                     !! @li      2006-05-06 (H.Tomita)   abolish TURB_DIV_NUM.
+              16                     !! @li      2006-08-11 (H.Tomita)   Add TRC_ADV_TYPE, TRC_NEG_FIX
+              17                     !! @li      2006-09-28 (S.Iga)      Add OUT_FILE_TYPE
+              18                     !! @li      2007-01-26 (H.Tomita)   Add the 'SIMPLE2' EIN_TYPE.
+              19                     !!                                  Control the EIN_TYPE in thie module. as CVW(I_Q?) and LHV,LHF, and LHS.
+              20                     !! @li      2007-03-23 (Y.Niwa)     add FLAG_NUDGING
+              21                     !! @li      2007-05-08 (H.Tomita)   1. Move physics type configuration from mod_physicsinit.f90 to here.
+              22                     !!                                  2. Add TRC_ADD_MAX for future implementation of turbulence scheme.
+              23                     !! @li      2007-06-26 (Y.Niwa)     move LAND_TYPE from mod_land_driver to here
+              24                     !!                                  move OCEAN_TYPE from mod_ocean_driver to here
+              25                     !! @li      2007-07-17 (A.T.Noda)   Add RAD_CLOUD_TYPE for use of the partial cloud in rd_driver
+              26                     !! @li      2007-07-23 (K.Suzuki)   SPRINTARS aerosol model
+              27                     !!                                  1. Add number of aerosol tracers
+              28                     !!                                  2. Add KAPCL: number of aerosol for radiation
+              29                     !!                                  3. Add AE_TYPE for aerosol type configuration
+              30                     !! @li      2007-11-07 (T.Mitsui)   add "OPT_OUTPUT_ALL" to omit output_all
+              31                     !! @li      2008-01-24 (Y.Niwa)     add MIURA2004OLD
+              32                     !!                                     TRC_ADV_TYPE='DEFAULT', TRC_NEG_FIX='ON'
+              33                     !!                                  => TRC_ADV_TYPE='MIURA2004', TRC_NEG_FIX='OFF'
+              34                     !!                                  add TRC_SAVE_MEMORY
+              35                     !! @li      2008-01-30 (Y.Niwa)     bug fixes
+              36                     !! @li      2008-03-10 (T.Mitsui)   add intermediate output of restart file
+              37                     !! @li      2008-04-12 (T.Mitsui)   add 2-moment hydrometeors, incloud aerosol and their labeling
+              38                     !! @li      2008-04-23 (H.Tomita)   Add MP_DIVNUM for microphysics.
+              39                     !! @li      2008-08-11 (H.Tomita)   Add SFC_DIV_NUM and TB_DIV_NUM.
+              40                     !! @li      2008-10-05 (T.Mitsui)   add option : ALL_PHYSTEP_POST
+              41                     !! @li      2009-01-28 (A.T.Noda)   Implement MYNN
+              42                     !! @li      2009-04-14 (T.Mitsui)   add opt_carb, opt_dust, opt_salt, opt_sulf trivial changing incloud aerosols
+              43                     !!                                  add opt_aerosol_forcing for ARF
+              44                     !! @li      2009-07-28 (H.Tomita)   add PRCIP_TRN_ECORRECT
+              45                     !!                                  for energy adjustment in the rain-sedimentation process
+              46                     !! @li      2010-03-08 (C.Kodama)   Add overwrite_restart option
+              47                     !! @li      2010-04-26 (M.Satoh)    add ROUGHNESS_SEA_TYPE
+              48                     !! @li      2010-06-19 (A.T.Noda)   Allow to use a convection parameterization
+              49                     !!                                  with an advanced microphysics schemes, such as G98, NSW?,
+              50                     !! @li      2010-11-11 (A.T.Noda)   1. add CORIOLIS, RAD_FIX_LAT/LON for Giga-LES
+              51                     !! @li      2011-06-30 (T.Seiki)    fill undefined indices
+              52                     !! @li      2011-07-22 (T.Ohno)     add CORIOLIS_PARAM
+              53                     !! @li      2011-09-03 (H.Yashiro)  add TRC_name for New I/O
+              54                     !! @li      2012-02-01 (T.Seiki)    add incloud aerosol indices+initialization
+              55                     !! @li      2012-07-23 (H.Yashiro)  [add] River         by K.Yoshimura
+              56                     !! @li      2012-07-23 (H.Yashiro)  [add] Water Isotope by K.Yoshimura
+              57                     !! @li      2012-11-05 (H.Yashiro)  NICAM milestone project (Phase I:cleanup of shared module)
+              58                     !!
+              59                     !<
+              60                     module mod_runconf
+              61                       !-----------------------------------------------------------------------------
+              62                       !
+              63                       !++ Used modules
+              64                       !
+              65                       use mod_adm, only: &
+              66                          ADM_NSYS
+              67                       use mod_cnst, only: & ! [add] 10/11/11 A.Noda
+              68                          CNST_UNDEF
+              69                       !-----------------------------------------------------------------------------
+              70                       implicit none
+              71                       private
+              72                       !-----------------------------------------------------------------------------
+              73                       !
+              74                       !++ Public procedure
+              75                       !
+              76                       public :: runconf_setup
+              77                     
+              78                       !-----------------------------------------------------------------------------
+              79                       !
+              80                       !++ Public parameters & variables
+              81                       !
+              82                       character(len=16),       public, allocatable, save  :: TRC_name(:) ! short name  of tracer [add] H.Yashiro 20110819
+              83                       character(len=ADM_NSYS), public, allocatable, save  :: WLABEL  (:) ! description of tracer
+              84                     
+              85                       integer, public, save :: TRC_vmax =  0 ! total number of tracers
+              86                       integer, public, save :: NQW_MAX  =  0 ! subtotal number of water mass tracers
+              87                       integer, public, save :: NQW_STR  = -1 ! start index of water mass tracers
+              88                       integer, public, save :: NQW_END  = -1 ! end   index of water mass tracers
+              89                     
+              90                       integer, public, save :: NNW_MAX  =  0 ! subtotal number of water number tracers
+              91                       integer, public, save :: NNW_STR  = -1 ! start index of water number tracers
+              92                       integer, public, save :: NNW_END  = -1 ! end   index of water number tracers
+              93                     
+              94                       integer, public, save :: NTB_MAX  =  0 ! subtotal number of turbulent tracers
+              95                     
+              96                       integer, public, save :: NCHEM_MAX  =  0 ! subtotal number of chemical (or general purpose) tracers
+              97                       integer, public, save :: NCHEM_STR  = -1 ! start index of chemical (or general purpose) tracers
+              98                       integer, public, save :: NCHEM_END  = -1 ! end   index of chemical (or general purpose) tracers
+              99                     
+             100                       integer, public, save :: NQA_MAX  =  0 ! subtotal number of aerosol mass tracers
+             101                       integer, public, save :: NQA_STR  = -1 ! start index of aerosol mass tracers
+             102                       integer, public, save :: NQA_END  = -1 ! end   index of aerosol mass tracers
+             103                     
+             104                       integer, public, save :: NDU_MAX  =  0 ! soil dust
+             105                       integer, public, save :: NQDU_STR = -1
+             106                       integer, public, save :: NQDU_END = -1
+             107                       integer, public, save :: NCB_MAX  =  0 ! carbonaceous
+             108                       integer, public, save :: NQCB_STR = -1
+             109                       integer, public, save :: NQCB_END = -1
+             110                       integer, public, save :: NSU_MAX  =  0 ! sulfate
+             111                       integer, public, save :: NQSU_STR = -1
+             112                       integer, public, save :: NQSU_END = -1
+             113                       integer, public, save :: NSA_MAX  =  0 ! sea salt
+             114                       integer, public, save :: NQSA_STR = -1
+             115                       integer, public, save :: NQSA_END = -1
+             116                     
+             117                       ! [add] 12/02/01, T.Seiki incloud aerosols are predicted as a passive tracer
+             118                       integer, public, save :: NQAIN_MAX  =  0 ! subtotal number of incloud aerosol mass tracers
+             119                       integer, public, save :: NQAIN_STR  = -1 ! start index of incloud aerosol mass tracers
+             120                       integer, public, save :: NQAIN_END  = -1 ! end   index of incloud aerosol mass tracers
+             121                     
+             122                       integer, public, save :: NQDUIN_MAX =  0 ! incloud soil dust
+             123                       integer, public, save :: NQDUIN_STR = -1
+             124                       integer, public, save :: NQDUIN_END = -1
+             125                       integer, public, save :: NQCBIN_MAX =  0 ! incloud carbonaceous
+             126                       integer, public, save :: NQCBIN_STR = -1
+             127                       integer, public, save :: NQCBIN_END = -1
+             128                       integer, public, save :: NQSUIN_MAX =  0 ! incloud sulfate
+             129                       integer, public, save :: NQSUIN_STR = -1
+             130                       integer, public, save :: NQSUIN_END = -1
+             131                       integer, public, save :: NQSAIN_MAX =  0 ! incloud sea salt
+             132                       integer, public, save :: NQSAIN_STR = -1
+             133                       integer, public, save :: NQSAIN_END = -1
+             134                       ! [add] 12/02/01, T.Seiki <=
+             135                     
+             136                       !--- preserved index name for tracers
+             137                       integer, public, save :: I_QV     = -1  ! Water vapor
+             138                       integer, public, save :: I_QC     = -1  ! Cloud water
+             139                       integer, public, save :: I_QR     = -1  ! Rain
+             140                       integer, public, save :: I_QI     = -1  ! Ice
+             141                       integer, public, save :: I_QS     = -1  ! Snow
+             142                       integer, public, save :: I_QG     = -1  ! Graupel
+             143                       integer, public, save :: I_QH     = -1  ! Hail (not used)
+             144                     
+             145                       integer, public, save :: I_NC     = -1  ! Cloud water (number)
+             146                       integer, public, save :: I_NR     = -1  ! Rain        (number)
+             147                       integer, public, save :: I_NI     = -1  ! Ice         (number)
+             148                       integer, public, save :: I_NS     = -1  ! Snow        (number)
+             149                       integer, public, save :: I_NG     = -1  ! Graupel     (number)
+             150                     
+             151                       integer, public, save :: I_TKE    = -1 ! turbulence kinetic energy
+             152                     
+             153                       integer, public, save :: I_QKEp   = -1
+             154                       integer, public, save :: I_TSQp   = -1
+             155                       integer, public, save :: I_QSQp   = -1
+             156                       integer, public, save :: I_COVp   = -1
+             157                     
+             158                       ! 09/04/14 T.Mitsui [Add] =>
+             159                       integer, public, save :: NQSU_SO4 = -1 ! SO4(2-)
+             160                       integer, public, save :: NQSU_SO2 = -1 ! SO2(gas and liquid)
+             161                       integer, public, save :: NQSU_DMS = -1 ! Dimethyl Sulphide(water-insoluble liquid)
+             162                       ! 09/04/14 T.Mitsui [Add] <=
+             163                       integer, public, save :: NQSO4IN  = -1  ! incloud SO4(2-) [add] 12/02/12, T.Seiki
+             164                     
+             165                       !--- Nonhydrostatic/hydrostatic flag
+             166                       integer,                 public, save :: NON_HYDRO_ALPHA = 1
+             167                       !                                        1 : Non-hydrosataic
+             168                       !                                        0 : Hydrosataic
+             169                     
+             170                       !--- Location of numerical filtering
+             171                       character(len=ADM_NSYS), public, save :: NDIFF_LOCATION = 'IN_LARGE_STEP'
+             172                       !                                        'IN_LARGE_STEP'  : insert in  the large step
+             173                     
+             174                       !--- Number of division of numerical filtering at the out large step
+             175                       ! Note: this number is used only at a large diffusion
+             176                       integer, public, save :: NDIFF_DIVISION_NUM = 1 ! division number of num. diff.
+             177                     
+             178                       !--- Estimation scheme for the internal energy
+             179                       character(len=ADM_NSYS), public, save :: EIN_TYPE = 'EXACT'
+             180                       !                                     'SIMPLE': standard approximation CVD * T
+             181                       !                                     'EXACT': exact formulation
+             182                       !                       -> if warm rain
+             183                       !                           qd*CVD*T + qv*CVV*T + (qc+qr)*CPL*T
+             184                       !                       -> if cold rain
+             185                       !                           qd*CVD*T + qv*CVV*T + (qc+qr)*CPL*T
+             186                       !                                               + (qi+qs)*CPI*T
+             187                     
+             188                       !--- output file type
+             189                       character(len=ADM_NSYS), public, save :: OUT_FILE_TYPE = 'DEFAULT'
+             190                     
+             191                       !--- run type
+             192                       character(len=ADM_NSYS), public, save :: RUN_TYPE = 'DEFAULT'
+             193                     
+             194                       !--- rain type
+             195                       character(len=ADM_NSYS), public, save :: RAIN_TYPE = 'WARM'
+             196                       !                                                    'COLD'
+             197                       !                                                    'CLOUD_PARAM'
+             198                       !                                                    'DRY'
+             199                     
+             200                       !--- radiation type
+             201                       character(len=ADM_NSYS), public, save :: RAD_TYPE = 'ISCCP'
+             202                     
+             203                       character(len=ADM_NSYS), public, save :: RAD_CLOUD_TYPE = 'DEFAULT'
+             204                       !                                                         'PARTIAL_CLOUD': Use partial cloud computed in turbulent module
+             205                     
+             206                       !--- Tracer advection scheme
+             207                       character(len=ADM_NSYS), public, save :: TRC_ADV_TYPE = 'MIURA2004'    ! Y.Niwa 080124
+             208                       !                                                       'DEFAULT'
+             209                     
+             210                       !--- negative fixer of water contents
+             211                       character(len=ADM_NSYS), public, save :: TRC_NEG_FIX = 'OFF'  ! Y.Niwa 080124
+             212                       !                                                      'ON'
+             213                     
+             214                       !--- option for saving memory in tracer advection  ! Y.Niwa 080124
+             215                       logical, public, save :: TRC_SAVE_MEMORY = .true.
+             216                     
+             217                       !--- radiation dividion number
+             218                       integer, public, save :: RAD_DIV_NUM = 1
+             219                       integer, public, save :: TB_DIV_NUM  = 1
+             220                       integer, public, save :: SFC_DIV_NUM = 1
+             221                       !
+             222                       !
+             223                       logical, public, save :: FLAG_NUDGING = .false. ! 07/03/23 Y.Niwa [add]
+             224                     
+             225                       logical, public, save :: OPT_OUTPUT_ALL = .false. ! 07/11/07 T.Mitsui [add]
+             226                       !
+             227                       ! 08/03/10 T.Mitsui [Add]
+             228                       !--- number of intermediate restart file, and their date
+             229                       !    date should be described as "yyyymmddhhmmss", (ex. "20080307214700"
+             230                       integer,           public, save :: num_restart = -1   ! max num.= 64
+             231                       character(len=14), public, save :: cdate_restart(32)  !
+             232                       character(len=14), public, save :: overwrite_restart  ! [Add] 10/03/08 C.Kodama
+             233                     
+             234                       !--- Latent heat
+             235                       real(8), public, save :: LHV
+             236                       real(8), public, save :: LHF
+             237                       real(8), public, save :: LHS
+             238                       !
+             239                       integer, public, save :: MP_DIV_NUM = 1
+             240                     
+             241                       !--- Max number of hydrometeor-species
+             242                       integer, parameter,   public        :: HYDRO_MAX=7 ! 08/04/12 [Add] T.Mitsui
+             243                     
+             244                       !--- specific heat of water on const pressure
+             245                       real(8), allocatable, public, save :: CVW(:)
+             246                       real(8), allocatable, public, save :: CPW(:)
+             247                     
+             248                     
+             249                       character(len=ADM_NSYS), public, save :: TSAT_TYPE = 'LIST'
+             250                       !                               = 'LIST': list vector: default
+             251                       !                               = 'NOLIST': no list vecto
+             252                     
+             253                       character(len=ADM_NSYS), public, save :: TSAT_TYPE_ENT = 'LIST'
+             254                       !                               = 'LIST': list vector: default
+             255                       !                               = 'NOLIST': no list vecto
+             256                     
+             257                       !==== radiation parameter
+             258                       logical, public, save :: RAD_GLOBAL_TROPICS = .false.
+             259                       logical, public, save :: CLEAR_SKY_RAD = .false.
+             260                       ! [Add] 09/04/14 T.Mitsui, moved from rd_mstrnx_ar5
+             261                       ! option for estimating aerosol direct radiative forcing
+             262                       logical, public, save :: opt_aerosol_forcing=.false.
+             263                       ! [Add] 10/11/14 A.Noda for Giga-LES
+             264                       logical, public, save :: CORIOLIS    = .true.
+             265                       real(8), public, save :: RAD_FIX_LON = CNST_UNDEF
+             266                       real(8), public, save :: RAD_FIX_LAT = CNST_UNDEF
+             267                       !
+             268                       !---  No.of radiation calculation
+             269                       !  integer, parameter, public :: NCRF =  1
+             270                       integer, parameter, public :: NCRF =  2
+             271                       !
+             272                       !---  No. of band for rad.
+             273                       integer, parameter, public :: NRBND = 3
+             274                       !
+             275                       integer, parameter, public :: NRBND_VIS = 1
+             276                       integer, parameter, public :: NRBND_NIR = 2
+             277                       integer, parameter, public :: NRBND_IR = 3
+             278                       !
+             279                       !---  direct/diffuse
+             280                       integer, parameter, public :: NRDIR = 2
+             281                       integer, parameter, public :: NRDIR_DIRECT = 1
+             282                       integer, parameter, public :: NRDIR_DIFFUSE = 2
+             283                       !
+             284                       !--- ISCCP parameter 05/10/28 M.Satoh
+             285                       integer, parameter, public :: NTAU_ISCCP = 7
+             286                       integer, parameter, public :: NPRES_ISCCP = 7
+             287                       !
+             288                       !
+             289                       !==== roughness  parameter
+             290                       integer, public, parameter :: NTYPE_Z0 = 3
+             291                       integer, public, parameter :: N_Z0M = 1
+             292                       integer, public, parameter :: N_Z0H = 2
+             293                       integer, public, parameter :: N_Z0E = 3
+             294                       !
+             295                       !--- Physics type
+             296                       character(len=ADM_NSYS), public, save :: CP_TYPE = 'NONE'   ! Y.Niwa add save 080130
+             297                       !                                      = 'KUO'
+             298                     
+             299                       character(len=ADM_NSYS), public, save :: MP_TYPE = 'O2001'   ! Y.Niwa add save 080130
+             300                       !                                      = 'NONE'
+             301                       !                                      = 'KESSLER' Kessler(1969)
+             302                       !                                      = 'KW78' Klemp & Wilhemson(1978,JAS)
+             303                       !                                         tentatively same as O2000
+             304                       !                                      = 'O2001' Ooyama(2001,JAS)
+             305                       !                                         equivalent to KW78
+             306                       !                                         but more feasible than KW78
+             307                       !                                      = 'G98' Grabowski(1998,JAS,3283-3298)
+             308                       !                                      = 'G98W5' modified G98
+             309                       !                                         use of five categories of water
+             310                       !                                      = 'G99' Grabowski(1999,Atm.Res.,17-41)
+             311                     
+             312                       character(len=ADM_NSYS), public, save :: TB_TYPE = 'NONE'   ! Y.Niwa add save 080130
+             313                       !                                = 'CONST'
+             314                       !                                = 'SMAGORINSKY'
+             315                       !                                = 'DEARDORFF'
+             316                       !                                = 'MY2'
+             317                       !                                = 'MY2.5'
+             318                       !                                = 'MY2MOIST' ! 090128 A.T.Noda
+             319                       !                                = 'MYNN2.5'
+             320                       !                                = 'MYNN3'
+             321                     
+             322                       character(len=ADM_NSYS), public, save :: LAND_TYPE  = 'BUCKET'     ! Y.Niwa add save 080130
+             323                     
+             324                       character(len=ADM_NSYS), public, save :: RIV_TYPE   = 'NONE'       ! [add] K.Yoshimura 20110414
+             325                     
+             326                       character(len=ADM_NSYS), public, save :: OCEAN_TYPE = 'SST'        ! Y.Niwa add save 080130
+             327                     
+             328                       character(len=ADM_NSYS), public, save :: AE_TYPE = 'NONE'   ! Y.Niwa add save 080130
+             329                       !                                                = 'SPRINTARS'
+             330                     
+             331                       character(len=ADM_NSYS), public, save :: CHEM_TYPE = 'NONE'   ! Y.Niwa add save 080130
+             332                       !                                                  = 'PASSIVE'
+             333                       !                                                  = 'CHASER'
+             334                     
+             335                       character(len=ADM_NSYS), public, save :: RD_TYPE = 'NONE'     ! Y.Niwa add save 080130
+             336                       !                                 = 'CONST'     : specified heating
+             337                       !                                 = 'FIX' = 'CONST'
+             338                       !                                 = 'MSTRNX': Nakajima rad from AGCM5.6
+             339                     
+             340                       character(len=ADM_NSYS), public, save :: SV_TYPE_T = 'ISOTHERM'
+             341                       !                             = 'ISOTHERM'
+             342                       !                             = 'HELD-SUAREZ'  : Held & Suarez
+             343                     
+             344                       character(len=ADM_NSYS), public, save :: SV_TYPE_QV = 'DRY'  ! Y.Niwa add save 080130
+             345                       !                             = 'SATURATION'
+             346                       !                             = 'DRY'
+             347                     
+             348                       character(len=ADM_NSYS), public, save :: SF_TYPE = 'NO-FLUX'
+             349                       !                                = 'CONST'
+             350                       !                                = 'NO-FLUX'
+             351                       !                                = 'BULK-CONST'
+             352                       !                                = 'NEUTRAL'
+             353                       !                                = 'LOUIS'
+             354                     
+             355                       character(len=ADM_NSYS), public, save :: FR_TYPE = 'NONE'  ! Y.Niwa add save 080130
+             356                       !                             = 'NONE'     : nothing
+             357                       !                             = 'HELD-SUAREZ'  : Held & Suarez
+             358                       !                             = 'RIGID-ROTATION' : nudging to Rigid rotation
+             359                     
+             360                     
+             361                       !--- roughness type
+             362                       character(len=ADM_NSYS), public, save :: ROUGHNESS_SEA_TYPE &
+             363                                                        = 'MILLER' ! : default as CCSR/NIES 5.6
+             364                       !                                = 'YQW'    ! : Yuqing Wang [add] 2010.4.26 M.Satoh
+             365                     
+             366                       character(len=ADM_NSYS), public, save :: ND_TYPE = 'NONE'   ! Y.Niwa add save 080130
+             367                     
+             368                       character(len=ADM_NSYS), public, save :: AF_TYPE = 'NONE'   ! Y.Niwa add save 080130
+             369                     
+             370                       character(len=ADM_NSYS), public, save :: GWD_TYPE = 'NONE'    ! Y.Niwa add save 080130
+             371                     
+             372                     
+             373                       !--- number of aerosol species for radiation : 07/07/23 K.Suzuki for SPRINTARS
+             374                       integer, parameter, public :: KAPCL = 7
+             375                       !<= K.Suzuki add for SPRINTARS 07/07/23
+             376                       !
+             377                       ! 08/04/12 T.Mitsui add ==>
+             378                       ! for 2-moment bulk cloud microphysics
+             379                       logical, public, save :: opt_2moment_water = .false.
+             380                       logical, public, save, allocatable :: flag_diagnose_number(:)
+             381                       ! for accurate incloud scavenging
+             382                       logical, public, save :: opt_incloud_aerosol = .false.
+             383                       ! option for idealized or regional experiments
+             384                       logical, public, save :: opt_carb_on = .true.
+             385                       logical, public, save :: opt_dust_on = .true.
+             386                       logical, public, save :: opt_salt_on = .true.
+             387                       logical, public, save :: opt_sulf_on = .true.
+             388                       !
+             389                       character(len=ADM_NSYS), public, save ::  PRCIP_TRN_ECORRECT = 'KIN2KIN'
+             390                       !                                                          'KIN2EIN'
+             391                       real(8), public, save :: CORIOLIS_PARAM = CNST_UNDEF ! [add] T.Ohno 110722
+             392                     
+             393                       !=> [add] K.Yoshimura 20110414
+             394                       character(len=ADM_NSYS), public, save ::  ISOTOPE = 'OFF'
+             395                       character(len=ADM_NSYS), public, save ::  NOFRAC  = 'OFF'
+             396                       integer, public, save :: ISO_MAX  = 0
+             397                       integer, public, save :: ISO_STR  = -1
+             398                       integer, public, save :: ISO_STR2 = -1
+             399                       integer, public, save :: ISO_END  = -1
+             400                     
+             401                       integer, public, save :: ISO1_QV = -1
+             402                       integer, public, save :: ISO1_QC = -1
+             403                       integer, public, save :: ISO1_QR = -1
+             404                       integer, public, save :: ISO1_QI = -1
+             405                       integer, public, save :: ISO1_QS = -1
+             406                       integer, public, save :: ISO1_QG = -1
+             407                       integer, public, save :: ISO2_QV = -1
+             408                       integer, public, save :: ISO2_QC = -1
+             409                       integer, public, save :: ISO2_QR = -1
+             410                       integer, public, save :: ISO2_QI = -1
+             411                       integer, public, save :: ISO2_QS = -1
+             412                       integer, public, save :: ISO2_QG = -1
+             413                       !<= [add] K.Yoshimura 20110414
+             414                     
+             415                       !--- limiter switch
+             416                       logical, public, save :: THUBURN_LIM = .true.  ![add] 20130613 R.Yoshida
+             417                     
+             418                       !-----------------------------------------------------------------------------
+             419                       !
+             420                       !++ Private procedures
+             421                       !
+             422                       !-----------------------------------------------------------------------------
+             423                       !
+             424                       !++ Private parameters & variables
+             425                       !
+             426                       !-----------------------------------------------------------------------------
+             427                     contains
+             428                     
+             429                       !-----------------------------------------------------------------------------
+             430                       !>
+             431                       !> Description of the subroutine RUNCONF_setup
+             432                       !>
+             433                       subroutine RUNCONF_setup
+             434                         use mod_adm, only :  &
+             435                              ADM_LOG_FID,    &
+             436                              ADM_CTL_FID,    &
+             437                              ADM_proc_stop
+             438                         use mod_cnst, only: &
+             439                              CNST_CV,    &
+             440                              CNST_CP,    &
+             441                              CNST_CVV,   &
+             442                              CNST_CPV,   &
+             443                              CNST_CL,    &
+             444                              CNST_CI,    &
+             445                              CNST_LH00,  &
+             446                              CNST_LH0,   &
+             447                              CNST_LHS00, &
+             448                              CNST_LHS0,  &
+             449                              CNST_LHF00, &
+             450                              CNST_LHF0
+             451                         use mod_chemvar, only: &
+             452                            CHEM_TRC_vmax, &
+             453                            CHEM_TRC_name, &
+             454                            CHEM_TRC_desc
+             455                         implicit none
+             456                     
+             457                         namelist /RUNCONFPARAM/ &
+             458                              RUN_TYPE,          &
+             459                              NON_HYDRO_ALPHA,   & !--- hydro/non-hydro flag
+             460                              RD_TYPE,           &
+             461                              ND_TYPE,           &
+             462                              AF_TYPE,           &
+             463                              FR_TYPE,           &
+             464                              TB_TYPE,           &
+             465                              SV_TYPE_T,         &
+             466                              SV_TYPE_QV,        &
+             467                              SF_TYPE,           &
+             468                              MP_TYPE,           &
+             469                              CP_TYPE,           &
+             470                              GWD_TYPE,          &
+             471                              LAND_TYPE,         &  ! Y.Niwa add 070627
+             472                              OCEAN_TYPE,        &  ! Y.Niwa add 070627
+             473                              ROUGHNESS_SEA_TYPE,&  ! M.Satoh add 2010.4.26
+             474                              AE_TYPE,           &  ! K.Suzuki add 07/07/23 [add]
+             475                              CHEM_TYPE,         &
+             476                              RAIN_TYPE,         &
+             477                              RAD_TYPE ,         & !--- radiation type with/without ISCCP 05/10/28
+             478                              TRC_ADV_TYPE,      &
+             479                              NDIFF_LOCATION,    & !--- location of numerical diff.
+             480                              NDIFF_DIVISION_NUM,& !--- division number of numerical diffusion
+             481                              RAD_CLOUD_TYPE ,   & !--- cloud type for radiative computation 07/07/05 A.T.Noda
+             482                              EIN_TYPE,          & !--- scheme for temperature estimate
+             483                              RAD_GLOBAL_TROPICS,&
+             484                              CORIOLIS,          & ! [add] 10/11/14 A.Noda
+             485                              CORIOLIS_PARAM,    & ! [add] 11/07/22 T.Ohno
+             486                              RAD_FIX_LON,       & ! [add] 10/11/14 A.Noda
+             487                              RAD_FIX_LAT,       & ! [add] 10/11/14 A.Noda
+             488                              CLEAR_SKY_RAD,     &
+             489                              RAD_DIV_NUM,       &
+             490                              TRC_NEG_FIX,       &
+             491                              OUT_FILE_TYPE,     & ! add Iga(060927) determine the way of output (e.g. 'cfmip')
+             492                              OPT_OUTPUT_ALL,    & ! add option to omit output_all
+             493                              num_restart,       & ! add 07/03/10 T.Mitsui
+             494                              cdate_restart,     & ! add 07/03/10 T.Mitsui
+             495                              overwrite_restart, & ! [Add] 10/03/08 C.Kodama
+             496                              FLAG_NUDGING,      & !--- nudging flag 07/03/23 Y.Niwa [add]
+             497                              opt_2moment_water,  & ! 08/04/12 T.Mitsui add
+             498                              opt_incloud_aerosol,& ! 08/04/12 T.Mitsui add
+             499                              opt_carb_on, opt_dust_on, & ! 09/04/14 T.Mitsui
+             500                              opt_salt_on, opt_sulf_on, & ! 09/04/14 T.Mitsui
+             501                              opt_aerosol_forcing, & ! [Add] 09/04/14 T.Mitsui
+             502                              MP_DIV_NUM,          &  ! 08/04/23 [add] H.Tomita
+             503                              TB_DIV_NUM,          &
+             504                              SFC_DIV_NUM,         &
+             505                              PRCIP_TRN_ECORRECT,  &
+             506                              THUBURN_LIM             ! R.Yoshida 13/06/13 [add]
+             507                     
+             508                         character(len=2) :: is ! [add] H.Yashiro 20110819
+             509                     
+             510                         integer :: ierr
+             511                         integer :: nq, i
+             512                         !---------------------------------------------------------------------------
+             513                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 485
+                                   <<< Loop-information  End >>>
+             514         s   4           cdate_restart(:)="YYYYMMDDHHMMSS" ! add 07/03/10 T.Mitsui
+             515                         overwrite_restart=""              ! [Add] 10/03/08 C.Kodama
+             516                     
+             517                         !--- read parameters
+             518                         write(ADM_LOG_FID,*)
+             519                         write(ADM_LOG_FID,*) '+++ Module[runconf]/Category[nhm share]'
+             520                         rewind(ADM_CTL_FID)
+             521                         read(ADM_CTL_FID,nml=RUNCONFPARAM,iostat=ierr)
+             522     1                   if ( ierr < 0 ) then
+             523     1                      write(ADM_LOG_FID,*) '*** RUNCONFPARAM is not specified. use default.'
+             524     1                   elseif( ierr > 0 ) then
+             525     1                      write(*,          *) 'xxx Not appropriate names in namelist RUNCONFPARAM. STOP.'
+             526     1                      write(ADM_LOG_FID,*) 'xxx Not appropriate names in namelist RUNCONFPARAM. STOP.'
+             527     1                      call ADM_proc_stop
+             528     1                   endif
+             529                         write(ADM_LOG_FID,RUNCONFPARAM)
+             530                     
+             531                         !--- counting tracer
+             532                         TRC_vmax = 0
+             533                     
+             534                         !--- Mass tracer for Water
+             535     1                   if    ( RAIN_TYPE == 'DRY' ) then
+             536     1                      NQW_MAX = 1
+             537     1                      I_QV    = TRC_vmax + 1
+             538     1                   elseif( RAIN_TYPE == 'CLOUD_PARAM' ) then
+             539     1                      NQW_MAX = 2
+             540     1                      I_QV    = TRC_vmax + 1
+             541     1                      I_QC    = TRC_vmax + 2
+             542     1                   elseif( RAIN_TYPE == 'WARM' ) then
+             543     1                      NQW_MAX = 3
+             544     1                      I_QV    = TRC_vmax + 1
+             545     1                      I_QC    = TRC_vmax + 2
+             546     1                      I_QR    = TRC_vmax + 3
+             547     1                   elseif( RAIN_TYPE == 'COLD' ) then
+             548     1                      NQW_MAX = 6
+             549     1                      I_QV    = TRC_vmax + 1
+             550     1                      I_QC    = TRC_vmax + 2
+             551     1                      I_QR    = TRC_vmax + 3
+             552     1                      I_QI    = TRC_vmax + 4
+             553     1                      I_QS    = TRC_vmax + 5
+             554     1                      I_QG    = TRC_vmax + 6
+             555     1                   else
+             556     1                      write(*,          *) 'xxx You must set RAIN_TYPE to DRY,CLOUD_PARAM,WARM or COLD. STOP.'
+             557     1                      write(ADM_LOG_FID,*) 'xxx You must set RAIN_TYPE to DRY,CLOUD_PARAM,WARM or COLD. STOP.'
+             558     1                      call ADM_proc_stop
+             559     1                   endif
+             560                         !--- index range
+             561                         NQW_STR = TRC_vmax + 1
+             562                         NQW_END = TRC_vmax + NQW_MAX
+             563                     
+             564                         !--- update total number
+             565                         TRC_vmax = TRC_vmax + NQW_MAX
+             566                     
+             567                         !--- Number tracer for Water
+             568                         ! 08/04/12 T.Mitsui =>
+             569     1                   if ( opt_2moment_water ) then
+             570     2                      if    ( RAIN_TYPE == 'DRY' ) then
+             571     2                         NNW_MAX = 0
+             572     2                      elseif( RAIN_TYPE == 'CLOUD_PARAM' ) then
+             573     2                         NNW_MAX = 1
+             574     2                         I_NC    = TRC_vmax + 1
+             575     2                      elseif( RAIN_TYPE == 'WARM' ) then
+             576     2                         NNW_MAX = 2
+             577     2                         I_NC    = TRC_vmax + 1
+             578     2                         I_NR    = TRC_vmax + 2
+             579     2                      elseif( RAIN_TYPE == 'COLD' ) then
+             580     2                         NNW_MAX = 5
+             581     2                         I_NC    = TRC_vmax + 1
+             582     2                         I_NR    = TRC_vmax + 2
+             583     2                         I_NI    = TRC_vmax + 3
+             584     2                         I_NS    = TRC_vmax + 4
+             585     2                         I_NG    = TRC_vmax + 5
+             586     2                      endif
+             587     1                      !--- index range
+             588     1                      NNW_STR = TRC_vmax + min(1,NNW_MAX)
+             589     1                      NNW_END = TRC_vmax + NNW_MAX
+             590     1               
+             591     1                      !--- update total number
+             592     1                      TRC_vmax = TRC_vmax + NNW_MAX
+             593     1                   endif
+             594                         ! 08/04/12 T.Mitsui <=
+             595                     
+             596                         !--- Tracer for turbulence
+             597     1                   if    ( trim(TB_TYPE) == 'MY2.5' ) then
+             598     1                      NTB_MAX = 1
+             599     1                      I_TKE   = TRC_vmax + 1
+             600     1                   elseif( trim(TB_TYPE) == 'MYNN2.5' ) then !=> 09/01/28 A.T.Noda
+             601     1                      NTB_MAX = 1
+             602     1                      I_QKEp  = TRC_vmax + 1
+             603     1                   elseif( trim(TB_TYPE) == 'MYNN3' ) then
+             604     1                      NTB_MAX = 4
+             605     1                      I_QKEp  = TRC_vmax + 1
+             606     1                      I_TSQp  = TRC_vmax + 2
+             607     1                      I_QSQp  = TRC_vmax + 3
+             608     1                      I_COVp  = TRC_vmax + 4
+             609     1                   endif                                     !<= 09/01/28 A.T.Noda
+             610                         !--- update total number
+             611                         TRC_vmax = TRC_vmax + NTB_MAX
+             612                     
+             613                         !--- Tracer for chemistry
+             614     1                   if (      trim(CHEM_TYPE) == 'PASSIVE' &
+             615     1                        .OR. trim(CHEM_TYPE) == 'CHASER'  )then
+             616     1                      NCHEM_MAX = CHEM_TRC_vmax
+             617     1                      NCHEM_STR = TRC_vmax + min(1,NCHEM_MAX)
+             618     1                      NCHEM_END = TRC_vmax + NCHEM_MAX
+             619     1                   endif
+             620                         TRC_vmax = TRC_vmax + NCHEM_MAX
+             621                     
+             622                         !--- Aerosol tracer
+             623     1                   if (      trim(AE_TYPE) == 'SPRINTARS'     &
+             624     1                        .OR. trim(AE_TYPE) == 'SPRINTARS_CRM' ) then
+             625     1               
+             626     1                      NQA_MAX = 0
+             627     1               
+             628     2                      if ( opt_dust_on ) then ! soil dust
+             629     2                         NDU_MAX  = 10
+             630     2                         NQDU_STR = TRC_vmax + NQA_MAX + 1
+             631     2                         NQDU_END = TRC_vmax + NQA_MAX + NDU_MAX
+             632     2                      endif
+             633     1                      NQA_MAX = NQA_MAX + NDU_MAX
+             634     1               
+             635     2                      if ( opt_carb_on ) then ! carbonaceous
+             636     2                         NCB_MAX  = 7
+             637     2                         NQCB_STR = TRC_vmax + NQA_MAX + 1
+             638     2                         NQCB_END = TRC_vmax + NQA_MAX + NCB_MAX
+             639     2                      endif
+             640     1                      NQA_MAX = NQA_MAX + NCB_MAX
+             641     1               
+             642     2                      if ( opt_sulf_on ) then ! sulfate
+             643     2                         NSU_MAX  = 3
+             644     2                         NQSU_STR = TRC_vmax + NQA_MAX + 1
+             645     2                         NQSU_END = TRC_vmax + NQA_MAX + NSU_MAX
+             646     2               
+             647     2                         ! 09/04/14 T.Mitsui [Add]
+             648     2                         NQSU_SO4 = TRC_vmax + NQA_MAX + 1
+             649     2                         NQSU_SO2 = TRC_vmax + NQA_MAX + 2
+             650     2                         NQSU_DMS = TRC_vmax + NQA_MAX + 3
+             651     2                      endif
+             652     1                      NQA_MAX = NQA_MAX + NSU_MAX
+             653     1               
+             654     2                      if ( opt_salt_on ) then ! sea salt
+             655     2                         NSA_MAX  = 4
+             656     2                         NQSA_STR = TRC_vmax + NQA_MAX + 1
+             657     2                         NQSA_END = TRC_vmax + NQA_MAX + NSA_MAX
+             658     2                      endif
+             659     1                      NQA_MAX = NQA_MAX + NSA_MAX
+             660     1               
+             661     1                      !--- index range
+             662     1                      NQA_STR = TRC_vmax + min(1,NQA_MAX)
+             663     1                      NQA_END = TRC_vmax + NQA_MAX
+             664     1               
+             665     1                      !--- update total number
+             666     1                      TRC_vmax = TRC_vmax + NQA_MAX
+             667     1               
+             668     1               
+             669     1                      !--- Incloud aerosol tracer
+             670     1                      if( opt_2moment_water ) opt_incloud_aerosol = .true.
+             671     1               
+             672     2                      if ( opt_incloud_aerosol ) then
+             673     2                         ! 09/04/14 [Mod] T.Mitsui, option works
+             674     2               
+             675     2                         NQAIN_MAX = 0
+             676     2               
+             677     3                         if ( opt_dust_on ) then ! soil dust
+             678     3                            NQDUIN_MAX = NDU_MAX
+             679     3                            NQDUIN_STR = TRC_vmax + NQAIN_MAX + 1
+             680     3                            NQDUIN_END = TRC_vmax + NQAIN_MAX + NQDUIN_MAX
+             681     3                         endif
+             682     2                         NQAIN_MAX = NQAIN_MAX + NQDUIN_MAX
+             683     2               
+             684     3                         if ( opt_carb_on ) then ! carbonaceous
+             685     3                            NQCBIN_MAX = NCB_MAX
+             686     3                            NQCBIN_STR = TRC_vmax + NQAIN_MAX + 1
+             687     3                            NQCBIN_END = TRC_vmax + NQAIN_MAX + NQCBIN_MAX
+             688     3                         endif
+             689     2                         NQAIN_MAX = NQAIN_MAX + NQCBIN_MAX
+             690     2               
+             691     3                         if ( opt_sulf_on ) then ! sulfate
+             692     3                            NQSUIN_MAX = 1
+             693     3                            NQSUIN_STR = TRC_vmax + NQAIN_MAX + 1
+             694     3                            NQSUIN_END = TRC_vmax + NQAIN_MAX + NQSUIN_MAX
+             695     3               
+             696     3                            NQSO4IN = TRC_vmax + NQAIN_MAX + 1
+             697     3                         endif
+             698     2                         NQAIN_MAX = NQAIN_MAX + NQSUIN_MAX
+             699     2               
+             700     3                         if ( opt_salt_on ) then ! sea salt
+             701     3                            NQSAIN_MAX = NSA_MAX
+             702     3                            NQSAIN_STR = TRC_vmax + NQAIN_MAX + 1
+             703     3                            NQSAIN_END = TRC_vmax + NQAIN_MAX + NQSAIN_MAX
+             704     3                         endif
+             705     2                         NQAIN_MAX = NQAIN_MAX + NQSAIN_MAX
+             706     2               
+             707     2                         !--- index range
+             708     2                         NQAIN_STR = TRC_vmax + min(1,NQAIN_MAX)
+             709     2                         NQAIN_END = TRC_vmax + NQAIN_MAX
+             710     2               
+             711     2                         !--- update total number
+             712     2                         TRC_vmax = TRC_vmax + NQAIN_MAX
+             713     2                      endif
+             714     1                   endif
+             715                     
+             716                         !=> [add] K.Yoshimura 20110414
+             717     1                   if(trim(ISOTOPE)=='ON') then
+             718     2                      if(RAIN_TYPE=='WARM') then
+             719     2                         ISO_MAX = 6
+             720     2                         ISO_STR = TRC_VMAX + 1
+             721     2                         ISO_STR2 = TRC_VMAX + 4
+             722     2                         ISO_END = TRC_VMAX + ISO_MAX
+             723     2                         ISO1_QV = ISO_STR
+             724     2                         ISO1_QC = ISO_STR + 1
+             725     2                         ISO1_QR = ISO_STR + 2
+             726     2                         ISO2_QV = ISO_STR2
+             727     2                         ISO2_QC = ISO_STR2 + 1
+             728     2                         ISO2_QR = ISO_STR2 + 2
+             729     2                      else if(RAIN_TYPE=='COLD') then
+             730     2                         ISO_MAX = 12
+             731     2                         ISO_STR = TRC_VMAX + 1
+             732     2                         ISO_STR2 = TRC_VMAX + 7
+             733     2                         ISO_END = TRC_VMAX + ISO_MAX
+             734     2                         ISO1_QV = ISO_STR
+             735     2                         ISO1_QC = ISO_STR + 1
+             736     2                         ISO1_QR = ISO_STR + 2
+             737     2                         ISO1_QI = ISO_STR + 3
+             738     2                         ISO1_QS = ISO_STR + 4
+             739     2                         ISO1_QG = ISO_STR + 5
+             740     2                         ISO2_QV = ISO_STR2
+             741     2                         ISO2_QC = ISO_STR2 + 1
+             742     2                         ISO2_QR = ISO_STR2 + 2
+             743     2                         ISO2_QI = ISO_STR2 + 3
+             744     2                         ISO2_QS = ISO_STR2 + 4
+             745     2                         ISO2_QG = ISO_STR2 + 5
+             746     2                      else if(RAIN_TYPE=='CLOUD_PARAM') then
+             747     2                         ISO_MAX = 4
+             748     2                         ISO_STR = TRC_VMAX + 1
+             749     2                         ISO_STR2 = TRC_VMAX + 3
+             750     2                         ISO_END = TRC_VMAX + ISO_MAX
+             751     2                         ISO1_QV = ISO_STR
+             752     2                         ISO1_QC = ISO_STR + 1
+             753     2                         ISO2_QV = ISO_STR2
+             754     2                         ISO2_QC = ISO_STR2 + 1
+             755     2                      else if(RAIN_TYPE=='DRY') then
+             756     2                         ISO_MAX = 2
+             757     2                         ISO_STR = TRC_VMAX + 1
+             758     2                         ISO_STR2 = TRC_VMAX + 2
+             759     2                         ISO_END = TRC_VMAX + ISO_MAX
+             760     2                         ISO1_QV = ISO_STR
+             761     2                         ISO2_QV = ISO_STR2
+             762     2                      end if
+             763     1                      TRC_VMAX = ISO_END
+             764     1                   end if
+             765                         !<= [add] K.Yoshimura 20110414
+             766                     
+             767                         allocate( TRC_name(TRC_vmax) ) ! [add] H.Yashiro 20110819
+             768                         allocate( WLABEL  (TRC_vmax) ) ! 08/04/12 [Add] T.Mitsui
+             769             6           TRC_name(:) = ""
+             770             4           WLABEL  (:) = ""
+             771                     
+             772                         allocate( flag_diagnose_number(TRC_vmax) )
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2000
+                                   <<< Loop-information  End >>>
+             773        pp    s          flag_diagnose_number(:) = .false.
+             774                     
+             775                         !--- Labeling
+             776     1                   do nq = 1, TRC_vmax
+             777     2                      if    ( nq == I_QV ) then
+             778     2                         TRC_name(nq) = 'qv'
+             779     2                         WLABEL  (nq) = 'VAPOR'
+             780     2                      elseif( nq == I_QC ) then
+             781     2                         TRC_name(nq) = 'qc'
+             782     2                         WLABEL  (nq) = 'CLOUD'
+             783     2                      elseif( nq == I_QR ) then
+             784     2                         TRC_name(nq) = 'qr'
+             785     2                         WLABEL  (nq) = 'RAIN'
+             786     2                      elseif( nq == I_QI ) then
+             787     2                         TRC_name(nq) = 'qi'
+             788     2                         WLABEL  (nq) = 'ICE'
+             789     2                      elseif( nq == I_QS ) then
+             790     2                         TRC_name(nq) = 'qs'
+             791     2                         WLABEL  (nq) = 'SNOW'
+             792     2                      elseif( nq == I_QG ) then
+             793     2                         TRC_name(nq) = 'qg'
+             794     2                         WLABEL  (nq) = 'GRAUPEL'
+             795     2               
+             796     2                      elseif( nq == I_NC )then
+             797     2                         TRC_name(nq) = 'nc'
+             798     2                         WLABEL  (nq) = 'CLOUD_NUM'
+             799     2                      elseif( nq == I_NR )then
+             800     2                         TRC_name(nq) = 'nr'
+             801     2                         WLABEL  (nq) = 'RAIN_NUM'
+             802     2                      elseif( nq == I_NI )then
+             803     2                         TRC_name(nq) = 'ni'
+             804     2                         WLABEL  (nq) = 'ICE_NUM'
+             805     2                      elseif( nq == I_NS )then
+             806     2                         TRC_name(nq) = 'ns'
+             807     2                         WLABEL  (nq) = 'SNOW_NUM'
+             808     2                      elseif( nq == I_NG )then
+             809     2                         TRC_name(nq) = 'ng'
+             810     2                         WLABEL  (nq) = 'GRAUPEL_NUM'
+             811     2               
+             812     2                      elseif( nq == NQDU_STR )then
+             813     3                         do i = 1, NDU_MAX
+             814     3                            write(is,'(I2.2)') i
+             815     3                            TRC_name(nq+i-1) = 'dust'//is
+             816     3                            WLABEL  (nq+i-1) = 'DUST'
+             817     3                         enddo
+             818     2                      elseif( nq == NQCB_STR ) then
+             819     3                         do i = 1, NCB_MAX
+             820     3                            write(is,'(I2.2)') i
+             821     3                            TRC_name(nq+i-1) = 'carbon'//is
+             822     3                            WLABEL  (nq+i-1) = 'CARBON'
+             823     3                         enddo
+             824     2                      elseif( nq == NQSU_STR ) then
+             825     3                         do i = 1, NSU_MAX
+             826     3                            write(is,'(I2.2)') i
+             827     3                            TRC_name(nq+i-1) = 'sulfate'//is
+             828     3                            WLABEL  (nq+i-1) = 'SULFATE'
+             829     3                         enddo
+             830     2                      elseif( nq == NQSA_STR ) then
+             831     3                         do i = 1, NSA_MAX
+             832     3                            write(is,'(I2.2)') i
+             833     3                            TRC_name(nq+i-1) = 'seasalt'//is
+             834     3                            WLABEL  (nq+i-1) = 'SALT'
+             835     3                         enddo
+             836     2               
+             837     2                      elseif( nq == NQDUIN_STR )then
+             838     3                         do i = 1, NQDUIN_MAX
+             839     3                            write(is,'(I2.2)') i
+             840     3                            TRC_name(nq+i-1) = 'qcdust'//is
+             841     3                            WLABEL  (nq+i-1) = 'DUST_INCLOUD'
+             842     3                         enddo
+             843     2                      elseif( nq == NQCBIN_STR ) then
+             844     3                         do i = 1, NQCBIN_MAX
+             845     3                            write(is,'(I2.2)') i
+             846     3                            TRC_name(nq+i-1) = 'qccb'//is
+             847     3                            WLABEL  (nq+i-1) = 'CB_INCLOUD'
+             848     3                         enddo
+             849     2                      elseif( nq == NQSUIN_STR ) then
+             850     2                         TRC_name(nq) = 'qcso4'
+             851     2                         WLABEL  (nq) = 'SO4_INCLOUD'
+             852     2                      elseif( nq == NQSAIN_STR ) then
+             853     3                         do i = 1, NQSAIN_MAX
+             854     3                            write(is,'(I2.2)') i
+             855     3                            TRC_name(nq+i-1) = 'qcsalt'//is
+             856     3                            WLABEL  (nq+i-1) = 'SALT_INCLOUD'
+             857     3                         enddo
+             858     2                      !=> [add] K.Yoshimura 20110414
+             859     2                      elseif(nq == ISO1_QV)then
+             860     2                         TRC_name(nq) = 'qvo18'
+             861     2                         WLABEL  (nq) = 'O18_VAPOR'
+             862     2                      elseif(nq == ISO1_QC)then
+             863     2                         TRC_name(nq) = 'qco18'
+             864     2                         WLABEL  (nq) = 'O18_CLOUD'
+             865     2                      elseif(nq == ISO1_QR)then
+             866     2                         TRC_name(nq) = 'qro18'
+             867     2                         WLABEL  (nq) = 'O18_RAIN'
+             868     2                      elseif(nq == ISO1_QI)then
+             869     2                         TRC_name(nq) = 'qio18'
+             870     2                         WLABEL  (nq) = 'O18_ICE'
+             871     2                      elseif(nq == ISO1_QS)then
+             872     2                         TRC_name(nq) = 'qso18'
+             873     2                         WLABEL  (nq) = 'O18_SNOW'
+             874     2                      elseif(nq == ISO1_QG)then
+             875     2                         TRC_name(nq) = 'qgo18'
+             876     2                         WLABEL  (nq) = 'O18_GRAUPEL'
+             877     2                      elseif(nq == ISO2_QV)then
+             878     2                         TRC_name(nq) = 'qvhdo'
+             879     2                         WLABEL  (nq) = 'HDO_VAPOR'
+             880     2                      elseif(nq == ISO2_QC)then
+             881     2                         TRC_name(nq) = 'qchdo'
+             882     2                         WLABEL  (nq) = 'HDO_CLOUD'
+             883     2                      elseif(nq == ISO2_QR)then
+             884     2                         TRC_name(nq) = 'qrhdo'
+             885     2                         WLABEL  (nq) = 'HDO_RAIN'
+             886     2                      elseif(nq == ISO2_QI)then
+             887     2                         TRC_name(nq) = 'qihdo'
+             888     2                         WLABEL  (nq) = 'HDO_ICE'
+             889     2                      elseif(nq == ISO2_QS)then
+             890     2                         TRC_name(nq) = 'qshdo'
+             891     2                         WLABEL  (nq) = 'HDO_SNOW'
+             892     2                      elseif(nq == ISO2_QG)then
+             893     2                         TRC_name(nq) = 'qghdo'
+             894     2                         WLABEL  (nq) = 'HDO_GRAUPEL'
+             895     2                      !<= [add] K.Yoshimura 20110414
+             896     2                      elseif( nq == NCHEM_STR ) then
+             897     3       4                 do i = 1, NCHEM_MAX
+             898     3       4                    TRC_name(nq+i-1) = CHEM_TRC_name(i)
+             899     3       4                    WLABEL  (nq+i-1) = CHEM_TRC_desc(i)
+             900     3       4                 enddo
+             901     2                      endif
+             902     1                   enddo
+             903                     
+             904                         write(ADM_LOG_FID,*)
+             905                         write(ADM_LOG_FID,*) '--- Prognostic Tracers'
+             906                         write(ADM_LOG_FID,*) '|=========================================================|'
+             907                         write(ADM_LOG_FID,*) '|       :varname         :description                     |'
+             908     1   s    s          do nq = 1, TRC_vmax
+             909     1   m    s             write(ADM_LOG_FID,'(1x,A,I4,A,A16,A,A,A)') '|ID=', nq, ':', TRC_name(nq), ':', WLABEL(nq),'|'
+             910     1   p    s          enddo
+             911                         write(ADM_LOG_FID,*) '|=========================================================|'
+             912                     
+             913                         !--- Heat capacity for thermodynamics
+             914                         allocate( CVW(NQW_STR:NQW_END) )
+             915                         allocate( CPW(NQW_STR:NQW_END) )
+             916                     
+             917     1                   if ( EIN_TYPE == 'EXACT' ) then
+             918     1                      LHV = CNST_LH00
+             919     1                      LHS = CNST_LHS00
+             920     1                      LHF = CNST_LHF00
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 243
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 96
+                                   <<<      CVW: 48, CPW: 48
+                                   <<< Loop-information  End >>>
+             921     2  pp   4s             do nq = NQW_STR, NQW_END
+             922     3   p   4s                if    ( nq == I_QV ) then ! vapor
+             923     3   p   4s                   CVW(nq) = CNST_CVV
+             924     3   p   4s                   CPW(nq) = CNST_CPV
+             925     3   p   4s                elseif( nq == I_QC ) then ! cloud
+             926     3   p   4s                   CVW(nq) = CNST_CL
+             927     3   p   4s                   CPW(nq) = CNST_CL
+             928     3   p   4s                elseif( nq == I_QR ) then ! rain
+             929     3   p   4s                   CVW(nq) = CNST_CL
+             930     3   p   4s                   CPW(nq) = CNST_CL
+             931     3   p   4s                elseif( nq == I_QI ) then ! ice
+             932     3   p   4s                   CVW(nq) = CNST_CI
+             933     3   p   4s                   CPW(nq) = CNST_CI
+             934     3   p   4s                elseif( nq == I_QS ) then ! snow
+             935     3   p   4s                   CVW(nq) = CNST_CI
+             936     3   p   4s                   CPW(nq) = CNST_CI
+             937     3   p   4s                elseif( nq == I_QG ) then ! graupel
+             938     3   p   4s                   CVW(nq) = CNST_CI
+             939     3   p   4s                   CPW(nq) = CNST_CI
+             940     3   p    s                endif
+             941     2   p    s             enddo
+             942     1                   elseif( EIN_TYPE == 'SIMPLE' ) then
+             943     1                      LHV = CNST_LH0
+             944     1                      LHS = CNST_LHS0
+             945     1                      LHF = CNST_LHF0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 243
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 96
+                                   <<<      CVW: 48, CPW: 48
+                                   <<< Loop-information  End >>>
+             946     2  pp   4s             do nq = NQW_STR, NQW_END
+             947     3   p   4s                if    ( nq == I_QV ) then ! vapor
+             948     3   p   4s                   CVW(nq) = CNST_CV
+             949     3   p   4s                   CPW(nq) = CNST_CP
+             950     3   p   4s                elseif( nq == I_QC ) then ! cloud
+             951     3   p   4s                   CVW(nq) = CNST_CV
+             952     3   p   4s                   CPW(nq) = CNST_CV
+             953     3   p   4s                elseif( nq == I_QR ) then ! rain
+             954     3   p   4s                   CVW(nq) = CNST_CV
+             955     3   p   4s                   CPW(nq) = CNST_CV
+             956     3   p   4s                elseif( nq == I_QI ) then ! ice
+             957     3   p   4s                   CVW(nq) = CNST_CV
+             958     3   p   4s                   CPW(nq) = CNST_CV
+             959     3   p   4s                elseif( nq == I_QS ) then ! snow
+             960     3   p   4s                   CVW(nq) = CNST_CV
+             961     3   p   4s                   CPW(nq) = CNST_CV
+             962     3   p   4s                elseif( nq == I_QG ) then ! graupel
+             963     3   p   4s                   CVW(nq) = CNST_CV
+             964     3   p   4s                   CPW(nq) = CNST_CV
+             965     3   p    s                endif
+             966     2   p    s             enddo
+             967     1                   elseif( EIN_TYPE == 'SIMPLE2' ) then
+             968     1                      LHV = CNST_LH0
+             969     1                      LHS = CNST_LHS0
+             970     1                      LHF = CNST_LHF0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 243
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 96
+                                   <<<      CVW: 48, CPW: 48
+                                   <<< Loop-information  End >>>
+             971     2  pp   4s             do nq = NQW_STR, NQW_END
+             972     3   p   4s                if    ( nq == I_QV ) then ! vapor
+             973     3   p   4s                   CVW(nq) = CNST_CVV
+             974     3   p   4s                   CPW(nq) = CNST_CPV
+             975     3   p   4s                elseif( nq == I_QC ) then ! cloud
+             976     3   p   4s                   CVW(nq) = CNST_CPV
+             977     3   p   4s                   CPW(nq) = CNST_CPV
+             978     3   p   4s                elseif( nq == I_QR ) then ! rain
+             979     3   p   4s                   CVW(nq) = CNST_CPV
+             980     3   p   4s                   CPW(nq) = CNST_CPV
+             981     3   p   4s                elseif( nq == I_QI ) then ! ice
+             982     3   p   4s                   CVW(nq) = CNST_CPV
+             983     3   p   4s                   CPW(nq) = CNST_CPV
+             984     3   p   4s                elseif( nq == I_QS ) then ! snow
+             985     3   p   4s                   CVW(nq) = CNST_CPV
+             986     3   p   4s                   CPW(nq) = CNST_CPV
+             987     3   p   4s                elseif( nq == I_QG ) then ! graupel
+             988     3   p   4s                   CVW(nq) = CNST_CPV
+             989     3   p   4s                   CPW(nq) = CNST_CPV
+             990     3   p    s                endif
+             991     2   p    s             enddo
+             992     1                   endif
+             993                     
+             994     1                   if( mod(TB_DIV_NUM,SFC_DIV_NUM)/=0 ) then
+             995     1                      TB_DIV_NUM = SFC_DIV_NUM
+             996     1                      write(ADM_LOG_FID,*) '### FIX to TB_DIV_NUM =',TB_DIV_NUM
+             997     1                   endif
+             998                     
+             999     1                   if( THUBURN_LIM ) then  ![add] 20130613 R.Yoshida
+            1000     1                      write(ADM_LOG_FID,*) 'Run with \"Thuburn Limiter\" in MIURA2004 Advection'
+            1001     1                   else
+            1002     1                      write(ADM_LOG_FID,*) '### Without \"Thuburn Limiter\" in MIURA2004 Advection'
+            1003     1                   endif
+            1004                     
+            1005                         return
+            1006                       end subroutine RUNCONF_setup
+            1007                     
+            1008                     end module mod_runconf
+            1009                     !-------------------------------------------------------------------------------
+
+ Procedure information
+   Lines      : 1009
+   Statements : 599
+   Stack(byte): 4112
+   Prefetch num: 288
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1009
+   Total statements : 599
+   Total stack(byte): 4112
+   Total prefetch num: 288
+

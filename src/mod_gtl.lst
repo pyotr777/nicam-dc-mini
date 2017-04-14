@@ -1,0 +1,2073 @@
+
+ Fujitsu Fortran Version 1.2.0  Mon Dec 21 17:01:00 2015
+
+ Compilation information
+   Current directory : /volume1/home/ra000007/a03106/nicam-dc-mini/src
+   Source file       : share/mod_gtl.f90
+
+ Option information
+   Command line options : -Kident_mpi -f2004 -Kfast,parallel,auto,ocl,preex,array_private,noalias=s,mfunc=2 -Kparallel_iteration=8,instance=8,dynamic_iteration -Qi -Qt -X03 -Ncompdisp -Koptmsg=1 -Cpp -Kprefetch_cache_level=all,prefetch_iteration_L2=50 -Ksimd -Ntl_notrt -U_FIPP_ -U_FAPP_ -I../src/include -o mod_gtl.o -c -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -W0,-zmpa=Yignore-intent -I/opt/FJSVtclang/GM-1.2.0-19/lib64
+   Cpp options          : -U_FIPP_ -U_FAPP_ -I../src/include -I/opt/FJSVtclang/GM-1.2.0-19/include/mpi/fujitsu -I/opt/FJSVtclang/GM-1.2.0-19/lib64 -D__FUJITSU -Dunix -Dsparc -D__sparc__ -D__unix -D__sparc -D__frt_version=700 -D__HPC_ACE__ -D__ELF__ -D__unix__ -D__linux__ -D__linux -Asystem(unix) -Dlinux -otmp -D__sparcv9 -D__sparc_v9__ -D__arch64__
+   Effective options    : -fi -g0 -AE -Free -O3 -Qi,p,t -X03
+                          -x0
+                          -KFLTLD -Kadr44 -Knoalias=s -Kauto -Knoautoobjstack
+                          -Knocalleralloc -Kdalign -Keval -Knofenv_access
+                          -Kfp_contract -Kfp_relaxed -Kfsimple -Kilfunc
+                          -Klargepage -Kloop_blocking -Kloop_fission
+                          -Kloop_nofission_if -Kloop_fusion
+                          -Kloop_interchange -Kloop_nopart_parallel
+                          -Kloop_nopart_simd -Kloop_noversioning -Kns
+                          -Kmfunc=2 -Kocl -Komitfp -Koptmsg=1 -Kpreex
+                          -Kprefetch_conditional -Kprefetch_noindirect
+                          -Kprefetch_sequential=auto -Kprefetch_nostride
+                          -Kprefetch_cache_level=all -Kprefetch_noinfer
+                          -Kprefetch_iteration_L2=50 -Kprefetch_nostrong
+                          -Kprefetch_strong_L2 -Knoshortloop -Ksimd=1
+                          -Knosimd_region_constant -Knostriping -Kswp
+                          -Knotemparraystack -Kunroll -Knouxsimd -KNOXFILL
+                          -Knoopenmp -Kopenmp_noassume_norecurrence
+                          -Kopenmp_noordered_reduction -Knothreadsafe
+                          -Kparallel -Kparallel_nofp_precision
+                          -Karray_private -Kdynamic_iteration -Kreduction
+                          -Kregion_extension -Kinstance=8
+                          -Kparallel_iteration=8
+                          -Nallextput -Nnoalloc_assign
+                          -Ncancel_overtime_compilation -Ncompdisp
+                          -Nnocopyarg -Nfreealloc -Nf90move -Nnohook_func
+                          -Nnohook_time -Nline -Nlst -Nlst=i -Nlst=p -Nlst=t
+                          -Nnomallocfree -Nnoobsfun -Nquickdbg=noargchk
+                          -Nquickdbg=nosubchk -Nquickdbg=noundef -NRnotrap
+                          -Nnorecursive -Nrt_notune -Nnosave
+                          -Nsetvalue=noheap -Nsetvalue=nostack
+                          -Nsetvalue=noscalar -Nsetvalue=noarray
+                          -Nsetvalue=nostruct -Nuse_rodata
+
+ Module "mod_gtl"
+  (inc)(line-no.)(nest)(optimize)
+               1                     !-------------------------------------------------------------------------------
+               2                     !>
+               3                     !! Generic tool module
+               4                     !!
+               5                     !! @par Description
+               6                     !!         This module is for the generic subroutine, e.g., global mean.
+               7                     !!
+               8                     !! @author  H.Tomita
+               9                     !!
+              10                     !! @par History
+              11                     !! @li      2004-02-17 (H.Tomita)  Imported from igdc-4.33
+              12                     !! @li      2004-06-23 (        )  [add] GTL_input_var2]
+              13                     !! @li      2011-03-02 (        )  [add] GTL_clip_region_1layer_k
+              14                     !! @li      2011-07-22 (T.Ohno)    MPI_Bcasts of poles data are suppressed when poles are excluded from communication.
+              15                     !! @li      2012-06-06 (M.Terai)   Modification to reduce communication by FJSE
+              16                     !!
+              17                     !<
+              18                     !-------------------------------------------------------------------------------
+              19                     module mod_gtl
+              20                       !-----------------------------------------------------------------------------
+              21                       !
+              22                       !++ Used modules
+              23                       !
+              24                       use mpi
+              25                       use mod_adm, only: &
+              26                          ADM_LOG_FID, &
+              27                          ADM_NSYS,    &
+              28                          ADM_MAXFNAME
+              29                       !-----------------------------------------------------------------------------
+              30                       implicit none
+              31                       private
+              32                       !-----------------------------------------------------------------------------
+              33                       !
+              34                       !++ Public procedure
+              35                       !
+              36                       public :: GTL_global_sum
+              37                       public :: GTL_global_sum_srf
+              38                       public :: GTL_global_sum_eachlayer
+              39                       public :: GTL_global_mean
+              40                       public :: GTL_max
+              41                       public :: GTL_max_k
+              42                       public :: GTL_min
+              43                       public :: GTL_min_k
+              44                     
+              45                       public :: GTL_input_var2       ! sequential access (going to abolish)
+              46                       public :: GTL_output_var2      ! sequential access (going to abolish)
+              47                       public :: GTL_input_var_fopen  ! sequential access (going to abolish)
+              48                       public :: GTL_input_var_read   ! sequential access (going to abolish)
+              49                       public :: GTL_input_var_fclose ! sequential access (going to abolish)
+              50                       public :: GTL_input_timeinfo   ! (going to abolish)
+              51                       public :: GTL_input_var2_da    ! direct access
+              52                       public :: GTL_output_var2_da   ! direct access
+              53                       public :: GTL_output_var3      ! sequential access (going to abolish)
+              54                     
+              55                       public :: GTL_generate_vxvyvz
+              56                       public :: GTL_generate_uv
+              57                       public :: GTL_mk_rigidrotation
+              58                     
+              59                       public :: GTL_clip_region
+              60                       public :: GTL_clip_region_1layer
+              61                       public :: GTL_clip_region_1layer_k
+              62                     
+              63                       !-----------------------------------------------------------------------------
+              64                       !
+              65                       !++ Private procedures
+              66                       !
+              67                       !-----------------------------------------------------------------------------
+              68                       !
+              69                       !++ Private parameters & variables
+              70                       !
+              71                       !-----------------------------------------------------------------------------
+              72                     contains
+              73                       !-----------------------------------------------------------------------------
+              74                       function GTL_global_sum( var, var_pl ) result( sum_g )
+              75                         use mod_adm, only: &
+              76                            ADM_prc_me,      &
+              77                            ADM_prc_pl,      &
+              78                            ADM_gall,        &
+              79                            ADM_gall_pl,     &
+              80                            ADM_lall,        &
+              81                            ADM_lall_pl,     &
+              82                            ADM_kall,        &
+              83                            ADM_kmin,        &
+              84                            ADM_kmax,        &
+              85                            ADM_IooJoo_nmax, &
+              86                            ADM_IooJoo,      &
+              87                            ADM_GIoJo,       &
+              88                            ADM_GSLF_PL
+              89                         use mod_comm, only: &
+              90                            COMM_Stat_sum
+              91                         use mod_vmtr, only: &
+              92                            VMTR_VOLUME,   &
+              93                            VMTR_VOLUME_pl
+              94                         implicit none
+              95                     
+              96                         real(8), intent(in) :: var   (ADM_gall,   ADM_kall,ADM_lall   )
+              97                         real(8), intent(in) :: var_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+              98                         real(8)             :: sum_g
+              99                     
+             100                         real(8) :: sum
+             101                         integer :: n, k, l
+             102                         !---------------------------------------------------------------------------
+             103                     
+             104                         sum = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             105     1  pp               do l = 1,        ADM_lall
+             106     2   p               do k = ADM_kmin, ADM_kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             107     3   p   4v          do n = 1,        ADM_IooJoo_nmax
+             108     3   p   4v             sum = sum + var(ADM_IooJoo(n,ADM_GIoJo),k,l) * VMTR_VOLUME(ADM_IooJoo(n,ADM_GIoJo),k,l)
+             109     3   p   4v          enddo
+             110     2   p               enddo
+             111     1   p               enddo
+             112                     
+             113     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<< Loop-information  End >>>
+             114     2  pp                  do l = 1,        ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             115     3  pp   6v             do k = ADM_kmin, ADM_kmax
+             116     3   p   6v                sum = sum + var_pl(ADM_GSLF_PL,k,l) * VMTR_VOLUME_pl(ADM_GSLF_PL,k,l)
+             117     3   p   6v             enddo
+             118     2   p                  enddo
+             119     1                   endif
+             120                     
+             121                         call COMM_Stat_sum( sum, sum_g )
+             122                     
+             123                         return
+             124                       end function GTL_global_sum
+             125                     
+             126                       !-----------------------------------------------------------------------------
+             127                       function GTL_global_sum_srf( var, var_pl ) result( sum_g )
+             128                         use mod_adm, only: &
+             129                            ADM_prc_me,      &
+             130                            ADM_prc_pl,      &
+             131                            ADM_gall,        &
+             132                            ADM_gall_pl,     &
+             133                            ADM_lall,        &
+             134                            ADM_lall_pl,     &
+             135                            ADM_KNONE,       &
+             136                            ADM_IooJoo_nmax, &
+             137                            ADM_IooJoo,      &
+             138                            ADM_GIoJo,       &
+             139                            ADM_GSLF_PL
+             140                         use mod_comm, only: &
+             141                            COMM_Stat_sum
+             142                         use mod_gmtr, only: &
+             143                            GMTR_area,   &
+             144                            GMTR_area_pl
+             145                         implicit none
+             146                     
+             147                         real(8), intent(in) :: var   (ADM_gall,   ADM_KNONE,ADM_lall   )
+             148                         real(8), intent(in) :: var_pl(ADM_gall_pl,ADM_KNONE,ADM_lall_pl)
+             149                         real(8)             :: sum_g
+             150                     
+             151                         real(8) :: sum
+             152                         integer :: n, l
+             153                         !---------------------------------------------------------------------------
+             154                     
+             155                         sum = 0.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<< Loop-information  End >>>
+             156     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 843
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             157     2  pp   4v          do n = 1, ADM_IooJoo_nmax
+             158     2   p   4v             sum = sum + var      (ADM_IooJoo(n,ADM_GIoJo),ADM_KNONE,l) &
+             159     2                                * GMTR_area(ADM_IooJoo(n,ADM_GIoJo),l)
+             160     2   p   4v          enddo
+             161     1   p               enddo
+             162                     
+             163     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1143
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             164     2  pp   6v             do l = 1, ADM_lall_pl
+             165     2   p   6v                sum = sum + var_pl      (ADM_GSLF_PL,ADM_KNONE,l) &
+             166     2                                   * GMTR_area_pl(ADM_GSLF_PL,l)
+             167     2   p   6v             enddo
+             168     1                   endif
+             169                     
+             170                         call COMM_Stat_sum( sum, sum_g )
+             171                     
+             172                         return
+             173                       end function GTL_global_sum_srf
+             174                     
+             175                       !-----------------------------------------------------------------------------
+             176                       subroutine GTL_global_sum_eachlayer( var, var_pl, sum_g )
+             177                         use mod_adm, only: &
+             178                            ADM_prc_me,      &
+             179                            ADM_prc_pl,      &
+             180                            ADM_gall,        &
+             181                            ADM_gall_pl,     &
+             182                            ADM_lall,        &
+             183                            ADM_lall_pl,     &
+             184                            ADM_kall,        &
+             185                            ADM_IooJoo_nmax, &
+             186                            ADM_IooJoo,      &
+             187                            ADM_GIoJo,       &
+             188                            ADM_GSLF_PL
+             189                         use mod_comm, only: &
+             190                            COMM_Stat_sum_eachlayer
+             191                         use mod_gmtr, only: &
+             192                            GMTR_area,   &
+             193                            GMTR_area_pl
+             194                         use mod_vmtr, only: &
+             195                            VMTR_GAM2,   &
+             196                            VMTR_GAM2_pl
+             197                         implicit none
+             198                     
+             199                         real(8), intent(in)  :: var   (ADM_gall,   ADM_kall,ADM_lall   )
+             200                         real(8), intent(in)  :: var_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             201                         real(8), intent(out) :: sum_g (ADM_kall)
+             202                     
+             203                         real(8) :: sum(ADM_kall)
+             204                         integer :: n, k, l
+             205                         !---------------------------------------------------------------------------
+             206                     
+             207                         sum(k) = 0.D0
+             208     1   s               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 3
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 6
+                                   <<<      sum: 6
+                                   <<< Loop-information  End >>>
+             209     2  pp               do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 534
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             210     3  pp   2v          do n = 1, ADM_IooJoo_nmax
+             211     3   p   2v             sum(k) = sum(k) + var      (ADM_IooJoo(n,ADM_GIoJo),k,l) &
+             212     3                                      * GMTR_area(ADM_IooJoo(n,ADM_GIoJo),l)   &
+             213     3                                      * VMTR_GAM2(ADM_IooJoo(n,ADM_GIoJo),k,l)
+             214     3   p   2v          enddo
+             215     2   p               enddo
+             216     1   p               enddo
+             217                     
+             218     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             219     2   s                  do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 640
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             220     3  pp   6v             do k = 1, ADM_kall
+             221     3   p   6v                sum(k) = sum(k) + var_pl      (ADM_GSLF_PL,k,l) &
+             222     3                                         * GMTR_area_pl(ADM_GSLF_PL,l)   &
+             223     3                                         * VMTR_GAM2_pl(ADM_GSLF_PL,k,l)
+             224     3   p   6v             enddo
+             225     2   p                  enddo
+             226     1                   endif
+             227                     
+             228                     
+             229                         call COMM_Stat_sum_eachlayer( ADM_kall, sum(:), sum_g(:) )
+             230                     
+             231                         return
+             232                       end subroutine GTL_global_sum_eachlayer
+             233                     
+             234                       !-----------------------------------------------------------------------------
+             235                       function GTL_global_mean( var, var_pl ) result( sum_g )
+             236                         use mod_adm, only: &
+             237                            ADM_gall,    &
+             238                            ADM_lall,    &
+             239                            ADM_gall_pl, &
+             240                            ADM_lall_pl, &
+             241                            ADM_kall
+             242                         use mod_comm, only: &
+             243                            COMM_Stat_sum
+             244                         implicit none
+             245                     
+             246                         real(8), intent(in) :: var   (ADM_gall,   ADM_kall,ADM_lall   )
+             247                         real(8), intent(in) :: var_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             248                         real(8)             :: sum_g
+             249                     
+             250                         real(8)       :: one   (ADM_gall,   ADM_kall,ADM_lall   )
+             251                         real(8)       :: one_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             252                         logical, save :: first = .true.
+             253                         real(8), save :: volume_g
+             254                         !---------------------------------------------------------------------------
+             255                     
+             256     1                   if ( first ) then
+             257     1                      !--- calc gloval volume at first time
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             258     1  pp    v             one   (:,:,:) = 1.D0
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<< Loop-information  End >>>
+             259     1  pp    v             one_pl(:,:,:) = 1.D0
+             260     1               
+             261     1                      volume_g = GTL_global_sum( one(:,:,:), one_pl(:,:,:) )
+             262     1               
+             263     1                      first = .false.
+             264     1                   endif
+             265                     
+             266                         sum_g = GTL_global_sum( var(:,:,:), var_pl(:,:,:) )
+             267                     
+             268                         sum_g = sum_g / volume_g
+             269                     
+             270                         return
+             271                       end function GTL_global_mean
+             272                     
+             273                       !-----------------------------------------------------------------------------
+             274                       function GTL_max( var, var_pl, kdim, kstart, kend ) result( vmax_g )
+             275                         use mod_adm, only: &
+             276                            ADM_prc_me,      &
+             277                            ADM_prc_pl,      &
+             278                            ADM_gall,        &
+             279                            ADM_gall_pl,     &
+             280                            ADM_lall,        &
+             281                            ADM_lall_pl,     &
+             282                            ADM_IooJoo_nmax, &
+             283                            ADM_IooJoo,      &
+             284                            ADM_GIoJo,       &
+             285                            ADM_GSLF_PL
+             286                         use mod_comm, only: &
+             287                            COMM_Stat_max
+             288                         implicit none
+             289                     
+             290                         integer, intent(in) :: kdim
+             291                         integer, intent(in) :: kstart
+             292                         integer, intent(in) :: kend
+             293                         real(8), intent(in) :: var   (ADM_gall,   kdim,ADM_lall   )
+             294                         real(8), intent(in) :: var_pl(ADM_gall_pl,kdim,ADM_lall_pl)
+             295                         real(8)             :: vmax_g
+             296                     
+             297                         real(8) :: vmax
+             298                         integer :: n, k, l
+             299                         !---------------------------------------------------------------------------
+             300                     
+             301                         vmax = -1.D+99
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             302     1  pp               do l = 1,      ADM_lall
+             303     2   p               do k = kstart, kend
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             304     3   p   4v          do n = 1,      ADM_IooJoo_nmax
+             305     3   p   4v             vmax = max( vmax, var(ADM_IooJoo(n,ADM_GIoJo),k,l) )
+             306     3   p   4v          enddo
+             307     2   p               enddo
+             308     1   p               enddo
+             309                     
+             310     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 7
+                                   <<< Loop-information  End >>>
+             311     2  pp                  do l = 1,      ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             312     3  pp   8v             do k = kstart, kend
+             313     3   p   8v                vmax = max( vmax, var_pl(ADM_GSLF_PL,k,l) )
+             314     3   p   8v             enddo
+             315     2   p                  enddo
+             316     1                   endif
+             317                     
+             318                         call COMM_Stat_max( vmax, vmax_g )
+             319                     
+             320                         return
+             321                       end function GTL_max
+             322                     
+             323                       !-----------------------------------------------------------------------------
+             324                       function GTL_max_k( var, var_pl, k ) result( vmax_g )
+             325                         use mod_adm, only: &
+             326                            ADM_prc_me,      &
+             327                            ADM_prc_pl,      &
+             328                            ADM_gall,        &
+             329                            ADM_gall_pl,     &
+             330                            ADM_lall,        &
+             331                            ADM_lall_pl,     &
+             332                            ADM_kall,        &
+             333                            ADM_IooJoo_nmax, &
+             334                            ADM_IooJoo,      &
+             335                            ADM_GIoJo,       &
+             336                            ADM_GSLF_PL
+             337                         use mod_comm, only: &
+             338                            COMM_Stat_max
+             339                         implicit none
+             340                     
+             341                         real(8), intent(in) :: var   (ADM_gall,   ADM_kall,ADM_lall   )
+             342                         real(8), intent(in) :: var_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             343                         integer, intent(in) :: k
+             344                         real(8)             :: vmax_g
+             345                     
+             346                         real(8) :: vmax
+             347                         integer :: n, l
+             348                         !---------------------------------------------------------------------------
+             349                     
+             350                         vmax = -1.D+99
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<< Loop-information  End >>>
+             351     1  pp               do l = 1,        ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 889
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             352     2  pp   4v          do n = 1,        ADM_IooJoo_nmax
+             353     2   p   4v             vmax = max( vmax, var(ADM_IooJoo(n,ADM_GIoJo),k,l) )
+             354     2   p   4v          enddo
+             355     1   p               enddo
+             356                     
+             357     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             358     2  pp   8v             do l = 1,        ADM_lall_pl
+             359     2   p   8v                vmax = max( vmax, var_pl(ADM_GSLF_PL,k,l) )
+             360     2   p   8v             enddo
+             361     1                   endif
+             362                     
+             363                         call COMM_Stat_max( vmax, vmax_g )
+             364                     
+             365                         return
+             366                       end function GTL_max_k
+             367                     
+             368                       !-----------------------------------------------------------------------------
+             369                       function GTL_min( var, var_pl, kdim, kstart, kend, nonzero ) result( vmin_g )
+             370                         use mod_adm, only: &
+             371                            ADM_prc_me,      &
+             372                            ADM_prc_pl,      &
+             373                            ADM_gall,        &
+             374                            ADM_gall_pl,     &
+             375                            ADM_lall,        &
+             376                            ADM_lall_pl,     &
+             377                            ADM_IooJoo_nmax, &
+             378                            ADM_IooJoo,      &
+             379                            ADM_GIoJo,       &
+             380                            ADM_GSLF_PL
+             381                         use mod_comm, only: &
+             382                            COMM_Stat_min
+             383                         implicit none
+             384                     
+             385                         integer, intent(in) :: kdim
+             386                         integer, intent(in) :: kstart
+             387                         integer, intent(in) :: kend
+             388                         real(8), intent(in) :: var   (ADM_gall,   kdim,ADM_lall   )
+             389                         real(8), intent(in) :: var_pl(ADM_gall_pl,kdim,ADM_lall_pl)
+             390                         real(8)             :: vmin_g
+             391                         logical, optional, intent(in) :: nonzero
+             392                     
+             393                         real(8) :: vmin
+             394                         integer :: n, k, l
+             395                         !---------------------------------------------------------------------------
+             396                     
+             397     1                   if ( present(nonzero) ) then
+             398     2                      if ( nonzero ) then
+             399     2               
+             400     2                         vmin = 1.D+99
+             401     3   s                     do l = 1,      ADM_lall
+             402     4   s                     do k = kstart, kend
+             403     5   s   8s                do n = 1,      ADM_IooJoo_nmax
+             404     6   m   8m                   if (       var(ADM_IooJoo(n,ADM_GIoJo),k,l) > 0.D0 &
+             405     6                                 .AND. var(ADM_IooJoo(n,ADM_GIoJo),k,l) < vmin ) then
+             406     6               
+             407     6   s   8s                      vmin = var(ADM_IooJoo(n,ADM_GIoJo),k,l)
+             408     6               
+             409     6   p   8v                   endif
+             410     5   p   8v                enddo
+             411     4   p                     enddo
+             412     3   p                     enddo
+             413     2               
+             414     3                      if ( ADM_prc_me == ADM_prc_pl ) then
+             415     4   s                     do l = 1,      ADM_lall_pl
+             416     5   s   8s                do k = kstart, kend
+             417     6   m   8s                   if (       var_pl(ADM_GSLF_PL,k,l) > 0.D0 &
+             418     6                                 .AND. var_pl(ADM_GSLF_PL,k,l) < vmin ) then
+             419     6               
+             420     6   s   8s                      vmin = var_pl(ADM_GSLF_PL,k,l)
+             421     6               
+             422     6   p   8s                   endif
+             423     5   p   8s                enddo
+             424     4   p                     enddo
+             425     3                      endif
+             426     2               
+             427     2                      call COMM_Stat_min( vmin, vmin_g )
+             428     2                      return
+             429     2               
+             430     2                      endif
+             431     1                   endif
+             432                     
+             433                         vmin = 1.D+99
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+             434     1  pp               do l = 1,      ADM_lall
+             435     2   p               do k = kstart, kend
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             436     3   p   4v          do n = 1,      ADM_IooJoo_nmax
+             437     3   p   4v             vmin = min( vmin, var(ADM_IooJoo(n,ADM_GIoJo),k,l) )
+             438     3   p   4v          enddo
+             439     2   p               enddo
+             440     1   p               enddo
+             441                     
+             442     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 7
+                                   <<< Loop-information  End >>>
+             443     2  pp                  do l = 1,      ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             444     3  pp   8v             do k = kstart, kend
+             445     3   p   8v                vmin = min( vmin, var_pl(ADM_GSLF_PL,k,l) )
+             446     3   p   8v             enddo
+             447     2   p                  enddo
+             448     1                   endif
+             449                     
+             450                         call COMM_Stat_min( vmin, vmin_g )
+             451                     
+             452                         return
+             453                       end function GTL_min
+             454                     
+             455                       !-----------------------------------------------------------------------------
+             456                       function GTL_min_k( var, var_pl, k ) result( vmin_g )
+             457                         use mod_adm, only: &
+             458                            ADM_prc_me,      &
+             459                            ADM_prc_pl,      &
+             460                            ADM_gall,        &
+             461                            ADM_gall_pl,     &
+             462                            ADM_lall,        &
+             463                            ADM_lall_pl,     &
+             464                            ADM_kall,        &
+             465                            ADM_IooJoo_nmax, &
+             466                            ADM_IooJoo,      &
+             467                            ADM_GIoJo,       &
+             468                            ADM_GSLF_PL
+             469                         use mod_comm, only: &
+             470                            COMM_Stat_min
+             471                         implicit none
+             472                     
+             473                         real(8), intent(in) :: var   (ADM_gall,   ADM_kall,ADM_lall   )
+             474                         real(8), intent(in) :: var_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+             475                         integer, intent(in) :: k
+             476                         real(8)             :: vmin_g
+             477                     
+             478                         real(8) :: vmin
+             479                         integer :: n, l
+             480                         !---------------------------------------------------------------------------
+             481                     
+             482                         vmin = +1.D+99
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<< Loop-information  End >>>
+             483     1  pp               do l = 1,        ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 889
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             484     2  pp   4v          do n = 1,        ADM_IooJoo_nmax
+             485     2   p   4v             vmin = min( vmin, var(ADM_IooJoo(n,ADM_GIoJo),k,l) )
+             486     2   p   4v          enddo
+             487     1   p               enddo
+             488                     
+             489     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 1231
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             490     2  pp   8v             do l = 1,        ADM_lall_pl
+             491     2   p   8v                vmin = min( vmin, var_pl(ADM_GSLF_PL,k,l) )
+             492     2   p   8v             enddo
+             493     1                   endif
+             494                     
+             495                         call COMM_Stat_min( vmin, vmin_g )
+             496                     
+             497                         return
+             498                       end function GTL_min_k
+             499                     
+             500                       !-----------------------------------------------------------------------------
+             501                       subroutine GTL_input_var2( basename, var, var_pl, k_start, k_end, input_size, num )
+             502                         use mod_misc, only: &
+             503                            MISC_get_available_fid, &
+             504                            MISC_make_idstr
+             505                         use mod_adm, only: &
+             506                            ADM_prc_tab, &
+             507                            ADM_prc_me,  &
+             508                            ADM_prc_pl,  &
+             509                            ADM_gall,    &
+             510                            ADM_gall_pl, &
+             511                            ADM_lall,    &
+             512                            ADM_lall_pl
+             513                         implicit none
+             514                     
+             515                         character(len=*),  intent(in)    :: basename
+             516                         integer,           intent(in)    :: k_start
+             517                         integer,           intent(in)    :: k_end
+             518                         real(8),           intent(inout) :: var   (ADM_gall,   k_start:k_end,ADM_lall   )
+             519                         real(8),           intent(inout) :: var_pl(ADM_gall_pl,k_start:k_end,ADM_lall_pl)
+             520                         integer, optional, intent(in)    :: input_size
+             521                         integer, optional, intent(in)    :: num
+             522                     
+             523                         real(4) :: var4   (ADM_gall,   k_start:k_end)
+             524                         real(4) :: var4_pl(ADM_gall_pl,k_start:k_end)
+             525                     
+             526                         character(len=ADM_MAXFNAME) :: fname
+             527                     
+             528                         integer :: fid
+             529                         integer :: l, rgnid, n, nmax
+             530                         !---------------------------------------------------------------------------
+             531                     
+             532     1                   if ( present(num) ) then
+             533     1                      nmax = num
+             534     1                   else
+             535     1                      nmax = 1
+             536     1                   endif
+             537                     
+             538     1                   do l = 1, ADM_lall
+             539     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             540     1               
+             541     1                      call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             542     1                      fid = MISC_get_available_fid()
+             543     1                      open( unit   = fid,           &
+             544     1                            file   = trim(fname),   &
+             545     1                            form   = 'unformatted', &
+             546     1                            access = 'sequential',  &
+             547     1                            status = 'old'          )
+             548     1               
+             549     2                      if ( present(input_size) ) then
+             550     3                         if ( input_size == 4 ) then
+             551     4   s    s                   do n = 1, nmax ! seek from top
+             552     4   m    s                      read(fid) var4(:,:)
+             553     4   p    s                   enddo
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             554     3  pp   8v                   var(:,k_start:k_end,l) = real(var4(:,k_start:k_end),kind=8)
+             555     3                         elseif( input_size == 8 ) then
+             556     4   s    s                   do n = 1, nmax ! seek from top
+             557     4   m    s                      read(fid) var(:,k_start:k_end,l)
+             558     4   p    s                   enddo
+             559     3                         endif
+             560     2                      else
+             561     2                         read(fid) var(:,k_start:k_end,l)
+             562     2                      endif
+             563     1               
+             564     1                      close(fid)
+             565     1                   enddo
+             566                     
+             567     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             568     1                      fname = trim(basename)//'.pl'
+             569     1               
+             570     1                      fid = MISC_get_available_fid()
+             571     1                      open( unit   = fid,           &
+             572     1                            file   = trim(fname),   &
+             573     1                            form   = 'unformatted', &
+             574     1                            access = 'sequential',  &
+             575     1                            status = 'old'          )
+             576     1               
+             577     2                      if ( present(input_size) ) then
+             578     3                         if ( input_size == 4 ) then
+             579     4                            do n = 1, nmax ! seek from top
+             580     5                            do l = 1, ADM_lall_pl
+             581     5                               read(fid) var4_pl(:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             582     5  pp   8v                      var_pl(:,k_start:k_end,l) = real(var4_pl(:,k_start:k_end),kind=8)
+             583     5                            enddo
+             584     4                            enddo
+             585     3                         elseif( input_size == 8 ) then
+             586     4                            do n = 1, nmax ! seek from top
+             587     5   s    s                   do l = 1, ADM_lall_pl
+             588     5   m    s                      read(fid) var_pl(:,k_start:k_end,l)
+             589     5   p    s                   enddo
+             590     4                            enddo
+             591     3                         endif
+             592     2                      else
+             593     3   s    s                do l = 1, ADM_lall_pl
+             594     3   m    s                   read(fid) var_pl(:,k_start:k_end,l)
+             595     3   p    s                enddo
+             596     2                      endif
+             597     1               
+             598     1                      close(fid)
+             599     1                   endif
+             600                     
+             601                         return
+             602                       end subroutine GTL_input_var2
+             603                     
+             604                       !-----------------------------------------------------------------------------
+             605                       subroutine GTL_output_var2( basename, var, var_pl, k_start, k_end, output_size )
+             606                         use mod_misc, only: &
+             607                            MISC_get_available_fid, &
+             608                            MISC_make_idstr
+             609                         use mod_adm, only: &
+             610                            ADM_prc_tab, &
+             611                            ADM_prc_me,  &
+             612                            ADM_prc_pl,  &
+             613                            ADM_gall,    &
+             614                            ADM_gall_pl, &
+             615                            ADM_lall,    &
+             616                            ADM_lall_pl
+             617                         implicit none
+             618                     
+             619                         character(len=*),  intent(in) :: basename
+             620                         real(8),           intent(in) :: var   (:,:,:)
+             621                         real(8),           intent(in) :: var_pl(:,:,:)
+             622                         integer,           intent(in) :: k_start
+             623                         integer,           intent(in) :: k_end
+             624                         integer, optional, intent(in) :: output_size
+             625                     
+             626                         real(4) :: var4   (ADM_gall,   k_start:k_end)
+             627                         real(4) :: var4_pl(ADM_gall_pl,k_start:k_end)
+             628                     
+             629                         real(8) :: var8   (ADM_gall,   k_start:k_end)
+             630                         real(8) :: var8_pl(ADM_gall_pl,k_start:k_end)
+             631                     
+             632                         character(len=ADM_MAXFNAME) :: fname
+             633                     
+             634                         integer :: fid
+             635                         integer :: l, rgnid
+             636                         !---------------------------------------------------------------------------
+             637                     
+             638     1                   do l = 1, ADM_lall
+             639     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             640     1               
+             641     1                      call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             642     1                      fid = MISC_get_available_fid()
+             643     1                      open( unit   = fid,           &
+             644     1                            file   = trim(fname),   &
+             645     1                            form   = 'unformatted', &
+             646     1                            access = 'sequential',  &
+             647     1                            position = 'append'     )
+             648     1               
+             649     2                      if ( present(output_size) ) then
+             650     3                         if ( output_size == 4 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             651     3  pp   8v                   var4(:,k_start:k_end) = real(var(:,k_start:k_end,l),kind=4)
+             652     3                            write(fid) var4(:,:)
+             653     3                         elseif( output_size == 8 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             654     3  pp   8v                   var8(:,k_start:k_end) = var(:,k_start:k_end,l)
+             655     3                            write(fid) var8(:,:)
+             656     3                         endif
+             657     2                      else
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             658     2  pp   8v                var8(:,k_start:k_end) = var(:,k_start:k_end,l)
+             659     2                         write(fid) var8(:,:)
+             660     2                      endif
+             661     1               
+             662     1                      close(fid)
+             663     1                   enddo
+             664                     
+             665     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             666     1                      fname = trim(basename)//'.pl'
+             667     1               
+             668     1                      fid = MISC_get_available_fid()
+             669     1                      open( unit   = fid,           &
+             670     1                            file   = trim(fname),   &
+             671     1                            form   = 'unformatted', &
+             672     1                            access = 'sequential',  &
+             673     1                            position = 'append'     )
+             674     1               
+             675     2                      if ( present(output_size) ) then
+             676     3                         if ( output_size == 4 ) then
+             677     4                            do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             678     4  pp   8v                      var4_pl(:,k_start:k_end) = real(var_pl(:,k_start:k_end,l),kind=4)
+             679     4                               write(fid) var4_pl(:,:)
+             680     4                            enddo
+             681     3                         elseif( output_size == 8 ) then
+             682     4                            do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             683     4  pp   8v                      var8_pl(:,k_start:k_end) = var_pl(:,k_start:k_end,l)
+             684     4                               write(fid) var8_pl(:,:)
+             685     4                            enddo
+             686     3                         endif
+             687     2                      else
+             688     3                         do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             689     3  pp   8v                   var8_pl(:,k_start:k_end) = var_pl(:,k_start:k_end,l)
+             690     3                            write(fid) var8_pl(:,:)
+             691     3                         enddo
+             692     2                      endif
+             693     1               
+             694     1                      close(fid)
+             695     1                   endif
+             696                     
+             697                         return
+             698                       end subroutine GTL_output_var2
+             699                     
+             700                       !-----------------------------------------------------------------------------
+             701                       subroutine GTL_input_var_fopen( basename )
+             702                         use mod_misc, only: &
+             703                            MISC_get_available_fid, &
+             704                            MISC_make_idstr
+             705                         use mod_adm, only: &
+             706                            ADM_prc_tab, &
+             707                            ADM_prc_me,  &
+             708                            ADM_prc_pl,  &
+             709                            ADM_lall
+             710                         implicit none
+             711                     
+             712                         character(len=*), intent(in)  :: basename
+             713                     
+             714                         character(len=ADM_MAXFNAME) :: fname
+             715                     
+             716                         integer :: fid
+             717                         integer :: l, rgnid
+             718                         !---------------------------------------------------------------------------
+             719                     
+             720     1                   do l = 1, ADM_lall
+             721     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             722     1               
+             723     1                      call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             724     1                      fid = MISC_get_available_fid()
+             725     1                      open( unit   = fid,           &
+             726     1                            file   = trim(fname),   &
+             727     1                            form   = 'unformatted', &
+             728     1                            access = 'sequential',  &
+             729     1                            status = 'old'          )
+             730     1                   enddo
+             731                     
+             732     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             733     1                      fname = trim(basename)//'.pl'
+             734     1               
+             735     1                      fid = MISC_get_available_fid()
+             736     1                      open( unit   = fid,           &
+             737     1                            file   = trim(fname),   &
+             738     1                            form   = 'unformatted', &
+             739     1                            access = 'sequential',  &
+             740     1                            status = 'old'          )
+             741     1                   endif
+             742                     
+             743                         return
+             744                       end subroutine GTL_input_var_fopen
+             745                     
+             746                       !-----------------------------------------------------------------------------
+             747                       subroutine GTL_input_var_fclose( basename )
+             748                         use mod_misc, only: &
+             749                            MISC_get_available_fid, &
+             750                            MISC_make_idstr
+             751                         use mod_adm, only: &
+             752                            ADM_prc_tab, &
+             753                            ADM_prc_me,  &
+             754                            ADM_prc_pl,  &
+             755                            ADM_lall
+             756                         implicit none
+             757                     
+             758                         character(len=*), intent(in)  :: basename
+             759                     
+             760                         character(len=ADM_MAXFNAME) :: fname
+             761                     
+             762                         integer :: fid
+             763                         integer :: l, rgnid
+             764                         !---------------------------------------------------------------------------
+             765                     
+             766     1                   do l = 1, ADM_lall
+             767     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             768     1               
+             769     1                      call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             770     1                      fid = MISC_get_available_fid()
+             771     1                      close(fid)
+             772     1                   enddo
+             773                     
+             774     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             775     1                      fname = trim(basename)//'.pl'
+             776     1               
+             777     1                      fid = MISC_get_available_fid()
+             778     1                      close(fid)
+             779     1                   endif
+             780                     
+             781                         return
+             782                       end subroutine GTL_input_var_fclose
+             783                     
+             784                       !-----------------------------------------------------------------------------
+             785                       subroutine GTL_input_var_read( basename, var, var_pl, kall, lerr , input_size )
+             786                         use mod_misc, only: &
+             787                            MISC_get_fid,   &
+             788                            MISC_make_idstr
+             789                         use mod_adm, only: &
+             790                            ADM_prc_tab, &
+             791                            ADM_prc_me,  &
+             792                            ADM_prc_pl,  &
+             793                            ADM_gall,    &
+             794                            ADM_gall_pl, &
+             795                            ADM_lall,    &
+             796                            ADM_lall_pl
+             797                         implicit none
+             798                     
+             799                         integer,           intent(in)    :: kall
+             800                         character(len=*),  intent(in)    :: basename
+             801                         real(8),           intent(inout) :: var   (ADM_gall,   kall,ADM_lall   )
+             802                         real(8),           intent(inout) :: var_pl(ADM_gall_pl,kall,ADM_lall_pl)
+             803                         logical,           intent(out)   :: lerr
+             804                         integer, optional, intent(in)    :: input_size
+             805                     
+             806                         real(4) :: var4   (ADM_gall,   kall)
+             807                         real(4) :: var4_pl(ADM_gall_pl,kall)
+             808                     
+             809                         character(len=ADM_MAXFNAME) :: fname
+             810                     
+             811                         integer :: fid, ierr
+             812                         integer :: l, rgnid
+             813                         !---------------------------------------------------------------------------
+             814                     
+             815     1                   do l = 1, ADM_lall
+             816     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             817     1               
+             818     1                      call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             819     1                      fid = MISC_get_fid(fname)
+             820     1               
+             821     2                      if ( present(input_size) ) then
+             822     3                         if ( input_size == 4 ) then
+             823     3                            read(fid,iostat=ierr) var4(:,:)
+             824     3               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             825     3  pp   8v                   if( ierr == 0 ) var(:,:,l) = real(var4(:,:),kind=8)
+             826     3                         elseif( input_size == 8 ) then
+             827     3                            read(fid,iostat=ierr) var(:,:,l)
+             828     3                         endif
+             829     2                      else
+             830     2                         read(fid,iostat=ierr) var(:,:,l)
+             831     2                      endif
+             832     1               
+             833     2                      if ( ierr == 0 ) then
+             834     2                         lerr = .true.
+             835     2                      else !--- file end or error
+             836     2                         lerr = .false.
+             837     2                      endif
+             838     1                   enddo
+             839                     
+             840     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+             841     1                      fname = trim(basename)//'.pl'
+             842     1               
+             843     1                      fid = MISC_get_fid(fname)
+             844     1               
+             845     2                      if ( present(input_size) ) then
+             846     3                         if ( input_size == 4 ) then
+             847     4                            do l = 1, ADM_lall_pl
+             848     4                               read(fid,iostat=ierr) var4_pl(:,:)
+             849     4               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             850     4  pp   8v                      if( ierr == 0 ) var_pl(:,:,l) = real(var4_pl(:,:),kind=8)
+             851     4                            enddo
+             852     3                         elseif( input_size == 8 ) then
+             853     3                            read(fid,iostat=ierr) var_pl(:,:,l)
+             854     3                         endif
+             855     2                      else
+             856     2                         read(fid,iostat=ierr) var_pl(:,:,l)
+             857     2                      endif
+             858     1               
+             859     2                      if ( ierr == 0 ) then
+             860     2                         lerr = .true.
+             861     2                      else !--- file end or error
+             862     2                         lerr = .false.
+             863     2                      endif
+             864     1                   endif
+             865                     
+             866                         return
+             867                       end subroutine GTL_input_var_read
+             868                     
+             869                       !-----------------------------------------------------------------------------
+             870                       subroutine GTL_input_timeinfo( fname, tmax, time_increment )
+             871                         use mod_misc, only: &
+             872                            MISC_get_available_fid
+             873                     
+             874                         implicit none
+             875                     
+             876                         character(len=*), intent(in)  :: fname
+             877                         integer,          intent(out) :: tmax
+             878                         real(8),          intent(out) :: time_increment
+             879                     
+             880                         integer :: fid
+             881                         !---------------------------------------------------------------------------
+             882                     
+             883                         fid = MISC_get_available_fid()
+             884                         open( unit   = fid,           &
+             885                               file   = trim(fname),   &
+             886                               form   = 'unformatted', &
+             887                               status = 'old'          )
+             888                     
+             889                            read(fid) tmax
+             890                            read(fid) time_increment
+             891                     
+             892                         close(fid)
+             893                     
+             894                         return
+             895                       end subroutine GTL_input_timeinfo
+             896                     
+             897                       !-----------------------------------------------------------------------------
+             898                       subroutine GTL_input_var2_da( basename, var, k_start, k_end, recnum, input_size )
+             899                         use mod_misc, only: &
+             900                            MISC_get_available_fid, &
+             901                            MISC_make_idstr
+             902                         use mod_adm, only: &
+             903                            ADM_prc_tab, &
+             904                            ADM_prc_me,  &
+             905                            ADM_gall,    &
+             906                            ADM_lall
+             907                         implicit none
+             908                     
+             909                         character(len=*), intent(in)  :: basename
+             910                         integer,          intent(in)  :: k_start
+             911                         integer,          intent(in)  :: k_end
+             912                         real(8),          intent(out) :: var(ADM_gall,k_start:k_end,ADM_lall)
+             913                         integer,          intent(in)  :: recnum
+             914                         integer,          intent(in)  :: input_size
+             915                     
+             916                         real(4) :: var4(ADM_gall,k_start:k_end)
+             917                         real(8) :: var8(ADM_gall,k_start:k_end)
+             918                     
+             919                         character(len=ADM_MAXFNAME) :: fname
+             920                     
+             921                         integer :: fid
+             922                         integer :: l, rgnid
+             923                         !---------------------------------------------------------------------------
+             924                     
+             925     1                   do l = 1, ADM_lall
+             926     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             927     1               
+             928     1                      call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             929     1                      fid = MISC_get_available_fid()
+             930     1                      open( unit   = fid,           &
+             931     1                            file   = trim(fname),   &
+             932     1                            form   = 'unformatted', &
+             933     1                            access = 'direct',      &
+             934     1                            recl   = ADM_gall*(k_end-k_start+1)*input_size, &
+             935     1                            status = 'old'          )
+             936     1               
+             937     2                      if ( input_size == 4 ) then
+             938     2                         read(fid,rec=recnum) var4(:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             939     2  pp   8v                var(:,k_start:k_end,l) = real(var4(:,k_start:k_end),kind=8)
+             940     2                      elseif( input_size == 8 ) then
+             941     2                         read(fid,rec=recnum) var8(:,:)
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             942     2  pp   8v                var(:,k_start:k_end,l) = var8(:,k_start:k_end)
+             943     2                      endif
+             944     1               
+             945     1                      close(fid)
+             946     1                   enddo
+             947                     
+             948                         return
+             949                       end subroutine GTL_input_var2_da
+             950                     
+             951                       !-----------------------------------------------------------------------------
+             952                       subroutine GTL_output_var2_da( basename, var, k_start, k_end, recnum, output_size )
+             953                         use mod_misc, only: &
+             954                            MISC_get_available_fid, &
+             955                            MISC_make_idstr
+             956                         use mod_adm, only: &
+             957                            ADM_prc_tab, &
+             958                            ADM_prc_me,  &
+             959                            ADM_gall,    &
+             960                            ADM_lall
+             961                         use mod_cnst, only: &
+             962                            CNST_UNDEF4
+             963                         implicit none
+             964                     
+             965                         character(len=ADM_MAXFNAME), intent(in)  :: basename
+             966                         integer,                     intent(in)  :: k_start
+             967                         integer,                     intent(in)  :: k_end
+             968                         real(8),                     intent(in)  :: var(:,:,:)
+             969                         integer,                     intent(in)  :: recnum
+             970                         integer,                     intent(in)  :: output_size
+             971                     
+             972                         real(4) :: var4(ADM_gall,k_start:k_end)
+             973                         real(8) :: var8(ADM_gall,k_start:k_end)
+             974                     
+             975                         character(len=ADM_MAXFNAME) :: fname
+             976                     
+             977                         integer :: fid
+             978                         integer :: l, rgnid
+             979                         !---------------------------------------------------------------------------
+             980                     
+             981     1                   do l = 1, ADM_lall
+             982     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+             983     1               
+             984     1                      call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+             985     1                      fid = MISC_get_available_fid()
+             986     1                      open( unit   = fid,           &
+             987     1                            file   = trim(fname),   &
+             988     1                            form   = 'unformatted', &
+             989     1                            access = 'direct',      &
+             990     1                            recl   = ADM_gall*(k_end-k_start+1)*output_size, &
+             991     1                            status = 'unknown'      )
+             992     1               
+             993     2                      if ( output_size == 4 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+             994     2  pp   8v               var4(:,k_start:k_end) = real(var(:,k_start:k_end,l),kind=4)
+             995     2               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 7
+                                   <<<  [OPTIMIZATION]
+                                   <<<    PREFETCH       : 48
+                                   <<<      var4: 48
+                                   <<< Loop-information  End >>>
+             996     2  pp   8s               where( var4(:,k_start:k_end) < CNST_UNDEF4+1.D0 )
+             997     2   p   8s                  var4(:,k_start:k_end) = CNST_UNDEF4
+             998     2                        end where
+             999     2               
+            1000     2                        write(fid,rec=recnum) var4(:,:)
+            1001     2                      elseif( output_size == 8 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1002     2  pp   8v               var8(:,k_start:k_end) = var(:,k_start:k_end,l)
+            1003     2                        write(fid,rec=recnum) var8(:,:)
+            1004     2                      endif
+            1005     1               
+            1006     1                      close(fid)
+            1007     1                   enddo
+            1008                     
+            1009                         return
+            1010                       end subroutine GTL_output_var2_da
+            1011                     
+            1012                       !-----------------------------------------------------------------------------
+            1013                       subroutine GTL_output_var3( &
+            1014                            basename,          &
+            1015                            ijall,   ijall_pl, &
+            1016                            k_start, k_end,    &
+            1017                            lall,    lall_pl,  &
+            1018                            var,     var_pl,   &
+            1019                            output_size        )
+            1020                         use mod_misc, only : &
+            1021                            MISC_get_available_fid, &
+            1022                            MISC_make_idstr
+            1023                         use mod_adm, only : &
+            1024                            ADM_prc_tab, &
+            1025                            ADM_prc_me,  &
+            1026                            ADM_prc_pl
+            1027                         implicit none
+            1028                     
+            1029                         character(len=ADM_MAXFNAME), intent(in) :: basename
+            1030                         integer,                     intent(in) :: ijall
+            1031                         integer,                     intent(in) :: ijall_pl
+            1032                         integer,                     intent(in) :: k_start
+            1033                         integer,                     intent(in) :: k_end
+            1034                         integer,                     intent(in) :: lall
+            1035                         integer,                     intent(in) :: lall_pl
+            1036                         real(8),                     intent(in) :: var   (ijall,   k_start:k_end,lall   )
+            1037                         real(8),                     intent(in) :: var_pl(ijall_pl,k_start:k_end,lall_pl)
+            1038                         integer, optional,           intent(in) :: output_size
+            1039                     
+            1040                         real(4) :: var4   (ijall,   k_start:k_end)
+            1041                         real(4) :: var4_pl(ijall_pl,k_start:k_end)
+            1042                     
+            1043                         real(8) :: var8   (ijall,   k_start:k_end)
+            1044                         real(8) :: var8_pl(ijall_pl,k_start:k_end)
+            1045                     
+            1046                         character(len=ADM_MAXFNAME) :: fname
+            1047                     
+            1048                         integer :: fid
+            1049                         integer :: l, rgnid
+            1050                         !---------------------------------------------------------------------------
+            1051                     
+            1052     1                   do l = 1, lall
+            1053     1                      rgnid = ADM_prc_tab(l,ADM_prc_me)
+            1054     1               
+            1055     1                      call MISC_make_idstr(fname,trim(basename),'rgn',rgnid)
+            1056     1                      fid = MISC_get_available_fid()
+            1057     1                      open( unit   = fid,           &
+            1058     1                            file   = trim(fname),   &
+            1059     1                            form   = 'unformatted', &
+            1060     1                            access = 'sequential',  &
+            1061     1                            position = 'append'     )
+            1062     1               
+            1063     2                      if ( present(output_size) ) then
+            1064     3                         if ( output_size == 4 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1065     3  pp   8v                   var4(:,k_start:k_end) = real(var(:,k_start:k_end,l),kind=4)
+            1066     3                            write(fid) var4(:,:)
+            1067     3                         elseif( output_size == 8 ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1068     3  pp   8v                   var8(:,k_start:k_end) = var(:,k_start:k_end,l)
+            1069     3                            write(fid) var8(:,:)
+            1070     3                         endif
+            1071     2                      else
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1072     2  pp   8v                var8(:,k_start:k_end) = var(:,k_start:k_end,l)
+            1073     2                         write(fid) var8(:,:)
+            1074     2                      endif
+            1075     1               
+            1076     1                      close(fid)
+            1077     1                   enddo
+            1078                     
+            1079     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+            1080     1                      fname = trim(basename)//'.pl'
+            1081     1               
+            1082     1                      fid = MISC_get_available_fid()
+            1083     1                      open( unit   = fid,           &
+            1084     1                            file   = trim(fname),   &
+            1085     1                            form   = 'unformatted', &
+            1086     1                            access = 'sequential',  &
+            1087     1                            position = 'append'     )
+            1088     1               
+            1089     2                      if ( present(output_size) ) then
+            1090     3                         if ( output_size == 4 ) then
+            1091     4                            do l = 1, lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 5
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1092     4  pp   8v                      var4_pl(:,k_start:k_end) = real(var_pl(:,k_start:k_end,l),kind=4)
+            1093     4                               write(fid) var4_pl(:,:)
+            1094     4                            enddo
+            1095     3                         elseif( output_size == 8 ) then
+            1096     4                            do l = 1, lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1097     4  pp   8v                      var8_pl(:,k_start:k_end) = var_pl(:,k_start:k_end,l)
+            1098     4                               write(fid) var8_pl(:,:)
+            1099     4                            enddo
+            1100     3                         endif
+            1101     2                      else
+            1102     3                         do l = 1, lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 6
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1103     3  pp   8v                   var8_pl(:,k_start:k_end) = var_pl(:,k_start:k_end,l)
+            1104     3                            write(fid) var8_pl(:,:)
+            1105     3                         enddo
+            1106     2                      endif
+            1107     1               
+            1108     1                      close(fid)
+            1109     1                   endif
+            1110                     
+            1111                       end subroutine GTL_output_var3
+            1112                     
+            1113                       !-----------------------------------------------------------------------------
+            1114                       subroutine GTL_generate_vxvyvz( &
+            1115                            ucos, ucos_pl, &
+            1116                            vcos, vcos_pl, &
+            1117                            vx,   vx_pl,   &
+            1118                            vy,   vy_pl,   &
+            1119                            vz,   vz_pl    )
+            1120                         use mod_adm, only: &
+            1121                            ADM_prc_me,  &
+            1122                            ADM_prc_pl,  &
+            1123                            ADM_gall,    &
+            1124                            ADM_gall_pl, &
+            1125                            ADM_lall,    &
+            1126                            ADM_lall_pl, &
+            1127                            ADM_kall,    &
+            1128                            ADM_KNONE
+            1129                         use mod_gmtr, only: &
+            1130                            P_IX  => GMTR_P_IX,  &
+            1131                            P_IY  => GMTR_P_IY,  &
+            1132                            P_IZ  => GMTR_P_IZ,  &
+            1133                            P_JX  => GMTR_P_JX,  &
+            1134                            P_JY  => GMTR_P_JY,  &
+            1135                            P_JZ  => GMTR_P_JZ,  &
+            1136                            P_LAT => GMTR_P_LAT, &
+            1137                            GMTR_P_var,          &
+            1138                            GMTR_P_var_pl
+            1139                         implicit none
+            1140                     
+            1141                         real(8), intent(in)  :: ucos   (ADM_gall,   ADM_kall,ADM_lall   )
+            1142                         real(8), intent(in)  :: ucos_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1143                         real(8), intent(in)  :: vcos   (ADM_gall,   ADM_kall,ADM_lall   )
+            1144                         real(8), intent(in)  :: vcos_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1145                         real(8), intent(out) :: vx     (ADM_gall,   ADM_kall,ADM_lall   )
+            1146                         real(8), intent(out) :: vx_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1147                         real(8), intent(out) :: vy     (ADM_gall,   ADM_kall,ADM_lall   )
+            1148                         real(8), intent(out) :: vy_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1149                         real(8), intent(out) :: vz     (ADM_gall,   ADM_kall,ADM_lall   )
+            1150                         real(8), intent(out) :: vz_pl  (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1151                     
+            1152                         real(8) :: u, v, coslat, sw
+            1153                     
+            1154                         integer :: n, k, l, k0
+            1155                         !---------------------------------------------------------------------------
+            1156                     
+            1157                         k0 = ADM_KNONE
+            1158                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1159     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1160     2  pp               do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 33
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+            1161     3  pp   2v          do n = 1, ADM_gall
+            1162     3   p   2              coslat = cos(GMTR_P_var(n,k0,l,P_LAT))
+            1163     3               
+            1164     3   p   2v             sw = 0.5D0 + sign(0.5D0,-abs(coslat)) ! if (coslat == 0), u=v=0
+            1165     3               
+            1166     3   p   2v             u = ucos(n,k,l) * ( 1.D0 - sw ) / ( coslat - sw )
+            1167     3   p   2v             v = vcos(n,k,l) * ( 1.D0 - sw ) / ( coslat - sw )
+            1168     3               
+            1169     3   p   2v             vx(n,k,l) = u * GMTR_P_var(n,k0,l,P_IX) &
+            1170     3                                + v * GMTR_P_var(n,k0,l,P_JX)
+            1171     3   p   2v             vy(n,k,l) = u * GMTR_P_var(n,k0,l,P_IY) &
+            1172     3                                + v * GMTR_P_var(n,k0,l,P_JY)
+            1173     3   p   2v             vz(n,k,l) = u * GMTR_P_var(n,k0,l,P_IZ) &
+            1174     3                                + v * GMTR_P_var(n,k0,l,P_JZ)
+            1175     3   p               enddo
+            1176     2   p               enddo
+            1177     1   p               enddo
+            1178                     
+            1179     1                   if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1180     2  pp                  do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1181     3  pp                  do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 33
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+            1182     4  pp   2v             do n = 1, ADM_gall_pl
+            1183     4   p   2                 coslat = cos(GMTR_P_var_pl(n,k0,l,P_LAT))
+            1184     4               
+            1185     4   p   2v                sw = 0.5D0 + sign(0.5D0,-abs(coslat)) ! if (coslat == 0), u=v=0
+            1186     4               
+            1187     4   p   2v                u = ucos_pl(n,k,l) * ( 1.D0 - sw ) / ( coslat - sw )
+            1188     4   p   2v                v = vcos_pl(n,k,l) * ( 1.D0 - sw ) / ( coslat - sw )
+            1189     4               
+            1190     4   p   2v                vx_pl(n,k,l) = u * GMTR_P_var_pl(n,k0,l,P_IX) &
+            1191     4                                      + v * GMTR_P_var_pl(n,k0,l,P_JX)
+            1192     4   p   2v                vy_pl(n,k,l) = u * GMTR_P_var_pl(n,k0,l,P_IY) &
+            1193     4                                      + v * GMTR_P_var_pl(n,k0,l,P_JY)
+            1194     4   p   2v                vz_pl(n,k,l) = u * GMTR_P_var_pl(n,k0,l,P_IZ) &
+            1195     4                                      + v * GMTR_P_var_pl(n,k0,l,P_JZ)
+            1196     4   p                  enddo
+            1197     3   p                  enddo
+            1198     2   p                  enddo
+            1199     1                   endif
+            1200                     
+            1201                         return
+            1202                       end subroutine GTL_generate_vxvyvz
+            1203                     
+            1204                       !-----------------------------------------------------------------------------
+            1205                       subroutine GTL_generate_uv( &
+            1206                            u,  u_pl,  &
+            1207                            v,  v_pl,  &
+            1208                            vx, vx_pl, &
+            1209                            vy, vy_pl, &
+            1210                            vz, vz_pl, &
+            1211                            icos       )
+            1212                         use mod_adm, only: &
+            1213                            ADM_prc_me,  &
+            1214                            ADM_prc_pl,  &
+            1215                            ADM_gall,    &
+            1216                            ADM_gall_pl, &
+            1217                            ADM_lall,    &
+            1218                            ADM_lall_pl, &
+            1219                            ADM_kall,    &
+            1220                            ADM_KNONE
+            1221                         use mod_gmtr, only: &
+            1222                            P_IX  => GMTR_P_IX,  &
+            1223                            P_IY  => GMTR_P_IY,  &
+            1224                            P_IZ  => GMTR_P_IZ,  &
+            1225                            P_JX  => GMTR_P_JX,  &
+            1226                            P_JY  => GMTR_P_JY,  &
+            1227                            P_JZ  => GMTR_P_JZ,  &
+            1228                            P_LAT => GMTR_P_LAT, &
+            1229                            GMTR_P_var,          &
+            1230                            GMTR_P_var_pl
+            1231                         implicit none
+            1232                     
+            1233                         real(8), intent(out) :: u    (ADM_gall,   ADM_kall,ADM_lall   )
+            1234                         real(8), intent(out) :: u_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1235                         real(8), intent(out) :: v    (ADM_gall,   ADM_kall,ADM_lall   )
+            1236                         real(8), intent(out) :: v_pl (ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1237                         real(8), intent(in)  :: vx   (ADM_gall,   ADM_kall,ADM_lall   )
+            1238                         real(8), intent(in)  :: vx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1239                         real(8), intent(in)  :: vy   (ADM_gall,   ADM_kall,ADM_lall   )
+            1240                         real(8), intent(in)  :: vy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1241                         real(8), intent(in)  :: vz   (ADM_gall,   ADM_kall,ADM_lall   )
+            1242                         real(8), intent(in)  :: vz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1243                     
+            1244                         integer, optional, intent(in) :: icos
+            1245                     
+            1246                         integer :: n, k, l, k0
+            1247                         !---------------------------------------------------------------------------
+            1248                     
+            1249                         k0 = ADM_KNONE
+            1250                     
+            1251     1                   if (       present(icos) &
+            1252     1                        .AND. icos /= 0     ) then
+            1253     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1254     2  pp                  do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1255     3  pp                  do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 33
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+            1256     4  pp   4v             do n = 1, ADM_gall
+            1257     4   p   4v                u(n,k,l) = ( vx(n,k,l) * GMTR_P_var(n,k0,l,P_IX) &
+            1258     4                                    + vy(n,k,l) * GMTR_P_var(n,k0,l,P_IY) &
+            1259     4                                    + vz(n,k,l) * GMTR_P_var(n,k0,l,P_IZ) ) * cos(GMTR_P_var(n,k0,l,P_LAT))
+            1260     4   p   4v                v(n,k,l) = ( vx(n,k,l) * GMTR_P_var(n,k0,l,P_JX) &
+            1261     4                                    + vy(n,k,l) * GMTR_P_var(n,k0,l,P_JY) &
+            1262     4                                    + vz(n,k,l) * GMTR_P_var(n,k0,l,P_JZ) ) * cos(GMTR_P_var(n,k0,l,P_LAT))
+            1263     4   p                  enddo
+            1264     3   p                  enddo
+            1265     2   p                  enddo
+            1266     1               
+            1267     2                      if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1268     3  pp                     do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1269     4  pp                     do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 33
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<<    MULTI-OPERATION FUNCTION
+                                   <<< Loop-information  End >>>
+            1270     5  pp   4v                do n = 1, ADM_gall_pl
+            1271     5   p   4v                   u_pl(n,k,l) = ( vx_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_IX) &
+            1272     5                                          + vy_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_IY) &
+            1273     5                                          + vz_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_IZ) ) * cos(GMTR_P_var_pl(n,k0,l,P_LAT))
+            1274     5   p   4v                   v_pl(n,k,l) = ( vx_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_JX) &
+            1275     5                                          + vy_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_JY) &
+            1276     5                                          + vz_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_JZ) ) * cos(GMTR_P_var_pl(n,k0,l,P_LAT))
+            1277     5   p                     enddo
+            1278     4   p                     enddo
+            1279     3   p                     enddo
+            1280     2                      endif
+            1281     1               
+            1282     1                   else
+            1283     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1284     2  pp                  do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1285     3  pp                  do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 125
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1286     4  pp   4v             do n = 1, ADM_gall
+            1287     4   p   4v                u(n,k,l) = ( vx(n,k,l) * GMTR_P_var(n,k0,l,P_IX) &
+            1288     4                                    + vy(n,k,l) * GMTR_P_var(n,k0,l,P_IY) &
+            1289     4                                    + vz(n,k,l) * GMTR_P_var(n,k0,l,P_IZ) )
+            1290     4   p   4v                v(n,k,l) = ( vx(n,k,l) * GMTR_P_var(n,k0,l,P_JX) &
+            1291     4                                    + vy(n,k,l) * GMTR_P_var(n,k0,l,P_JY) &
+            1292     4                                    + vz(n,k,l) * GMTR_P_var(n,k0,l,P_JZ) )
+            1293     4   p   4v             enddo
+            1294     3   p                  enddo
+            1295     2   p                  enddo
+            1296     1               
+            1297     2                      if ( ADM_prc_me == ADM_prc_pl ) then
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1298     3  pp                     do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1299     4  pp                     do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 125
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1300     5  pp   4v                do n = 1, ADM_gall_pl
+            1301     5   p   4v                   u_pl(n,k,l) = ( vx_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_IX) &
+            1302     5                                          + vy_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_IY) &
+            1303     5                                          + vz_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_IZ) )
+            1304     5   p   4v                   v_pl(n,k,l) = ( vx_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_JX) &
+            1305     5                                          + vy_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_JY) &
+            1306     5                                          + vz_pl(n,k,l) * GMTR_P_var_pl(n,k0,l,P_JZ) )
+            1307     5   p   4v                enddo
+            1308     4   p                     enddo
+            1309     3   p                     enddo
+            1310     2                      endif
+            1311     1               
+            1312     1                   endif
+            1313                     
+            1314                         return
+            1315                       end subroutine GTL_generate_uv
+            1316                     
+            1317                       !-----------------------------------------------------------------------------
+            1318                       subroutine GTL_mk_rigidrotation( &
+            1319                            vx, vx_pl, &
+            1320                            vy, vy_pl, &
+            1321                            vz, vz_pl, &
+            1322                            alpha,     &
+            1323                            vmax       )
+            1324                         use mod_adm, only: &
+            1325                            ADM_prc_pl,      &
+            1326                            ADM_prc_me,      &
+            1327                            ADM_gall,        &
+            1328                            ADM_gall_pl,     &
+            1329                            ADM_lall,        &
+            1330                            ADM_lall_pl,     &
+            1331                            ADM_kall,        &
+            1332                            ADM_KNONE,       &
+            1333                            ADM_IooJoo_nmax, &
+            1334                            ADM_IooJoo,      &
+            1335                            ADM_GIoJo,       &
+            1336                            ADM_GSLF_PL
+            1337                         use mod_gmtr, only: &
+            1338                            P_IX  => GMTR_P_IX,  &
+            1339                            P_IY  => GMTR_P_IY,  &
+            1340                            P_IZ  => GMTR_P_IZ,  &
+            1341                            P_JX  => GMTR_P_JX,  &
+            1342                            P_JY  => GMTR_P_JY,  &
+            1343                            P_JZ  => GMTR_P_JZ,  &
+            1344                            P_LON => GMTR_P_LON, &
+            1345                            P_LAT => GMTR_P_LAT, &
+            1346                            GMTR_P_var,          &
+            1347                            GMTR_P_var_pl
+            1348                         implicit none
+            1349                     
+            1350                         real(8), intent(inout) :: vx   (ADM_gall,   ADM_kall,ADM_lall   )
+            1351                         real(8), intent(inout) :: vx_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1352                         real(8), intent(inout) :: vy   (ADM_gall,   ADM_kall,ADM_lall   )
+            1353                         real(8), intent(inout) :: vy_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1354                         real(8), intent(inout) :: vz   (ADM_gall,   ADM_kall,ADM_lall   )
+            1355                         real(8), intent(inout) :: vz_pl(ADM_gall_pl,ADM_kall,ADM_lall_pl)
+            1356                         real(8), intent(in)    :: alpha
+            1357                         real(8), intent(in)    :: vmax
+            1358                     
+            1359                         real(8) :: u, v
+            1360                         integer :: n, k, l, ij, k0
+            1361                         !---------------------------------------------------------------------------
+            1362                     
+            1363                         k0 = ADM_KNONE
+            1364                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1365     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1366     2  pp               do k = 1, ADM_kall
+                                   <<< Loop-information Start >>>
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1367     3   p    v          do n = 1, ADM_IooJoo_nmax
+            1368     3   p    v             ij = ADM_IooJoo(n,ADM_GIoJo)
+            1369     3               
+            1370     3   p    v             u =  vmax * ( cos(GMTR_P_var(ij,k0,l,P_LAT)) * cos(alpha) &
+            1371     3                                  + sin(GMTR_P_var(ij,k0,l,P_LAT))              &
+            1372     3                                  * cos(GMTR_P_var(ij,k0,l,P_LON)) * sin(alpha) )
+            1373     3   p    v             v = -vmax * ( sin(GMTR_P_var(ij,k0,l,P_LON)) * sin(alpha) )
+            1374     3               
+            1375     3   p    v             vx(ij,k,l) = u * GMTR_P_var(ij,k0,l,P_IX) &
+            1376     3                                 + v * GMTR_P_var(ij,k0,l,P_JX)
+            1377     3   p    v             vy(ij,k,l) = u * GMTR_P_var(ij,k0,l,P_IY) &
+            1378     3                                 + v * GMTR_P_var(ij,k0,l,P_JY)
+            1379     3   p    v             vz(ij,k,l) = u * GMTR_P_var(ij,k0,l,P_IZ) &
+            1380     3                                 + v * GMTR_P_var(ij,k0,l,P_JZ)
+            1381     3   p    v          enddo
+            1382     2   p               enddo
+            1383     1   p               enddo
+            1384                     
+            1385     1                   if ( ADM_prc_me == ADM_prc_pl) then
+            1386     1                      ij = ADM_GSLF_PL
+            1387     1               
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1388     2  pp                  do l = 1, ADM_lall_pl
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 11
+                                   <<< Loop-information  End >>>
+            1389     3  pp   6s             do k = 1, ADM_kall
+            1390     3               
+            1391     3   p   6s                u =  vmax * ( cos(GMTR_P_var_pl(ij,k0,l,P_LAT)) * cos(alpha) &
+            1392     3                                     + sin(GMTR_P_var_pl(ij,k0,l,P_LAT))              &
+            1393     3                                     * cos(GMTR_P_var_pl(ij,k0,l,P_LON)) * sin(alpha) )
+            1394     3   p   6s                v = -vmax * ( sin(GMTR_P_var_pl(ij,k0,l,P_LON)) * sin(alpha) )
+            1395     3               
+            1396     3   p   6s                vx_pl(ij,k,l) = u * GMTR_P_var_pl(ij,k0,l,P_IX) &
+            1397     3                                       + v * GMTR_P_var_pl(ij,k0,l,P_JX)
+            1398     3   p   6s                vy_pl(ij,k,l) = u * GMTR_P_var_pl(ij,k0,l,P_IY) &
+            1399     3                                       + v * GMTR_P_var_pl(ij,k0,l,P_JY)
+            1400     3   p   6s                vz_pl(ij,k,l) = u * GMTR_P_var_pl(ij,k0,l,P_IZ) &
+            1401     3                                       + v * GMTR_P_var_pl(ij,k0,l,P_JZ)
+            1402     3   p   6s             enddo
+            1403     2   p                  enddo
+            1404     1                   endif
+            1405                     
+            1406                         return
+            1407                       end subroutine GTL_mk_rigidrotation
+            1408                     
+            1409                       !-----------------------------------------------------------------------------
+            1410                       subroutine GTL_clip_region( v, v_clip, kmin, kmax )
+            1411                         use mod_adm, only: &
+            1412                            ADM_gall,        &
+            1413                            ADM_kall,        &
+            1414                            ADM_lall,        &
+            1415                            ADM_GIoJo,       &
+            1416                            ADM_IopJop_nmax, &
+            1417                            ADM_IopJop
+            1418                         implicit none
+            1419                     
+            1420                         integer, intent(in)  :: kmin
+            1421                         integer, intent(in)  :: kmax
+            1422                         real(8), intent(in)  :: v     (ADM_gall,       ADM_kall,       ADM_lall)
+            1423                         real(8), intent(out) :: v_clip(ADM_IopJop_nmax,1:(kmax-kmin+1),ADM_lall)
+            1424                     
+            1425                         integer :: n, k, l
+            1426                         !---------------------------------------------------------------------------
+            1427                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1428     1  pp               do l = 1,    ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1429     2  pp               do k = kmin, kmax
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 267
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1430     3  pp   4v          do n = 1,    ADM_IopJop_nmax
+            1431     3               
+            1432     3   p   4v             v_clip(n,k-kmin+1,l) = v(ADM_IopJop(n,ADM_GIoJo),k,l)
+            1433     3               
+            1434     3   p   4v          enddo
+            1435     2   p               enddo
+            1436     1   p               enddo
+            1437                     
+            1438                         return
+            1439                       end subroutine GTL_clip_region
+            1440                     
+            1441                       !-----------------------------------------------------------------------------
+            1442                       subroutine GTL_clip_region_1layer( v, v_clip )
+            1443                         use mod_adm, only: &
+            1444                            ADM_gall,        &
+            1445                            ADM_lall,        &
+            1446                            ADM_GIoJo,       &
+            1447                            ADM_IopJop_nmax, &
+            1448                            ADM_IopJop
+            1449                         implicit none
+            1450                     
+            1451                         real(8), intent(in)  :: v     (ADM_gall,       ADM_lall)
+            1452                         real(8), intent(out) :: v_clip(ADM_IopJop_nmax,ADM_lall)
+            1453                     
+            1454                         integer :: n, l
+            1455                         !---------------------------------------------------------------------------
+            1456                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1457     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 356
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1458     2  pp   4v          do n = 1, ADM_IopJop_nmax
+            1459     2               
+            1460     2   p   4v             v_clip(n,l) = v(ADM_IopJop(n,ADM_GIoJo),l)
+            1461     2               
+            1462     2   p   4v          enddo
+            1463     1   p               enddo
+            1464                     
+            1465                         return
+            1466                       end subroutine GTL_clip_region_1layer
+            1467                     
+            1468                       !-----------------------------------------------------------------------------
+            1469                       ! 2011/03/02 NEC [Add]
+            1470                       subroutine GTL_clip_region_1layer_k(v,v_clip,ksize,k)
+            1471                         use mod_adm, only: &
+            1472                            ADM_gall,        &
+            1473                            ADM_lall,        &
+            1474                            ADM_GIoJo,       &
+            1475                            ADM_IopJop_nmax, &
+            1476                            ADM_IopJop
+            1477                         implicit none
+            1478                     
+            1479                         integer, intent(in)  :: ksize
+            1480                         real(8), intent(in)  :: v     (ADM_gall,ksize, ADM_lall)
+            1481                         real(8), intent(out) :: v_clip(ADM_IopJop_nmax,ADM_lall)
+            1482                         integer, intent(in)  :: k
+            1483                     
+            1484                         integer :: n, l
+            1485                         !---------------------------------------------------------------------------
+            1486                     
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 2
+                                   <<< Loop-information  End >>>
+            1487     1  pp               do l = 1, ADM_lall
+                                   <<< Loop-information Start >>>
+                                   <<<  [PARALLELIZATION]
+                                   <<<    Standard iteration count: 314
+                                   <<<  [OPTIMIZATION]
+                                   <<<    SIMD
+                                   <<<    SOFTWARE PIPELINING
+                                   <<< Loop-information  End >>>
+            1488     2  pp   4v          do n = 1, ADM_IopJop_nmax
+            1489     2               
+            1490     2   p   4v             v_clip(n,l) = v(ADM_IopJop(n,ADM_GIoJo),k,l)
+            1491     2               
+            1492     2   p   4v          enddo
+            1493     1   p               enddo
+            1494                     
+            1495                         return
+            1496                       end subroutine GTL_clip_region_1layer_k
+            1497                     
+            1498                     end module mod_gtl
+            1499                     !-------------------------------------------------------------------------------
+
+ Diagnostic messages: program name(mod_gtl)
+   jwd8220o-i  "share/mod_gtl.f90", line 19: Optimizations is performed in this program unit with possibility of side effects. See informational messages below to determine which such optimizations have been performed.
+  Module subprogram name(GTL_global_sum)
+   jwd8209o-i  "share/mod_gtl.f90", line 108: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8208o-i  "share/mod_gtl.f90", line 108: Method of calculating sum or product is changed.
+   jwd8209o-i  "share/mod_gtl.f90", line 116: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8208o-i  "share/mod_gtl.f90", line 116: Method of calculating sum or product is changed.
+  Module subprogram name(GTL_global_sum_srf)
+   jwd8208o-i  "share/mod_gtl.f90", line 158: Method of calculating sum or product is changed.
+   jwd8208o-i  "share/mod_gtl.f90", line 165: Method of calculating sum or product is changed.
+  Module subprogram name(GTL_global_sum_eachlayer)
+   jwd8209o-i  "share/mod_gtl.f90", line 211: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8208o-i  "share/mod_gtl.f90", line 211: Method of calculating sum or product is changed.
+   jwd8209o-i  "share/mod_gtl.f90", line 221: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 224: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(GTL_max)
+   jwd8209o-i  "share/mod_gtl.f90", line 305: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 313: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(GTL_max_k)
+   jwd8209o-i  "share/mod_gtl.f90", line 353: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 359: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(GTL_min)
+   jwd8209o-i  "share/mod_gtl.f90", line 404: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 417: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 437: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 445: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(GTL_min_k)
+   jwd8209o-i  "share/mod_gtl.f90", line 485: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 491: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(GTL_input_var2)
+   jwd8209o-i  "share/mod_gtl.f90", line 552: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+  Module subprogram name(GTL_generate_vxvyvz)
+   jwd8209o-i  "share/mod_gtl.f90", line 1166: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_gtl.f90", line 1166: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_gtl.f90", line 1167: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_gtl.f90", line 1167: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_gtl.f90", line 1187: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_gtl.f90", line 1187: Division is changed to multiplication by reciprocal.
+   jwd8209o-i  "share/mod_gtl.f90", line 1188: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8206o-i  "share/mod_gtl.f90", line 1188: Division is changed to multiplication by reciprocal.
+  Module subprogram name(GTL_generate_uv)
+   jwd8209o-i  "share/mod_gtl.f90", line 1257: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 1260: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 1271: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 1274: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 1287: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "share/mod_gtl.f90", line 1287: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "share/mod_gtl.f90", line 1290: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "share/mod_gtl.f90", line 1290: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "share/mod_gtl.f90", line 1301: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "share/mod_gtl.f90", line 1301: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "share/mod_gtl.f90", line 1304: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "share/mod_gtl.f90", line 1304: Invariant expression within loop is moved outside loop.
+  Module subprogram name(GTL_mk_rigidrotation)
+   jwd8201o-i  "share/mod_gtl.f90", line 1366: Invariant expression within loop is moved outside loop.
+   jwd8201o-i  "share/mod_gtl.f90", line 1367: Invariant expression within loop is moved outside loop.
+   jwd8209o-i  "share/mod_gtl.f90", line 1373: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8209o-i  "share/mod_gtl.f90", line 1389: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "share/mod_gtl.f90", line 1389: Invariant expression within loop is moved outside loop.
+  Module subprogram name(GTL_clip_region)
+   jwd8209o-i  "share/mod_gtl.f90", line 1432: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "share/mod_gtl.f90", line 1432: Invariant expression within loop is moved outside loop.
+  Module subprogram name(GTL_clip_region_1layer)
+   jwd8201o-i  "share/mod_gtl.f90", line 1460: Invariant expression within loop is moved outside loop.
+  Module subprogram name(GTL_clip_region_1layer_k)
+   jwd8209o-i  "share/mod_gtl.f90", line 1490: Evaluation order of polynomial expression is changed according to commutative law of addition and multiplication.
+   jwd8201o-i  "share/mod_gtl.f90", line 1490: Invariant expression within loop is moved outside loop.
+
+ Procedure information
+   Lines      : 1499
+   Statements : 834
+   Stack(byte): 100576
+   Prefetch num: 54
+
+ Total information
+   Procedures       : 1
+   Total lines      : 1499
+   Total statements : 834
+   Total stack(byte): 100576
+   Total prefetch num: 54
+
